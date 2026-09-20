@@ -143,6 +143,13 @@ N/A (protocol/metadata note, not a formula).
 
 ## Implications for us
 
+- **T05's on-disk directory layout assumption is confirmed correct** — no code change
+  needed. `src/audio_df/data.py:_resolve_audio_path` (lines 138-152) and the
+  `split_audio_dir` construction in `build_manifest` implement exactly the
+  `<root>/ASVspoof2019_LA_<split>/flac/<utt_id>.flac` layout confirmed above from two
+  independent official-baseline loaders (RawNet2 2021 baseline, AASIST). This was T05's own
+  self-flagged unverified assumption; it is now verified. See `research/fact-checks/` for the
+  corresponding fact-check record.
 - `configs/data.yaml` and `tasks/TASKS.md` (T05) should parse the LA protocol files with
   exactly this 5-field format: columns
   `[speaker_id, utt_id, unused("-"), attack_id("-"/"A01".."A19"), label]`.
