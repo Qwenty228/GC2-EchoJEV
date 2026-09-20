@@ -1,0 +1,26 @@
+# Stage 6: frozen SSL front-end, one linear probe per transformer layer.
+defaults: {data: configs/data.yaml}
+
+ssl:
+  checkpoint: facebook/wav2vec2-xls-r-300m
+  frozen: true
+  output_hidden_states: true
+  expected_sample_rate: 16000
+  layers: all                  # probe every layer; plot EER vs layer index
+
+pooling: mean                  # keep the probe simple; pooling ablated separately
+
+probe:
+  type: logistic_regression
+  max_iter: 1000
+  standardize: true
+
+aggregation_comparison:        # run after the per-layer sweep
+  - final_layer
+  - best_dev_layer
+  - mean_of_layers
+  - learned_softmax_weights
+
+cache:
+  dir: data/cache/ssl
+  dtype: float16               # embeddings only; probes cast to float32

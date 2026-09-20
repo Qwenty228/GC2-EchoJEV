@@ -1,0 +1,26 @@
+# Stage 2 decomposition. Each variant is a *separate* representation fed to the SAME backend,
+# so that representation quality is isolated from backend strength.
+stft:
+  n_fft: 512
+  hop_length: 160          # R = 10 ms at 16 kHz
+  win_length: 400          # 25 ms
+  window: hann
+  center: true
+
+filterbank:
+  n_filters: 20            # J
+  fmin: 0
+  fmax: 8000
+
+variants:
+  A_linear_logfb:   {spacing: linear, log: true,  dct: false, n_coeff: null, deltas: false}
+  B_lfcc_full:      {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: false}
+  C_lfcc_trunc:     {spacing: linear, log: true,  dct: true,  n_coeff: 13,   deltas: false}
+  D_mel_logfb:      {spacing: mel,    log: true,  dct: false, n_coeff: null, deltas: false}
+  E_mfcc:           {spacing: mel,    log: true,  dct: true,  n_coeff: 13,   deltas: false}
+  F_lfcc_deltas:    {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: true}
+
+cache:
+  dir: data/cache
+  format: npy
+  key_fields: [variant, stft, filterbank, audio]   # hashed into the cache key

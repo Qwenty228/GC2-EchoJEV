@@ -1,0 +1,34 @@
+# Dataset location and protocol. No path here is assumed to exist: code must fail loudly
+# with an actionable message when data is absent, and tests must run without it.
+dataset:
+  name: asvspoof2019_la
+  root: data/raw/ASVspoof2019/LA        # gitignored; set to your local download
+  protocol_dir: data/raw/ASVspoof2019/LA/ASVspoof2019_LA_cm_protocols
+  splits:
+    train: ASVspoof2019.LA.cm.train.trn.txt
+    dev: ASVspoof2019.LA.cm.dev.trl.txt
+    eval: ASVspoof2019.LA.cm.eval.trl.txt
+
+manifest:
+  out_dir: data/manifests
+  columns:                              # Stage 0 requires all of these
+    - utt_id
+    - path
+    - label            # bonafide | spoof
+    - speaker_id
+    - attack_id        # generator/attack family, "-" for bonafide
+    - source_corpus
+    - sample_rate
+    - duration_s
+    - codec
+    - split
+    - language
+
+audio:
+  target_sample_rate: 16000
+  mono: true
+  crop_seconds: 4.0                     # 64000 samples at 16 kHz
+  crop_strategy: random_train_center_eval
+  pad_strategy: repeat
+
+seed: 1337
