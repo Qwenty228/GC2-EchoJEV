@@ -81,22 +81,37 @@ put→get round-trips exactly; a cache miss returns `None`, never a stale array.
 **Owns:** `src/audio_df/metrics.py`, `tests/test_metrics.py`
 **Interface:**
 ```python
-compute_eer(scores, labels) -> tuple[float, float]        # (eer, threshold)
-roc_auc(scores, labels) -> float
-pr_auc(scores, labels) -> float
-prf1_at_threshold(scores, labels, thr) -> dict
+compute_eer(scores, labels, higher_is_spoof) -> tuple[float, float]   # (eer, threshold)
+roc_auc(scores, labels, higher_is_spoof) -> float
+pr_auc(scores, labels, higher_is_spoof) -> float
+prf1_at_threshold(scores, labels, thr, higher_is_spoof) -> dict
 brier_score(probs, labels) -> float
-per_attack_eer(scores, labels, attack_ids) -> dict[str, float]
+per_attack_eer(scores, labels, attack_ids, higher_is_spoof) -> dict
 ```
-- EER is the primary anti-spoofing metric: find where FAR and FRR cross, interpolating
-  between the bracketing operating points. Document the convention (higher score = spoof)
-  in the docstring and enforce it with an argument, not a comment.
+- EER is the primary anti-spoofing metric here. Match the official ASVspoof scoring package
+  exactly — it does **NOT** interpolate: `argmin |FRR − FAR|` over the empirical DET curve,
+  then report `mean(FRR[i], FAR[i])` at that single discrete index. The 2019 Evaluation Plan
+  footnote 9 calls this a deliberate "simplified nearest-neighbor type computation". Build
+  the DET curve the official way (concatenate all scores, stable `mergesort` argsort,
+  cumulative sums). An interpolated variant may exist as a separate, clearly-named analysis
+  function, never as the default — an interpolated EER is not comparable with published
+  ASVspoof numbers.
+- Score polarity is enforced with a required argument, not a comment: getting it backwards
+  yields `1 − EER`, which still looks like a plausible number. The **official convention is
+  higher = bonafide** (Evaluation Plan §5 p.8: "high detection score should indicate bona
+  fide and low detection score should indicate spoofing attack"), i.e. `higher_is_spoof=False`,
+  with bonafide as the `target`/label-1 class. That is the project default.
+- A conformance test must vendor the official `compute_eer`/`compute_det_curve` verbatim and
+  assert agreement, making the official algorithm the executable spec rather than a docstring
+  claim. Source: `research/knowledge/methods/eer-and-metrics.md`.
 - `per_attack_eer` scores each spoof generator **against the shared bonafide pool** — not
   against a subset — and returns a macro mean alongside the per-attack dict.
 **Tests:** perfectly separable scores → EER 0.0; identical distributions → EER ≈ 0.5;
 inverted labels → 1 − EER; AUC agrees with `sklearn.roc_auc_score`; a known 4-point case
 computed by hand.
-**Claim:** the EER interpolation and the per-attack bonafide-pooling convention are correct.
+**Claim:** the EER matches the official nearest-neighbour algorithm, the polarity argument
+maps onto official target/nontarget correctly, and the per-attack bonafide-pooling convention
+is right (confirmed against `clovaai/aasist/evaluation.py`).
 
 ### T05 — `data.py`: manifests, protocols, splits
 **Owns:** `src/audio_df/data.py`, `tests/test_data.py`, `scripts/prepare_data.py`
@@ -149,9 +164,11 @@ extract(x, variant: str, cfg) -> np.ndarray       # [T, D], dispatches variants 
 monotonically; linear and mel filterbanks differ in centre frequencies but both sum to
 near-unity coverage; output shape is `[T, D]` for every variant; a pure tone lands in the
 expected filterbank channel.
-**Claim:** the DCT is orthonormal and matches the handoff formula
-`c[m,q] = Σ_r L[m,r] cos(πq/J (r+½))` up to the stated normalisation — state which
-normalisation you used and why.
+**Claim:** the DCT is orthonormal. Note the handoff's bare formula
+`c[m,q] = Σ_r L[m,r] cos(πq/J (r+½))` is **not** orthonormal as literally written — it needs
+DCT-II `norm="ortho"` scaling, `√(1/J)` for q=0 and `√(2/J)` for q>0, or the round-trip test
+`idct(dct(L)) ≈ L` cannot pass. State the scaling you applied.
+Source: `research/knowledge/methods/lfcc-mfcc-dct.md`.
 
 ### T07 — `stats.py`: effect sizes done honestly
 **Owns:** `src/audio_df/stats.py`, `tests/test_stats.py`
