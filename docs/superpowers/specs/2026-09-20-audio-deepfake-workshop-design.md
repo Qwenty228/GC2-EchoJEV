@@ -4,16 +4,16 @@ Date: 2026-09-20 · Status: accepted · Scope: scaffold + Stages 0–4
 
 ## Problem
 
-Turn the handoff brief (`GC2 Structure Audio Lessons.md`) into a working repository that a
+Turn the handoff brief (`docs/handoff.md`) into a working repository that a
 team of agents can build out without drifting from its scientific discipline. The brief is
 detailed and opinionated; the risk is not "what to build" but **unverified implementation** —
 a wrong EER convention, a leaked split, or a literature number quoted as if it were ours.
 
 ## Decisions
 
-**1. Repo root is the existing GC2 folder.** The handoff md and `image.png` stay in place.
-`image.png` (1.8 MB) is gitignored; `docs/architecture.jpg` (272 KB, sips-compressed) is the
-committed render.
+**1. Repo root is the existing GC2 folder**, with the source material filed under `docs/`: the brief becomes `docs/handoff.md` and the architecture render moves to `docs/assets/`.
+`docs/assets/architecture-full.png` (1.8 MB) is gitignored; `docs/assets/architecture.jpg` (272 KB,
+sips-compressed) is the committed render, embedded in the README.
 
 **2. Structure follows the handoff layout**, with three additions:
 - `research/` — the researcher agent's knowledge base (below).
@@ -64,7 +64,7 @@ reviewable today, with real-data tests marked `needs_data`.
 | Dataset shortcut learned instead of synthesis evidence | Stage 0 leakage audit (T09) runs before any modelling and fails loudly |
 | Representation comparison confounded by backend | T12/T13 run all six variants through an identical backend, split and seed set |
 | Parallel agents colliding | Disjoint file ownership per task; touching an unowned file means stopping and reporting |
-| Large files pushed | `image.png` and all audio/checkpoints/caches gitignored; `git status` check in the per-wave checklist |
+| Large files pushed | `docs/assets/architecture-full.png` and all audio/checkpoints/caches gitignored; `git status` check in the per-wave checklist |
 
 ## Definition of done (this scope)
 

@@ -5,7 +5,26 @@ hand-engineered cepstral features to CNN/ResNet backends, self-supervised speech
 representations, and a fusion + multi-task architecture — benchmarked on standardized
 ASVspoof protocols.
 
-![Architecture and benchmarking pipeline](docs/architecture.jpg)
+## The plan, in one picture
+
+[![Architecture and benchmarking pipeline](docs/assets/architecture.jpg)](docs/assets/architecture.jpg)
+
+*Full-resolution PNG: `docs/assets/architecture-full.png` (gitignored — 1.8 MB; the 272 KB
+JPEG above is the committed version).*
+
+This diagram is the project's structural plan, and the panels map onto the repo directly:
+
+| Panel | What it fixes | Where it lives |
+|---|---|---|
+| **1. Proposed model architecture** — handcrafted branch, frozen XLS-R branch, fusion + shared trunk, two heads | the target architecture and its 256-d branch interfaces | [`configs/fusion_multitask.yaml`](configs/fusion_multitask.yaml), `src/audio_df/models/` |
+| **2A. Dataset preparation** — metadata and leakage audit, official splits kept intact | Stage 0, which runs *before* any modelling | [`configs/data.yaml`](configs/data.yaml), tasks T05 + T09 |
+| **2B. Training & inference** — unified pipeline, same splits, shared evaluator | why ten systems stay comparable | task T11, [`reports/experiment_registry.csv`](reports/experiment_registry.csv) |
+| **2C. Evaluation & analysis** — EER first, per-generator breakdown, efficiency, error analysis | what every run must record | task T04, [`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) |
+| **3. Model families and key ablations** — 10 systems, 9 ablations | the benchmark table's rows | [`tasks/BACKLOG.md`](tasks/BACKLOG.md) |
+
+The legend matters as much as the boxes: fixed DSP, frozen pretrained, trainable branch,
+shared trunk and task-specific parameters are four different things, and the efficiency
+columns in the final table only make sense if they are counted separately.
 
 ## The research question
 
@@ -19,8 +38,7 @@ with overlapping classes and weak evidence spread across spectrum, temporal dyna
 excitation behaviour, learned representations and recording conditions — not a hunt for one
 magic artifact.
 
-Full brief: [`GC2 Structure Audio Lessons.md`](GC2%20Structure%20Audio%20Lessons.md).
-
+Full brief: [`docs/handoff.md`](docs/handoff.md).
 ## Quickstart (uv)
 
 ```bash
@@ -46,7 +64,7 @@ reports/      figures/ · tables/ · experiment_registry.csv · final_report.md
 scripts/      prepare_data.py · extract_features.py · audit_leakage.py · evaluate.py
 research/     the researcher agent's knowledge base — see below
 tasks/        TASKS.md (orchestration) · CONVENTIONS.md (binding rules) · BACKLOG.md
-docs/         architecture.jpg · superpowers/specs/
+docs/         handoff.md (the brief) · assets/architecture.jpg · superpowers/specs/
 ```
 
 **Notebook rule:** notebooks hold questions, plots and interpretation. If a function is used

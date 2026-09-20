@@ -330,4 +330,4 @@ T01
 - [ ] Wave 4: T12, T13 in parallel → researcher fact-check.
 - [ ] Wave 5: R02, then T14.
 - [ ] After each wave: `uv run pytest && uv run ruff check src tests`, then commit.
-- [ ] `git status` before every commit — no audio, no checkpoints, no `image.png`.
+- [ ] `git status` before every commit — no audio, no checkpoints, no `docs/assets/architecture-full.png`.
