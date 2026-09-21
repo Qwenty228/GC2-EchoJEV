@@ -65,3 +65,32 @@ The uncompressed `docs/assets/architecture-full.png` (1.8 MB) is gitignored;
 `docs/assets/architecture.jpg` (272 KB) is the committed version. No audio, no checkpoints,
 no embedding caches, no dataset files. Check `git status` before committing and keep the repo
 text-sized.
+
+## Compute budget (measured, not assumed)
+
+Target machine is an Apple Silicon Mac. Measured on it, for ASVspoof 2019 LA
+(25,380 train / 24,844 dev / 71,237 eval = 121,461 utterances, 4 s crops at 16 kHz):
+
+| Work | Cost |
+|---|---|
+| LFCC cache, D=20 | 0.81 GB train, 2.29 GB eval |
+| LFCC+deltas, D=60 | 2.44 GB train, 6.86 GB eval |
+| ResNet18-ish 0.31M params, batch 32 | 33.7 ms/step, 949 utts/sec on MPS |
+| One training epoch over train | ~0.4 min |
+| 30 epochs x 3 seeds | ~40 min |
+| Six representations A-F x 3 seeds | ~4 h |
+| XLS-R-shaped encoder (302M params) forward | 18.7 utts/sec -> 1.8 h for the whole corpus |
+
+This is not a large-data problem: cost scales with utterance count x model size, and both
+are modest. Do not introduce distributed training, sharding or streaming dataloaders to
+solve a problem this project does not have.
+
+**The one real blowup.** Caching un-pooled SSL hidden states costs 10.24 MB per utterance
+(25 layers x 199 frames x 1024 dims, fp16) = **1.24 TB** for the corpus. Pooling over time
+first costs 51.2 KB per utterance = **6.22 GB**. Pool before caching; see
+`configs/ssl_probe.yaml`. Frame-level states are for bounded subsets only, recorded as such.
+
+**Not feasible here:** fine-tuning XLS-R end-to-end. The handoff already specifies frozen
+front-ends for feasibility and reproducibility. If a fine-tuning experiment is ever run, it
+belongs on rented GPU and must report trainable parameter count and compute alongside any
+result, never mixed with frozen numbers.

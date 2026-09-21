@@ -7,7 +7,7 @@ that Stages 0–4 must produce first.
 | id | stage | work | gate |
 |---|---|---|---|
 | T20 | 5 | RawNet2 baseline (prefer official implementation; record commit + config) | Stage 4 ResNet baseline reproducible across 3 seeds |
-| T21 | 6 | wav2vec 2.0 frozen layer-wise linear probing; EER vs layer index | T11 registry stable; embedding cache proven on disk budget |
+| T21 | 6 | wav2vec 2.0 frozen layer-wise linear probing; EER vs layer index. **Pool over time before caching** - un-pooled 25-layer states cost 1.24 TB for the corpus vs 6.22 GB pooled, measured | T11 registry stable |
 | T22 | 6 | Layer aggregation comparison: final / best-dev / mean / learned softmax weights | T21 shows layer-dependent EER |
 | T23 | 7 | One tiny hand-written attention example, then library implementations only | T21 done — attention is explained where it is used |
 | T24 | 8 | XLS-R branch: frozen, learned layer weighting → pooling → 256-d `z_X` | T22 justifies the weighting empirically |

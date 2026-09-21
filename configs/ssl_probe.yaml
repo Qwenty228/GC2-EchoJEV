@@ -24,3 +24,12 @@ aggregation_comparison:        # run after the per-layer sweep
 cache:
   dir: data/cache/ssl
   dtype: float16               # embeddings only; probes cast to float32
+
+  # HARD CONSTRAINT - pool over time BEFORE caching. Measured on the target machine
+  # (Apple Silicon, ASVspoof 2019 LA, 121,461 utterances, 25 layers x 1024 dims):
+  #   caching every frame   -> 10.24 MB/utt -> 1.24 TB   infeasible
+  #   caching pooled states ->  51.20 KB/utt -> 6.22 GB   fine
+  # A 200x difference. Never cache un-pooled hidden states for a full-corpus sweep.
+  # If a future experiment genuinely needs frame-level states, take them for a bounded
+  # subset of utterances and say so in the run's registry notes.
+  pool_before_cache: true
