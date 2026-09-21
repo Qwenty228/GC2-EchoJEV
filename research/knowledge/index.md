@@ -20,3 +20,6 @@ Status: `seed` = URL known, note not yet written. `drafted` = written from sourc
 | pooling-methods | method | seed | — | mean / statistics / attentive pooling over time |
 | multitask-hard-sharing | method | seed | — | Shared-trunk gradients, negative transfer, gradient cosine similarity diagnostic |
 | leakage-audit | method | verified | high | Metadata-only classifiers as a shortcut detector; ASVspoof LA silence-duration shortcut quantified (Müller et al. 2106.12914); repo's 0.65 AUC red-flag default is a project-local convention, not sourced from literature; survey 2308.14970 PDF unreachable as text this pass |
+| in-the-wild | dataset | verified | high | 37.9h (17.2 fake/20.7 bona), 58 speakers, no attack labels, no official split, manually curated pairing — https://arxiv.org/pdf/2203.16263; EER inflates ~30x zero-shot from ASVspoof19 |
+| mlaad | dataset | verified | high | Versioned, continuously expanded (v1: 63h/21 models/22 langs -> v11: 1153.6h/205 models/54 langs); bonafide pairing is M-AILABS, distributed separately; CC-BY-NC-4.0 — https://arxiv.org/pdf/2401.09512 |
+| multi-layer-ssl-aggregation | method | drafted | low | SLS (Zhang et al. ACM MM 2024) and MSLA-XLS-R (Meng et al. 2026) exist and are citable, but primary texts paywalled/403-blocked; mechanism not independently confirmed — do not schedule implementation on this note alone |
