@@ -1,3 +1,5 @@
+> Superseded 2026-09-30. The live backlog is docs/backlog.md.
+
 # Backlog — Stages 5–10, deliberately unscheduled
 
 These are not "later tasks we ran out of time for". The handoff is explicit: *do not optimize

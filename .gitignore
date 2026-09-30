@@ -14,6 +14,9 @@ docs/assets/architecture-full.png
 data/raw/*
 data/cache/*
 !data/**/.gitkeep
+data/manifests/*.csv
+data/metadata/*.csv
+!data/manifests/SHA256SUMS
 
 # --- experiment artifacts ---
 runs/

@@ -1,3 +1,5 @@
+> **Superseded 2026-09-30.** The project direction changed to the A1/A2/A3 benchmark (see README.md and docs/backlog.md). Kept for history; do not execute tasks from this file.
+
 # Handoff: Audio Deepfake Detection Workshop Project
 
 ## Purpose

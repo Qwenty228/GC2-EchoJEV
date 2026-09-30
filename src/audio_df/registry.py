@@ -1,5 +1,10 @@
 """Append-only writer for `reports/experiment_registry.csv` and per-run JSON sidecars.
 
+Superseded 2026-09-30: `experiments/REGISTRY.md` (one row per run, written by
+`audio_df.exp_io`) is now the single run log for the A1/A2/A3 benchmark. This CSV registry
+is kept for history and for the existing tests below; it is not the place new runs get
+recorded going forward.
+
 The CSV header is the contract (`tasks/TASKS.md`, `reports/experiment_registry.csv`). This
 module never hardcodes that header: it reads whatever header is currently on disk and writes
 exactly those columns, in that order, for every row. That means:
