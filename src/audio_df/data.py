@@ -16,8 +16,11 @@ here should probably delegate to it (noted as a future refactor, not done in thi
 from __future__ import annotations
 
 import hashlib
+import os
+import warnings
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import soundfile as sf
 
@@ -29,6 +32,11 @@ __all__ = [
     "holdout_attack_families",
     "assert_no_speaker_overlap",
     "summarise_manifest",
+    "build_itw_manifest",
+    "stratified_subset",
+    "manifest_checksums",
+    "write_checksums",
+    "verify_checksums",
 ]
 
 # Where to send someone whose dataset is missing. ASVspoof 2019 predates the 2021 challenge
@@ -274,3 +282,323 @@ def summarise_manifest(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index(drop=True)
     )
     return summary
+
+
+# ================================================================================================
+# In-the-Wild (Müller et al. 2022, arXiv:2203.16263) — eval-only, no official split, no
+# per-utterance generator label. See research/knowledge/datasets/in-the-wild.md for the full
+# note this section is derived from.
+# ================================================================================================
+
+_ITW_SOURCE_URL = "https://huggingface.co/datasets/mueller91/In-The-Wild"
+_ITW_SOURCE_CORPUS = "InTheWild"
+_ITW_LANGUAGE = "en"
+_ITW_SPLIT = "itw"
+
+# The original release ships meta.csv either directly under the extracted root, or nested one
+# level inside a `release_in_the_wild/` directory (the name of the archive's top-level folder
+# on the original mirror). Both are checked, in this order, before giving up.
+_ITW_META_SUBDIR_CANDIDATES = (".", "release_in_the_wild")
+
+# meta.csv label strings (original release) map onto this project's manifest convention.
+# "bona-fide" -> "bonafide" is the only normalisation needed; anything else is unrecognised.
+_ITW_LABEL_MAP = {
+    "bona-fide": "bonafide",
+    "bonafide": "bonafide",
+    "spoof": "spoof",
+}
+
+
+def _itw_not_found(path: Path, what: str) -> DatasetNotFoundError:
+    return DatasetNotFoundError(
+        f"{what} not found at '{path}'.\n"
+        f"Download In-the-Wild from {_ITW_SOURCE_URL} and extract it so that either "
+        "'<in_the_wild.root>/meta.csv' or '<in_the_wild.root>/release_in_the_wild/meta.csv' "
+        "exists (see configs/data.yaml: in_the_wild.root / in_the_wild.meta_file)."
+    )
+
+
+def _resolve_itw_meta(root: Path, meta_file: str) -> tuple[Path, Path]:
+    """Locate `meta_file` under one of the two known In-the-Wild layouts.
+
+    Returns `(meta_path, audio_dir)` where `audio_dir` is the directory the audio files live
+    alongside `meta_file` (audio and meta always sit in the same directory in both known
+    layouts). Raises `DatasetNotFoundError` naming every location checked if neither layout
+    has the meta file — including when audio exists but the meta file does not, since that is
+    exactly the "half-downloaded / wrong archive" case this error message needs to catch.
+    """
+    if not root.exists():
+        raise _itw_not_found(root, "In-the-Wild dataset root")
+
+    checked = []
+    for subdir in _ITW_META_SUBDIR_CANDIDATES:
+        candidate_dir = root / subdir if subdir != "." else root
+        meta_path = candidate_dir / meta_file
+        checked.append(meta_path)
+        if meta_path.exists():
+            return meta_path, candidate_dir
+
+    raise _itw_not_found(
+        checked[0],
+        f"In-the-Wild meta file '{meta_file}' (checked {[str(p) for p in checked]})",
+    )
+
+
+def build_itw_manifest(cfg: dict) -> pd.DataFrame:
+    """Build the In-the-Wild manifest with EXACTLY the ASVspoof manifest's column set.
+
+    `cfg` is the parsed contents of `configs/data.yaml` (must carry both `in_the_wild` and
+    `manifest.columns`). In-the-Wild carries no generator/attack label at all (see
+    `research/knowledge/datasets/in-the-wild.md`): every spoof row gets the explicit sentinel
+    `attack_id="unknown"` (never a fabricated generator id), and every bonafide row keeps this
+    project's usual `"-"`, matching the ASVspoof convention so the two manifests concatenate
+    cleanly. `speaker_id` is the original release's `speaker` column (its own free-text
+    identifier, not an ASVspoof-style code). `split` is the literal `"itw"` — this project
+    imposes no train/dev/eval partition on In-the-Wild (the dataset ships none).
+    """
+    itw_cfg = cfg["in_the_wild"]
+    root = Path(itw_cfg["root"])
+    meta_file = itw_cfg.get("meta_file", "meta.csv")
+    expected_clips = itw_cfg.get("expected_clips")
+
+    meta_path, audio_dir = _resolve_itw_meta(root, meta_file)
+    meta = pd.read_csv(meta_path)
+
+    required_cols = {"file", "speaker", "label"}
+    missing_cols = required_cols - set(meta.columns)
+    if missing_cols:
+        raise ValueError(
+            f"In-the-Wild meta file '{meta_path}' is missing required column(s) "
+            f"{sorted(missing_cols)}; expected at least {sorted(required_cols)}."
+        )
+
+    records = []
+    for row in meta.itertuples(index=False):
+        raw_label = str(row.label).strip().lower()
+        label = _ITW_LABEL_MAP.get(raw_label)
+        if label is None:
+            raise ValueError(
+                f"unrecognised In-the-Wild label {row.label!r} for file {row.file!r} in "
+                f"'{meta_path}' (expected 'bona-fide' or 'spoof')"
+            )
+        attack_id = "-" if label == "bonafide" else "unknown"
+
+        file_name = str(row.file)
+        audio_path = audio_dir / file_name
+        if not audio_path.exists():
+            fallback = audio_dir / f"{file_name}.wav"
+            if fallback.exists():
+                audio_path = fallback
+            else:
+                raise _itw_not_found(
+                    audio_path, f"In-the-Wild audio file for meta row '{file_name}'"
+                )
+
+        info = sf.info(str(audio_path))
+        records.append(
+            {
+                "utt_id": f"ITW_{Path(file_name).stem}",
+                "path": str(audio_path),
+                "label": label,
+                "speaker_id": str(row.speaker),
+                "attack_id": attack_id,
+                "source_corpus": _ITW_SOURCE_CORPUS,
+                "sample_rate": info.samplerate,
+                "duration_s": info.frames / info.samplerate,
+                "codec": info.format,
+                "split": _ITW_SPLIT,
+                "language": _ITW_LANGUAGE,
+            }
+        )
+
+    manifest = pd.DataFrame.from_records(records)
+
+    if expected_clips is not None and len(manifest) != expected_clips:
+        warnings.warn(
+            f"In-the-Wild manifest built {len(manifest)} rows from '{meta_path}', but "
+            f"configs/data.yaml:in_the_wild.expected_clips={expected_clips}. Not fatal — "
+            "the local release may be a different version — but worth checking.",
+            stacklevel=2,
+        )
+
+    columns = list(cfg["manifest"]["columns"])
+    return manifest[columns] if len(manifest) else pd.DataFrame(columns=columns)
+
+
+# ================================================================================================
+# Deterministic stratified subsampling.
+# ================================================================================================
+
+
+def stratified_subset(
+    df: pd.DataFrame,
+    n: int,
+    strata: tuple[str, ...] | list[str] = ("label", "attack_id"),
+    seed: int = 1337,
+) -> pd.DataFrame:
+    """Return `n` rows of `df`, allocated across `strata` proportionally by largest remainder.
+
+    Allocation (deterministic, no RNG involved):
+      1. If `n >= number of non-empty strata`, every stratum is first guaranteed exactly 1 row
+         — this is the "every stratum with >=1 row gets >=1 row if n allows" guarantee; pure
+         proportional largest-remainder allocation does not provide this for small strata
+         competing against much larger ones, so it is applied as an explicit first pass.
+      2. The remaining budget (`n` minus what step 1 used) is allocated across strata
+         proportionally to their size in `df`, using the largest-remainder method: floor the
+         proportional share per stratum, then hand out the leftover units one each to the
+         strata with the largest fractional remainder (ties broken by stratum key, so the
+         result is reproducible), never exceeding a stratum's remaining capacity.
+
+    Row *selection* within each stratum's allocated count uses
+    `np.random.default_rng(seed)`, so the same `(df, n, strata, seed)` always returns the same
+    rows, and a different `seed` reliably returns a different sample when a stratum has more
+    rows than its allocation. The result is sorted by `utt_id` for a stable, order-independent
+    return value.
+    """
+    strata = list(strata)
+    columns = list(df.columns)
+    if n <= 0 or len(df) == 0:
+        return df.iloc[0:0].copy()
+
+    n = min(n, len(df))
+    grouped = df.groupby(strata, dropna=False)
+    group_keys = sorted(grouped.groups.keys(), key=str)
+    sizes = {k: len(grouped.groups[k]) for k in group_keys}
+    n_groups = len(group_keys)
+    total = sum(sizes.values())
+
+    if n >= n_groups:
+        guarantee = dict.fromkeys(group_keys, 1)
+        remaining = n - n_groups
+    else:
+        guarantee = dict.fromkeys(group_keys, 0)
+        remaining = n
+
+    capacity = {k: sizes[k] - guarantee[k] for k in group_keys}
+
+    if total:
+        ideal = {k: remaining * sizes[k] / total for k in group_keys}
+    else:
+        ideal = dict.fromkeys(group_keys, 0.0)
+    base = {k: min(int(np.floor(ideal[k])), capacity[k]) for k in group_keys}
+    budget_left = remaining - sum(base.values())
+
+    def _frac(k: object) -> float:
+        return ideal[k] - base[k] if base[k] < capacity[k] else -1.0
+
+    # Largest-remainder pass. A single left-to-right pass suffices when no stratum is capacity-
+    # constrained (the usual case: the floor error per stratum is < 1, summing to < n_groups
+    # total, so each needs at most one extra unit). When `remaining` is close to or equal to
+    # the total available capacity, though, a stratum can already be capped at its capacity by
+    # the floor step (e.g. floor(ideal) happens to equal capacity), stranding its fractional
+    # remainder with nowhere to go — that excess must then flow to *other* strata with room, so
+    # this keeps looping over the priority order (skipping capped strata) until the budget is
+    # exhausted; it always terminates because sum(capacity) >= remaining by construction.
+    order = sorted(group_keys, key=lambda k: (-_frac(k), str(k)))
+    while budget_left > 0:
+        progressed = False
+        for k in order:
+            if budget_left <= 0:
+                break
+            if base[k] < capacity[k]:
+                base[k] += 1
+                budget_left -= 1
+                progressed = True
+        if not progressed:
+            break
+
+    counts = {k: guarantee[k] + base[k] for k in group_keys}
+
+    rng = np.random.default_rng(seed)
+    parts = []
+    for k in group_keys:
+        c = counts[k]
+        if c <= 0:
+            continue
+        group_df = grouped.get_group(k)
+        idx = rng.choice(len(group_df), size=c, replace=False)
+        parts.append(group_df.iloc[idx])
+
+    result = pd.concat(parts, ignore_index=True) if parts else df.iloc[0:0].copy()
+    result = result[columns].sort_values("utt_id").reset_index(drop=True)
+    return result
+
+
+# ================================================================================================
+# Checksums — a reproducibility record for gitignored, generated manifest CSVs.
+#
+# Format: standard `sha256sum`-compatible lines (`<hex>  <relative-path>`), so a plain
+# `shasum -a 256 -c SHA256SUMS` (from the directory `manifest_checksums`'s paths were made
+# relative to) verifies file integrity with no project-specific tooling. Extra per-file
+# metadata (row count, split_hash) rides along as `#`-prefixed comment lines interleaved after
+# each sha line — both BSD `shasum -a 256 -c` and GNU `sha256sum -c` were confirmed (see task
+# report) to skip blank/`#` lines and still report "OK" / exit 0, so this stays ONE file
+# rather than splitting metadata into a second file.
+# ================================================================================================
+
+
+def manifest_checksums(paths: list[str | Path], base_dir: str | Path | None = None) -> list[dict]:
+    """Compute `(file, sha256, rows, split_hash)` for each manifest CSV in `paths`.
+
+    `sha256` hashes the file's raw bytes (what `shasum -c` will re-check). `rows` and
+    `split_hash` are computed from the *parsed* CSV via `split_hash()` above, so they change
+    if and only if the manifest's actual content changes, not its on-disk formatting.
+    `file` is written relative to `base_dir` (default: current working directory), matching
+    how `shasum -a 256 -c` expects the second column when invoked from `base_dir`.
+    """
+    base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
+    entries = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        data = path.read_bytes()
+        sha256 = hashlib.sha256(data).hexdigest()
+        df = pd.read_csv(path)
+        entries.append(
+            {
+                "file": os.path.relpath(path, base_dir),
+                "sha256": sha256,
+                "rows": len(df),
+                "split_hash": split_hash(df),
+            }
+        )
+    return entries
+
+
+def write_checksums(entries: list[dict], out_path: str | Path) -> None:
+    """Write `entries` (from `manifest_checksums`) to `out_path` in SHA256SUMS format."""
+    lines = []
+    for entry in entries:
+        lines.append(f"{entry['sha256']}  {entry['file']}")
+        lines.append(
+            f"# file={entry['file']} rows={entry['rows']} split_hash={entry['split_hash']}"
+        )
+    Path(out_path).write_text("\n".join(lines) + "\n")
+
+
+def verify_checksums(path: str | Path, base_dir: str | Path | None = None) -> list[str]:
+    """Recompute sha256 for every file listed in the SHA256SUMS file at `path`.
+
+    Returns a list of human-readable mismatch/missing-file messages — empty means every file
+    verified. `#`-prefixed and blank lines are ignored, matching `shasum -c`'s own tolerance
+    (confirmed in the task report) so this and a plain `shasum -a 256 -c path` agree.
+    """
+    base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
+    text = Path(path).read_text()
+
+    mismatches = []
+    for line in text.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        expected_sha, _, rel_path = line.partition("  ")
+        if not rel_path:
+            continue
+        full_path = base_dir / rel_path
+        if not full_path.exists():
+            mismatches.append(f"{rel_path}: missing at '{full_path}'")
+            continue
+        actual_sha = hashlib.sha256(full_path.read_bytes()).hexdigest()
+        if actual_sha != expected_sha:
+            mismatches.append(
+                f"{rel_path}: sha256 mismatch (expected {expected_sha}, got {actual_sha})"
+            )
+    return mismatches

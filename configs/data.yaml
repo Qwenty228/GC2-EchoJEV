@@ -31,4 +31,24 @@ audio:
   crop_strategy: random_train_center_eval
   pad_strategy: repeat
 
+# In-the-Wild (Müller et al. 2022, arXiv:2203.16263) — eval-only, no official split, no
+# generator labels. See research/knowledge/datasets/in-the-wild.md for the full note this
+# block is derived from. Gitignored like `dataset.root` above: not downloaded yet, so code
+# using this block must fail with an actionable DatasetNotFoundError, never a bare traceback.
+in_the_wild:
+  root: data/raw/InTheWild               # gitignored; extract the release here
+  meta_file: meta.csv                    # assumed columns: file,speaker,label ("spoof"|"bona-fide");
+                                         # UNVERIFIED until the zip is extracted (FC-plan-2026-09-30 3d)
+  expected_clips: 31779                  # figure from the project plan, NOT found in any primary
+                                         # source (FC-plan-2026-09-30 3c); warn-only, confirm on download
+  source_url: https://huggingface.co/datasets/mueller91/In-The-Wild
+  license: CC-BY-SA-4.0                  # HF card; the authors' page says Apache-2.0 — unresolved
+                                         # conflict (FC-plan-2026-09-30 3b), flag it in the report
+
+# Deterministic stratified subsampling (audio_df.data.stratified_subset). Recorded here so
+# every caller uses the same seed/strata by default instead of each picking its own.
+subsets:
+  seed: 1337
+  strata: [label, attack_id]
+
 seed: 1337
