@@ -7,12 +7,21 @@ on a 1-D `np.ndarray` of float samples plus an integer sample rate.
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import librosa
 import numpy as np
 import soundfile as sf
 from librosa import resample as librosa_resample
 
-__all__ = ["load_audio", "fix_length", "rms", "silence_ratio"]
+__all__ = [
+    "load_audio",
+    "fix_length",
+    "rms",
+    "silence_ratio",
+    "trim_silence",
+    "preprocess",
+]
 
 
 def load_audio(
@@ -192,3 +201,137 @@ def silence_ratio(
     trailing = float(n - intervals[-1, 1]) / n
 
     return {"leading": leading, "trailing": trailing, "total": total}
+
+
+@overload
+def trim_silence(
+    x: np.ndarray,
+    sr: int,
+    top_db: int = 30,
+    frame_length: int = 2048,
+    hop_length: int = 512,
+    return_offsets: Literal[False] = False,
+) -> np.ndarray: ...
+
+
+@overload
+def trim_silence(
+    x: np.ndarray,
+    sr: int,
+    top_db: int = 30,
+    frame_length: int = 2048,
+    hop_length: int = 512,
+    return_offsets: Literal[True] = ...,
+) -> tuple[np.ndarray, tuple[int, int]]: ...
+
+
+def trim_silence(
+    x: np.ndarray,
+    sr: int,
+    top_db: int = 30,
+    frame_length: int = 2048,
+    hop_length: int = 512,
+    return_offsets: bool = False,
+) -> np.ndarray | tuple[np.ndarray, tuple[int, int]]:
+    """Trim leading and trailing silence only; interior pauses are left untouched.
+
+    Uses exactly the same silence convention as `silence_ratio` above (and therefore the
+    same convention `leakage.py`'s `silence_leading`/`silence_trailing`/`silence_total`
+    features are computed from, since those call `silence_ratio` directly): framed RMS
+    energy via `librosa.effects.split(x, top_db=top_db, frame_length=frame_length,
+    hop_length=hop_length)`, dB-relative to the loudest frame in the clip. `sr` is accepted
+    for API symmetry with the rest of this module (callers reason in samples-at-a-given-
+    sample-rate throughout `preprocess`) but is not itself used by the framing arithmetic,
+    exactly as `silence_ratio` does not use it either.
+
+    After trimming, `silence_ratio(trimmed)["leading"]` and `["trailing"]` are ~0 by
+    construction (up to `hop_length`/`frame_length` boundary rounding, since the trim point
+    is a frame boundary from `librosa.effects.split`, not a sample-exact silence boundary).
+
+    Edge cases (documented, not incidental):
+      - Empty input (`len(x) == 0`): returns `x` unchanged (empty). Offsets `(0, 0)`.
+      - All-silent input (every frame below `top_db`, including all-zero and near-zero-noise
+        clips): returns `x` **unchanged**, not empty — an entirely silent clip has no
+        non-silent interval to trim to, and returning an empty array would silently destroy
+        the file's duration everywhere downstream (e.g. `preprocess`'s repeat-pad would tile
+        nothing). Offsets `(0, len(x))` in this case.
+      - Interior silence (a silent gap strictly between two non-silent intervals) is never
+        touched: only samples before the first non-silent interval's start and after the
+        last non-silent interval's end are removed.
+
+    `return_offsets=True` additionally returns the `(start, end)` sample offsets into the
+    original `x` that the trim used (`x[start:end]` reproduces the trimmed array).
+    """
+    n = len(x)
+
+    if n == 0:
+        return (x, (0, 0)) if return_offsets else x
+
+    peak = np.max(np.abs(x))
+    if peak == 0:
+        return (x, (0, n)) if return_offsets else x
+
+    intervals = librosa.effects.split(
+        x, top_db=top_db, frame_length=frame_length, hop_length=hop_length
+    )
+
+    if intervals.size == 0:
+        # every frame fell below threshold: fully silent by this convention
+        return (x, (0, n)) if return_offsets else x
+
+    start = int(intervals[0, 0])
+    end = int(intervals[-1, 1])
+    trimmed = x[start:end].copy()
+
+    return (trimmed, (start, end)) if return_offsets else trimmed
+
+
+def preprocess(
+    x: np.ndarray,
+    sr: int,
+    silence_mode: Literal["raw", "trimmed"],
+    crop_seconds: float | None = None,
+    crop_mode: Literal["random", "center"] = "center",
+    rng: np.random.Generator | None = None,
+) -> np.ndarray:
+    """Apply silence handling then length handling, in that order.
+
+    `silence_mode`:
+      - `"raw"`: no silence trimming.
+      - `"trimmed"`: `trim_silence(x, sr)` first, using this module's one silence
+        convention (see `trim_silence`/`silence_ratio` docstrings). Any other value raises
+        `ValueError` — this is a modelling-condition switch (per the handoff's silence
+        investigation), not something to silently coerce.
+
+    Length handling (`crop_seconds`):
+      - `None`: return the whole utterance (used by A1, LFCC-GMM on whole utterances, per
+        the official B02 baseline). In `silence_mode="raw"` this makes `preprocess` the
+        identity function (a copy of `x`, so callers can mutate the result safely).
+      - set: convert to `n_samples = round(crop_seconds * sr)`.
+          - `len(x) > n_samples`: crop via `fix_length(x, n_samples, mode=crop_mode, rng=rng)`
+            (`crop_mode="random"` or `"center"`, per `configs/data.yaml:
+            crop_strategy: random_train_center_eval`).
+          - `len(x) <= n_samples`: **always** repeat-pad (`fix_length(..., mode=
+            "repeat_pad")`), never zero-pad. `fix_length`'s `"center"` mode zero-pads short
+            audio, which is exactly the wrong choice here: zero-padding reintroduces the
+            silence this module exists to control for, and Stage 0 found that leading
+            silence alone predicts the bonafide/spoof label (AUC ~0.84) — reintroducing it
+            at this stage would defeat `silence_mode="trimmed"` entirely.
+    """
+    if silence_mode == "trimmed":
+        x = trim_silence(x, sr)
+    elif silence_mode != "raw":
+        raise ValueError(
+            f"silence_mode must be 'raw' or 'trimmed', got {silence_mode!r}"
+        )
+
+    if crop_seconds is None:
+        return x.copy()
+
+    n_samples = int(round(crop_seconds * sr))
+
+    # len(x) <= n_samples: pad (or, if exactly equal, fix_length's n==n_samples branch
+    # returns a copy directly regardless of mode).
+    mode = crop_mode if len(x) > n_samples else "repeat_pad"
+
+    return fix_length(x, n_samples, mode=mode, rng=rng)

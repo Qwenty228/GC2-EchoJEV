@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import librosa
 import numpy as np
+import pytest
 import soundfile as sf
 
-from audio_df.audio import fix_length, load_audio, rms, silence_ratio
+from audio_df.audio import fix_length, load_audio, preprocess, rms, silence_ratio, trim_silence
 
 
 def _tone(freq: float, sr: int, duration_s: float, amplitude: float = 0.5) -> np.ndarray:
@@ -315,3 +316,204 @@ def test_load_audio_asserts_target_sample_rate(tmp_path):
 
     y, out_sr = load_audio(str(wav_path), target_sr=16000, mono=True)
     assert out_sr == 16000
+
+
+# ---------------------------------------------------------------------------
+# trim_silence
+# ---------------------------------------------------------------------------
+
+_TOP_DB, _FRAME_LENGTH, _HOP_LENGTH = 30, 2048, 512
+
+
+def _clip_with_lead_interior_trail_silence(sr: int = 16000, noise_amp: float = 1e-4):
+    """A clip with leading silence, two tone segments separated by interior silence, and
+    trailing silence. Silence regions carry tiny noise (not exact zeros) so this exercises
+    the framed-RMS-below-top_db convention, not a trivial all-zero check."""
+    rng = np.random.default_rng(0)
+
+    def _noise(n_samples: int) -> np.ndarray:
+        return (rng.normal(size=n_samples) * noise_amp).astype(np.float32)
+
+    lead = _noise(int(0.5 * sr))
+    tone1 = _tone(440, sr, 1.0, amplitude=0.8)
+    interior = _noise(int(0.3 * sr))
+    tone2 = _tone(600, sr, 1.0, amplitude=0.8)
+    trail = _noise(int(0.4 * sr))
+
+    x = np.concatenate([lead, tone1, interior, tone2, trail])
+    lead_n, tone1_n, interior_n, tone2_n, trail_n = (
+        len(lead),
+        len(tone1),
+        len(interior),
+        len(tone2),
+        len(trail),
+    )
+    return x, sr, (lead_n, tone1_n, interior_n, tone2_n, trail_n)
+
+
+def test_trim_silence_removes_leading_and_trailing_only():
+    x, sr, (lead_n, tone1_n, interior_n, tone2_n, trail_n) = (
+        _clip_with_lead_interior_trail_silence()
+    )
+    trimmed, (start, end) = trim_silence(
+        x, sr, top_db=_TOP_DB, frame_length=_FRAME_LENGTH, hop_length=_HOP_LENGTH,
+        return_offsets=True,
+    )
+
+    # start/end land within one frame_length of the known tone boundaries
+    assert abs(start - lead_n) <= _FRAME_LENGTH
+    assert abs((len(x) - end) - trail_n) <= _FRAME_LENGTH
+
+    # interior silence is fully preserved: trimmed length is close to
+    # tone1 + interior + tone2 (within the leading/trailing rounding above)
+    expected_len = tone1_n + interior_n + tone2_n
+    assert abs(len(trimmed) - expected_len) <= 2 * _FRAME_LENGTH
+
+    np.testing.assert_array_equal(trimmed, x[start:end])
+
+
+def test_trim_silence_default_return_is_array_only():
+    x, sr, _ = _clip_with_lead_interior_trail_silence()
+    out = trim_silence(x, sr)
+    assert isinstance(out, np.ndarray)
+    assert len(out) < len(x)
+
+
+def test_trim_silence_idempotent():
+    x, sr, _ = _clip_with_lead_interior_trail_silence()
+    once = trim_silence(x, sr)
+    twice = trim_silence(once, sr)
+    np.testing.assert_array_equal(once, twice)
+
+
+def test_trim_silence_consistent_with_silence_ratio_measure():
+    """After trimming, the shared `silence_ratio` convention (the same one
+    `leakage.py`'s silence_leading/silence_trailing are computed from) reports ~0 leading
+    and trailing silence, within one frame."""
+    x, sr, _ = _clip_with_lead_interior_trail_silence()
+    trimmed = trim_silence(
+        x, sr, top_db=_TOP_DB, frame_length=_FRAME_LENGTH, hop_length=_HOP_LENGTH
+    )
+
+    ratio = silence_ratio(
+        trimmed, top_db=_TOP_DB, frame_length=_FRAME_LENGTH, hop_length=_HOP_LENGTH
+    )
+    frame_fraction = _FRAME_LENGTH / len(trimmed)
+
+    assert ratio["leading"] <= frame_fraction
+    assert ratio["trailing"] <= frame_fraction
+
+
+def test_trim_silence_all_silent_returns_unchanged_not_empty():
+    x = np.zeros(1000, dtype=np.float32)
+    out = trim_silence(x, 16000)
+    np.testing.assert_array_equal(out, x)
+    assert len(out) == 1000
+
+
+def test_trim_silence_all_silent_low_noise_returns_unchanged():
+    rng = np.random.default_rng(1)
+    x = (rng.normal(size=2000) * 1e-6).astype(np.float32)
+    out, (start, end) = trim_silence(x, 16000, return_offsets=True)
+    np.testing.assert_array_equal(out, x)
+    assert (start, end) == (0, len(x))
+
+
+def test_trim_silence_empty_returns_empty():
+    x = np.array([], dtype=np.float32)
+    out, (start, end) = trim_silence(x, 16000, return_offsets=True)
+    assert len(out) == 0
+    assert (start, end) == (0, 0)
+
+
+def test_trim_silence_no_silence_pure_tone_is_unchanged():
+    x = _tone(440, 16000, 1.0, amplitude=0.8)
+    out = trim_silence(x, 16000)
+    # a tone with essentially no silence trims to (near) its full length
+    assert abs(len(out) - len(x)) <= _FRAME_LENGTH
+
+
+# ---------------------------------------------------------------------------
+# preprocess
+# ---------------------------------------------------------------------------
+
+
+def test_preprocess_raw_no_crop_is_identity_copy():
+    x = _tone(440, 16000, 1.0, amplitude=0.7)
+    out = preprocess(x, 16000, silence_mode="raw", crop_seconds=None)
+    np.testing.assert_array_equal(out, x)
+    assert out is not x  # a copy, not the same object
+
+
+def test_preprocess_trimmed_no_crop_removes_silence():
+    x, sr, (lead_n, tone1_n, interior_n, tone2_n, trail_n) = (
+        _clip_with_lead_interior_trail_silence()
+    )
+    out = preprocess(x, sr, silence_mode="trimmed", crop_seconds=None)
+    assert len(out) < len(x)
+    expected_len = tone1_n + interior_n + tone2_n
+    assert abs(len(out) - expected_len) <= 2 * _FRAME_LENGTH
+
+
+def test_preprocess_invalid_silence_mode_raises():
+    x = _tone(440, 16000, 1.0)
+    with pytest.raises(ValueError):
+        preprocess(x, 16000, silence_mode="bogus", crop_seconds=None)
+
+
+def test_preprocess_crop_long_clip_center_length():
+    x = _tone(440, 16000, 6.0)
+    out = preprocess(x, 16000, silence_mode="raw", crop_seconds=4.0, crop_mode="center")
+    assert out.shape == (64000,)
+
+
+def test_preprocess_crop_long_clip_random_length_and_determinism():
+    x = _tone(440, 16000, 6.0)
+    out1 = preprocess(
+        x, 16000, silence_mode="raw", crop_seconds=4.0, crop_mode="random",
+        rng=np.random.default_rng(42),
+    )
+    out2 = preprocess(
+        x, 16000, silence_mode="raw", crop_seconds=4.0, crop_mode="random",
+        rng=np.random.default_rng(42),
+    )
+    assert out1.shape == (64000,)
+    np.testing.assert_array_equal(out1, out2)
+
+
+def test_preprocess_short_clip_is_repeat_padded_not_zero_padded():
+    sr = 16000
+    x = _tone(440, sr, 1.0, amplitude=0.5)  # 1 s, shorter than the 4 s target
+    out = preprocess(x, sr, silence_mode="raw", crop_seconds=4.0, crop_mode="center")
+    assert out.shape == (4 * sr,)
+
+    # no injected run of exact zeros anywhere near the length center-zero-padding would add
+    # (repeat-padding tiles the tone, so there is no long run of exact 0.0 samples)
+    is_zero = out == 0.0
+    if is_zero.any():
+        # isolated exact-zero crossings of the tone are fine; a *long run* would indicate
+        # zero-padding was used instead of repeat-padding
+        max_run = 0
+        run = 0
+        for v in is_zero:
+            run = run + 1 if v else 0
+            max_run = max(max_run, run)
+        assert max_run < 100
+
+    # repeat-padding preserves energy density (unlike zero-padding, which dilutes it)
+    assert abs(rms(out) - rms(x)) < 1e-2
+
+
+def test_preprocess_short_clip_trimmed_mode_still_repeat_pads():
+    sr = 16000
+    x, _, _ = _clip_with_lead_interior_trail_silence(sr=sr)
+    out = preprocess(x, sr, silence_mode="trimmed", crop_seconds=4.0, crop_mode="center")
+    assert out.shape == (4 * sr,)
+
+
+def test_preprocess_equal_length_no_crop_needed():
+    sr = 16000
+    x = _tone(440, sr, 4.0)
+    out = preprocess(x, sr, silence_mode="raw", crop_seconds=4.0)
+    assert out.shape == (4 * sr,)
+    np.testing.assert_array_equal(out, x)
