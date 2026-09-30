@@ -1,0 +1,70 @@
+# Resource limits for a fanless Apple Silicon MacBook Air M4 (10 cores 4P+6E, 16 GB
+# unified memory, MPS, no active cooling). These are defaults the user approved; every
+# script that does real work (SSL feature extraction, GMM training, audio degradation,
+# etc.) must call `resources.apply_resource_limits` at the very top of its
+# `if __name__ == "__main__":` block, before any heavy import touches MPS.
+resources:
+  # Caps the fraction of unified memory MPS is allowed to use for its allocator's "high
+  # watermark" before it starts aggressively freeing cached blocks / raising OOM.
+  # Revised down from 0.5 to 0.3 (~4.8 GB of 16 GB): measured at rest this machine already
+  # sits at 13.7/16 GB used with memory pressure at "yellow"/warn, so real headroom for any
+  # job is only ~6-8 GB, not the 8 GB that 0.5 would imply on top of an idle machine. 0.3
+  # leaves room for the OS, other agents' processes, and swap before MPS itself is the thing
+  # that tips the machine into pressure.
+  mps_high_watermark_ratio: 0.3
+
+  # Caps OpenMP/BLAS thread pools (and torch's own intra-op threads) to 4. The machine has
+  # 10 cores but only 4 are "performance" cores; letting numpy/torch/BLAS libraries spawn
+  # threads across every core on a fanless chassis causes thermal throttling and can starve
+  # other agents' processes running in parallel on this same machine.
+  cpu_threads: 4
+
+  # DataLoader workers each fork a subprocess with their own copy of buffers; on 16 GB of
+  # unified memory (shared with MPS), more than 2 workers risks memory pressure and swap.
+  # This cap applies to "default" (non-SSL) loaders; see max_loader_workers_ssl below for
+  # the tighter cap on SSL feature-extraction loaders, which hold much bigger batches.
+  max_loader_workers: 2
+
+  # SSL (XLS-R etc.) feature extraction loads far larger per-item tensors (frame-level
+  # hidden states before pooling) than the handcrafted-feature loaders above, so it gets
+  # its own, tighter worker cap: with only ~6-8 GB of real headroom, a second SSL worker
+  # holding its own batch in memory is often enough by itself to tip pressure into warn.
+  max_loader_workers_ssl: 1
+
+  # SSL extraction batch size, kept small deliberately: same reasoning as
+  # max_loader_workers_ssl above — SSL forward passes hold large activations, and this is
+  # not a large-data problem (see tasks/CONVENTIONS.md compute budget), so there is no
+  # throughput reason to push batch size up at the cost of headroom.
+  ssl_extract_batch_size: 4
+
+  # ffmpeg subprocesses for audio degradation/codec simulation are separate OS processes,
+  # each with their own libav buffers; capped independently of DataLoader workers since
+  # they are typically launched alongside a training/extraction job, not instead of it.
+  max_ffmpeg_workers: 2
+
+  # Refuse to start disk-heavy jobs (feature caches, checkpoints) if free disk would drop
+  # below this floor. Keeps enough headroom for the OS, swap, and other agents' outputs.
+  min_free_disk_gb: 30
+
+  # Number of clips to time before committing to a full run, so a bad time/clip estimate
+  # is caught before it burns hours on a fanless machine that throttles under sustained load.
+  timing_run_clips: 200
+
+  # Items processed per resumable chunk. Small enough that a Ctrl-C or crash mid-job never
+  # loses more than one chunk's worth of work; large enough to keep per-chunk I/O overhead low.
+  chunk_size: 512
+
+  # Runtime memory-pressure guard (see resources.memory_status/MemoryGuard). macOS reports
+  # pressure as normal(1)/warn(2)/critical(4) via
+  # `sysctl -n kern.memorystatus_vm_pressure_level`. On this machine, sitting at 13.7/16 GB
+  # used at rest, pressure is already "yellow"/warn before a job even starts, so a job must
+  # actively watch for it getting worse rather than assume idle headroom.
+  memory_guard:
+    poll: between_chunks          # only check at chunk boundaries, never mid-chunk
+    swap_growth_limit_gb: 1.0      # pause if swap has grown by more than this since job start
+    pause_on: warn                 # pressure level name that triggers a pause-and-recheck
+    exit_on: critical               # pressure level name that triggers a clean, resumable exit
+
+  # Apps to name in the "please close these" message when check_can_start refuses to begin
+  # a heavy job under pressure. Not enforced automatically — just named for the human.
+  close_before_heavy_jobs: [Arc, Outlook, Word, mysqld]
