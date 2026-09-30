@@ -40,12 +40,12 @@ Parked work (and why) is in [`docs/backlog.md`](docs/backlog.md). The original b
 | Preprocessing | Crop/pad, `trim_silence`, `preprocess(silence_mode=raw\|trimmed)` | ✅ |
 | Features / EDA | Hand-crafted grid `feat_a`…`feat_f`, effect sizes, notebooks 01–03 | ✅ |
 | Experiments | `experiments/<id>/`, `REGISTRY.md`, shared scoring (EER, minDCF, ROC-AUC, F1), E1–E6 tables | ✅ |
-| A1 | LFCC-B02 + GMM | 🔜 |
-| A2 | SSL cache + layer-weighted head | 🔜 |
-| A3 | JEV client, cache, state builder | 🔜 |
-| E4 | Degradation generator | 🔜 |
+| A1 | LFCC-B02 + chunked-EM GMM (`run_a1`, notebook 10) | ✅ code · 🔜 not yet run |
+| A2 | SSL pooled cache + layer-weighted head (`run_a2`, notebook 11) | ✅ code · 🔜 not yet run |
+| A3 | JEV interface, cache, state builder, dry-run (`run_a3`, notebook 12) | ✅ scaffold · 🔜 awaiting JEV docs |
+| E4 | Degradations on a 10k stratified eval subset (`make_degraded.py`, notebook 13) | ✅ code · 🔜 not yet run |
 
-354 tests pass with **no dataset present** — synthetic fixtures throughout.
+519 tests pass with **no dataset present** — synthetic fixtures throughout.
 
 ---
 
@@ -56,7 +56,7 @@ venv activation.
 
 ```bash
 uv sync                 # locked env: Python 3.11, torch 2.14, ~1.3 GB
-uv run pytest           # 354 tests, no dataset needed
+uv run pytest           # 519 tests, no dataset needed
 uv run ruff check src tests
 ```
 
