@@ -1,9 +1,7 @@
 # Audio Deepfake Detection — GC2
 
-A reproducible, implementation-first research workshop: from spectral EDA through
-hand-engineered cepstral features to CNN/ResNet backends, self-supervised speech
-representations, and a fusion + multi-task architecture — benchmarked on standardized
-ASVspoof protocols.
+A reproducible benchmark of three spoofed-speech detectors on standardized ASVspoof
+protocols, with generalisation, robustness and silence-shortcut checks built in.
 
 **Research question.** Given an utterance *x* and label *y* ∈ {bonafide, spoof}, can we learn
 a detector that captures **synthesis-related evidence** rather than dataset or generator
@@ -11,39 +9,43 @@ shortcuts? The working assumption is that for some observable representation *Z*
 `P(Z | real) ≠ P(Z | fake)`. This project investigates **where** that difference is visible
 and **whether it survives unseen attacks and domains** — not a hunt for one magic artifact.
 
-Full brief: [`docs/handoff.md`](docs/handoff.md).
-
 ---
 
-## The plan, in one picture
+## The plan (changed 2026-09-30)
 
-[![Architecture and benchmarking pipeline](docs/assets/architecture.jpg)](docs/assets/architecture.jpg)
+1. **Data:** ASVspoof 2019 LA, official train/dev/eval; 16 kHz; 4 s crop/pad (A1 uses whole utterances, as B02 does).
+2. **A1:** LFCC + GMM, the official ASVspoof 2019 B02 recipe (60-dim LFCC, two 512-component GMMs, LLR score).
+3. **A2:** frozen SSL (WavLM Base+, then XLS-R 300M) → learned layer weights → mean pool → MLP; only the head trains.
+4. **A3:** frozen A2 + the JEV API, asked typed questions over a JSON evidence state per clip.
+5. **E1** method benchmark (2019 LA eval) · **E2** ablation (later) · **E3** generalisation (In-the-Wild + unseen attacks A07–A19).
+6. **E4** robustness (MP3 32k, Opus 16k, noise 10 dB, 8 kHz resample) on a ~10k stratified eval subset.
+7. **E5** JEV (A2 vs A3) on a stratified subset · **E6** efficiency on 1,000 eval clips.
+8. **Silence:** raw is the main mode; trimmed is a diagnostic for A1/A2 on clean eval and In-the-Wild.
+9. **Protocol:** thresholds fixed on dev; metrics only from committed score files; every run logged in [`experiments/REGISTRY.md`](experiments/REGISTRY.md).
+10. **Machine:** a fanless MacBook Air M4 (16 GB), so resource limits and resumable jobs are built in.
 
-Panel 1 is the model we are building toward; panel 2 is the protocol that keeps ten systems
-comparable; panel 3 is the ablation grid that has to justify it. The legend matters as much
-as the boxes — fixed DSP, frozen pretrained, trainable branch, shared trunk and task-specific
-parameters are four different cost categories, and the efficiency columns only mean something
-if they are counted separately.
+Parked work (and why) is in [`docs/backlog.md`](docs/backlog.md). The original brief,
+[`docs/handoff.md`](docs/handoff.md), is kept for history but superseded.
 
 ---
 
 ## Build status
 
-The pipeline is being built in waves. **Everything below marked ✅ works today and is tested;
-🔜 is specified but not yet implemented.** Commands under 🔜 will not run yet.
+**✅ works today and is tested; 🔜 is specified but not yet implemented.**
 
-| Stage | What | Status |
+| Area | What | Status |
 |---|---|---|
-| — | Environment, device resolution | ✅ |
-| 0 | Manifests, protocol parsing, splits, **leakage audit** | ✅ |
-| 1–2 | Feature extraction: the A–F representation grid | ✅ modules, 🔜 notebooks |
-| 1–2 | Effect sizes, bootstrap CIs, EDA figures | ✅ modules, 🔜 notebooks |
-| 3 | Linear / MLP baselines | 🔜 |
-| 4 | CNN → ResNet backends | 🔜 |
-| 5–10 | RawNet2, SSL probing, XLS-R, fusion + multi-task | 🔜 ([`tasks/BACKLOG.md`](tasks/BACKLOG.md)) |
+| Foundation | Environment, device resolution, seeding, resource limits and memory-pressure guard | ✅ |
+| Data | Manifests + checksums, In-the-Wild loader, stratified subsets, **leakage audit** | ✅ |
+| Preprocessing | Crop/pad, `trim_silence`, `preprocess(silence_mode=raw\|trimmed)` | ✅ |
+| Features / EDA | Hand-crafted grid `feat_a`…`feat_f`, effect sizes, notebooks 01–03 | ✅ |
+| Experiments | `experiments/<id>/`, `REGISTRY.md`, shared scoring (EER, minDCF, ROC-AUC, F1), E1–E6 tables | ✅ |
+| A1 | LFCC-B02 + GMM | 🔜 |
+| A2 | SSL cache + layer-weighted head | 🔜 |
+| A3 | JEV client, cache, state builder | 🔜 |
+| E4 | Degradation generator | 🔜 |
 
-163 tests pass with **no dataset present** — synthetic fixtures throughout, so the whole
-scaffold is reviewable before you download anything.
+354 tests pass with **no dataset present** — synthetic fixtures throughout.
 
 ---
 
@@ -54,7 +56,7 @@ venv activation.
 
 ```bash
 uv sync                 # locked env: Python 3.11, torch 2.14, ~1.3 GB
-uv run pytest           # 163 tests, no dataset needed
+uv run pytest           # 354 tests, no dataset needed
 uv run ruff check src tests
 ```
 
@@ -165,76 +167,30 @@ The researcher checks them against sources and the code. A task is not done unti
 is `confirmed`. Unsourced statements do not go in, and literature EERs are never compared
 directly with our own runs.
 
-## 5. Explore — notebooks 🔜
+## 5. Explore — notebooks ✅
 
 ```text
 notebooks/01_dataset_audit.ipynb        manifest summary, leakage verdict
 notebooks/02_spectral_eda.ipynb         waveform/spectral distributions, per-bin effect sizes
-notebooks/03_cepstral_eda.ipynb         the A-F grid in feature space
-notebooks/04_simple_detection.ipynb     linear + MLP baselines
-notebooks/05_cnn_resnet_experiments.ipynb
-notebooks/06_ssl_representation_probe.ipynb
-notebooks/07_fusion_error_analysis.ipynb
+notebooks/03_cepstral_eda.ipynb         the feat_a…feat_f grid in feature space
 ```
 
-They will run end-to-end on a synthetic mini-manifest when no dataset is present.
+They run end-to-end on a synthetic mini-manifest when no dataset is present. Open them in
+VS Code with the project's `.venv` kernel.
 
 **Notebook rule:** notebooks hold questions, plots and interpretation. If a function is used
-twice it moves to `src/audio_df/`. Feature extraction, splitting, metrics, model definitions
-and training loops never live in a notebook.
-
-The modules they build on all work today:
-
-```python
-from audio_df.features import extract          # variants A-F
-from audio_df.stats import cohens_d, bootstrap_ci, single_feature_auc
-from audio_df.visualization import plot_mean_spectrum_with_ci
-from audio_df.metrics import compute_eer, per_attack_eer
-```
+twice it moves to `src/audio_df/`.
 
 ## 6. Run the benchmark 🔜
 
-The point is to compare **families**, not to tune one model. Each run appends a row to
-`reports/experiment_registry.csv` with git commit, config hash, split hash, seed, device,
-trainable/total params, timing and metrics.
+Each system gets a runner script and a notebook, each starting with a 200-clip timing run.
+Every run creates `experiments/<id>/` and a row in `experiments/REGISTRY.md`; metrics come
+only from the shared scorer:
 
 ```bash
-# the A-F representation grid through one identical backend
-uv run python -m audio_df.experiments.run_baseline --config configs/features.yaml --variant B_lfcc_full
-
-# Stage 4: sequence-aware CNN/ResNet over [B, 1, D, T]
-uv run python -m audio_df.experiments.run_resnet --config configs/lfcc_resnet.yaml
-
-# Stage 6: frozen SSL, one linear probe per transformer layer -> EER vs layer index
-uv run python -m audio_df.experiments.run_ssl --config configs/ssl_probe.yaml
+uv run python scripts/score_experiment.py experiments/E-20261001-e1-a1-raw
+uv run python scripts/make_tables.py          # regenerates reports/tables/E1…E6
 ```
-
-## 7. Train the proposed architecture 🔜
-
-The custom model is the two-branch fusion in the diagram: a handcrafted branch (best Stage-2
-representation → compact ResNet → pooling → 256-d `z_L`) and a frozen XLS-R branch (learned
-softmax layer weighting → pooling → 256-d `z_X`), concatenated to 512-d, through a shared
-trunk, into a detection head and an optional auxiliary head.
-
-```bash
-uv run python -m audio_df.experiments.run_fusion --config configs/fusion_multitask.yaml
-```
-
-Configured in [`configs/fusion_multitask.yaml`](configs/fusion_multitask.yaml), including the
-**seven required ablations**. The project may not claim LFCC and XLS-R are complementary
-until those ablations show it:
-
-```text
-handcrafted_only · ssl_only · concat_no_trunk · fusion_trunk_detection_only
-fusion_trunk_multitask · ssl_final_layer_vs_learned_weights
-pooling_mean_vs_stats_vs_attentive
-```
-
-The auxiliary head stays disabled unless a **defensible dataset-provided label** exists.
-Inventing pseudo-ground-truth to make the architecture multi-task is explicitly out of bounds.
-
-The headline result is **not** lowest in-domain EER. It is whether any improvement survives
-unseen-generator and cross-domain evaluation, and whether the extra compute is justified.
 
 ---
 
@@ -255,27 +211,27 @@ These are enforced in code and in review, not just documented:
 ## Repository layout
 
 ```text
-configs/      data · features · lfcc_resnet · ssl_probe · fusion_multitask
-data/         raw/ (gitignored) · metadata/ · manifests/ · cache/
-notebooks/    01 dataset audit -> 07 fusion error analysis
-src/audio_df/ audio · features · stats · metrics · leakage · cache · data ·
-              visualization · device · models/ · experiments/
-tests/        run without any dataset; real-data tests marked needs_data
-reports/      figures/ · tables/ · experiment_registry.csv · final_report.md
-scripts/      prepare_data.py · audit_leakage.py
+configs/      data · features · resources · scoring · machine (+ old-plan configs)
+data/         raw/ (gitignored) · manifests/ (CSVs gitignored, SHA256SUMS tracked) · cache/
+experiments/  REGISTRY.md · <exp_id>/{config.yaml, env.json, notes.md, scores/, metrics.json}
+notebooks/    01 dataset audit · 02 spectral EDA · 03 cepstral EDA
+src/audio_df/ audio · features · stats · metrics · leakage · cache · data · visualization ·
+              device · resources · seeding · exp_io · scoring · models/ · experiments/
+tests/        run without any dataset
+reports/      tables/ (regenerated by make_tables.py) · figures/
+scripts/      prepare_data.py · audit_leakage.py · score_experiment.py · make_tables.py
 research/     knowledge base, fact-checks, decisions  (see section 4)
-tasks/        TASKS.md · CONVENTIONS.md · BACKLOG.md
-docs/         handoff.md · assets/architecture.jpg · superpowers/specs/
+tasks/        CONVENTIONS.md (binding) · TASKS.md, BACKLOG.md (superseded)
+docs/         backlog.md · handoff.md (superseded) · assets/
 ```
 
 ## Contributing / continuing the build
 
-[`tasks/TASKS.md`](tasks/TASKS.md) splits the work into waves of tasks with **disjoint file
-ownership**, so a wave can be executed in parallel by separate agents, with the researcher
-fact-checking between waves. [`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding:
-uv-only, tests without data, dev-only thresholds, module boundaries, no silent stubs.
+[`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding: uv-only, tests without data,
+dev-only thresholds, module boundaries, no silent stubs. Work is split into tasks with
+**disjoint file ownership**, with the researcher fact-checking between waves.
 
 ## Results
 
-_Not yet run — `reports/experiment_registry.csv` holds only its header. This section stays
-empty until Stage 3–4 baselines land, rather than being filled with placeholders._
+_Not yet run — [`experiments/REGISTRY.md`](experiments/REGISTRY.md) has no runs yet. This
+section stays empty until A1 lands, rather than being filled with placeholders._
