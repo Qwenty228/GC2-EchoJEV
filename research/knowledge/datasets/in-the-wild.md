@@ -3,10 +3,11 @@ id: in-the-wild
 type: dataset
 sources:
   - https://arxiv.org/pdf/2203.16263 (Müller, Czempin, Dieckmann, Froghyar, Böttinger, "Does Audio Deepfake Detection Generalize?", Interspeech 2022 — fetched and read directly, arXiv:2203.16263v5, 27 Mar 2026 revision)
-  - https://huggingface.co/datasets/mueller91/In-The-Wild (dataset card — fetched; size-on-disk, license, single `train` split)
+  - https://huggingface.co/datasets/mueller91/In-The-Wild (dataset card + `huggingface.co/api/datasets/...` file listing + `huggingface.co/.../raw/main/README.md` — all fetched directly 2026-09-30; size-on-disk, license, single `train` split, exact file listing)
   - https://arxiv.org/pdf/2106.12914 (Müller et al., "Speech is Silver, Silence is Golden" — same author group, cited by the In-the-Wild paper itself as ref [28] to explain why ASVspoof `eval` alone cannot measure generalization; already the primary source for `research/knowledge/methods/leakage-audit.md`)
+  - https://deepfake-total.com/in_the_wild (the authors' own hosting page, formerly at `deepfake-demo.aisec.fraunhofer.de` — fetched directly 2026-09-30; states a *different* license than the HF card, see addendum below)
 confidence: high
-last_verified: 2026-09-21
+last_verified: 2026-09-30
 related: [leakage-audit, asvspoof-2019-la, mlaad]
 ---
 
@@ -118,6 +119,14 @@ N/A — this is a corpus-construction note, not a formula-derivation note.
   silence-duration shortcut on ASVspoof) is a direct warning that manually-curated real/fake
   pairs from different sourcing pipelines can carry exactly this kind of unintended nuisance
   correlation.
+
+## Addendum (2026-09-30) — download location, license conflict, meta.csv, format
+
+- **Single download location, no independent "original" host anymore.** The authors' own project page (now at `https://deepfake-total.com/in_the_wild`, formerly `deepfake-demo.aisec.fraunhofer.de/in_the_wild` — same Fraunhofer AISEC "Cognitive Security Technologies" group) fetched directly 2026-09-30: its own "download the dataset here" link points to `https://huggingface.co/datasets/mueller91/In-The-Wild`. There is no longer a separate non-HF original archive being maintained; the HF mirror **is** the current canonical download.
+- **License conflict between the two "official" pages — genuinely unresolved, not resolvable from these two sources alone.** The authors' own `deepfake-total.com/in_the_wild` page states verbatim: *"This dataset and the associated documentation are licensed under the Apache License, Version 2.0"* (with a direct link to `apache.org/licenses/LICENSE-2.0`). The HF dataset card (`mueller91/In-The-Wild`) states **`license: cc-by-sa-4.0`** in its metadata. These are materially different licenses (permissive vs. copyleft/share-alike) from what appear to be the same team's own two "official" pages. **Do not pick one without flagging this** in any report or data-availability section this project writes — cite both pages and note the conflict rather than silently choosing the more permissive one.
+- **HF-hosted file listing (fetched via the HF API `tree/main` endpoint directly):** exactly three files — `.gitattributes`, `README.md`, and a single `release_in_the_wild.zip` (8,161,489,023 bytes = 8.16 GB, matches the figure already in this note's Findings). **There is no `meta.csv` visible at the repository level** — if one exists, it is packed inside the 8.16 GB zip and was not extracted in this research pass (would require downloading the full archive). **The exact clip count (the 31,779 figure asked about) was not found in any source fetched this pass** — neither the paper excerpt already read, the HF card, nor the authors' own project page states a clip count; only aggregate hours (37.9 h / 17.2 h fake / 20.7–20.8 h bona fide) and per-speaker averages are given anywhere found. This number should be treated as **unverified** until someone downloads the archive and counts files or finds a primary source that states it directly — it must not be written into `reports/final_report.md` on the strength of this research pass.
+- **File format:** the authors' own page's interactive audio-sample widgets reference files as `.wav` (e.g. `./wav/in_the_wild_samples/<speaker>/<label>/<item>.wav`), which is at least suggestive that the distributed clips are WAV — but this was only observed in the demo-page's own sample-preview assets, not confirmed against the contents of the actual 8.16 GB release archive, so treat "WAV" as **medium confidence**, not confirmed for the full release.
+- **Original-release vs. HF-copy differences:** no differences were found or could be checked, because the "original" release is no longer independently hosted — the authors' own current page redirects acquisition to the same HF mirror this note already documents. There is accordingly no second, independently-checkable copy to diff against.
 
 ## Open questions / what would change this
 - I could not find, in the paper text or the HF card, a statement of exactly *how* the authors
