@@ -58,7 +58,7 @@ def test_append_run_round_trips_through_pandas_with_header_intact(registry_path)
     row = {
         "dataset": "asvspoof2019la",
         "split": "dev",
-        "representation": "B_lfcc_full",
+        "representation": "feat_b_lfcc_full",
         "backbone": "toy",
         "seed": 42,
         "eer": 0.1234,
@@ -108,13 +108,15 @@ def test_append_run_is_append_only_never_touches_prior_rows(registry_path):
 
 def test_append_run_with_missing_keys_fills_empty_string_without_shifting_columns(registry_path):
     # Only a handful of keys supplied; most columns absent.
-    run_id = append_run({"representation": "A_linear_logfb", "eer": 0.5}, path=str(registry_path))
+    run_id = append_run(
+        {"representation": "feat_a_linear_logfb", "eer": 0.5}, path=str(registry_path)
+    )
 
     df = pd.read_csv(registry_path, dtype=str, keep_default_na=False)
     row = df.loc[df["run_id"] == run_id].iloc[0]
 
     # The known column present in the input lands in the right place...
-    assert row["representation"] == "A_linear_logfb"
+    assert row["representation"] == "feat_a_linear_logfb"
     assert row["eer"] == "0.5"
     # ...and every column NOT supplied is an empty string, not shifted data from a
     # neighbouring column.

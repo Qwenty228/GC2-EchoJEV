@@ -13,12 +13,12 @@ filterbank:
   fmax: 8000
 
 variants:
-  A_linear_logfb:   {spacing: linear, log: true,  dct: false, n_coeff: null, deltas: false}
-  B_lfcc_full:      {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: false}
-  C_lfcc_trunc:     {spacing: linear, log: true,  dct: true,  n_coeff: 13,   deltas: false}
-  D_mel_logfb:      {spacing: mel,    log: true,  dct: false, n_coeff: null, deltas: false}
-  E_mfcc:           {spacing: mel,    log: true,  dct: true,  n_coeff: 13,   deltas: false}
-  F_lfcc_deltas:    {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: true}
+  feat_a_linear_logfb:   {spacing: linear, log: true,  dct: false, n_coeff: null, deltas: false}
+  feat_b_lfcc_full:      {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: false}
+  feat_c_lfcc_trunc:     {spacing: linear, log: true,  dct: true,  n_coeff: 13,   deltas: false}
+  feat_d_mel_logfb:      {spacing: mel,    log: true,  dct: false, n_coeff: null, deltas: false}
+  feat_e_mfcc:           {spacing: mel,    log: true,  dct: true,  n_coeff: 13,   deltas: false}
+  feat_f_lfcc_deltas:    {spacing: linear, log: true,  dct: true,  n_coeff: 20,   deltas: true}
 
 cache:
   dir: data/cache

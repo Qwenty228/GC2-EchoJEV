@@ -41,42 +41,42 @@ BASE_CFG = {
     },
     "filterbank": {"n_filters": N_FILTERS, "fmin": 0, "fmax": SR // 2},
     "variants": {
-        "A_linear_logfb": {
+        "feat_a_linear_logfb": {
             "spacing": "linear",
             "log": True,
             "dct": False,
             "n_coeff": None,
             "deltas": False,
         },
-        "B_lfcc_full": {
+        "feat_b_lfcc_full": {
             "spacing": "linear",
             "log": True,
             "dct": True,
             "n_coeff": N_FILTERS,
             "deltas": False,
         },
-        "C_lfcc_trunc": {
+        "feat_c_lfcc_trunc": {
             "spacing": "linear",
             "log": True,
             "dct": True,
             "n_coeff": 13,
             "deltas": False,
         },
-        "D_mel_logfb": {
+        "feat_d_mel_logfb": {
             "spacing": "mel",
             "log": True,
             "dct": False,
             "n_coeff": None,
             "deltas": False,
         },
-        "E_mfcc": {
+        "feat_e_mfcc": {
             "spacing": "mel",
             "log": True,
             "dct": True,
             "n_coeff": 13,
             "deltas": False,
         },
-        "F_lfcc_deltas": {
+        "feat_f_lfcc_deltas": {
             "spacing": "linear",
             "log": True,
             "dct": True,
@@ -87,12 +87,12 @@ BASE_CFG = {
 }
 
 EXPECTED_D = {
-    "A_linear_logfb": N_FILTERS,
-    "B_lfcc_full": N_FILTERS,
-    "C_lfcc_trunc": 13,
-    "D_mel_logfb": N_FILTERS,
-    "E_mfcc": 13,
-    "F_lfcc_deltas": N_FILTERS * 3,
+    "feat_a_linear_logfb": N_FILTERS,
+    "feat_b_lfcc_full": N_FILTERS,
+    "feat_c_lfcc_trunc": 13,
+    "feat_d_mel_logfb": N_FILTERS,
+    "feat_e_mfcc": 13,
+    "feat_f_lfcc_deltas": N_FILTERS * 3,
 }
 
 
@@ -229,7 +229,7 @@ def test_linear_and_mel_filterbanks_differ_but_cover_comparably():
 
 
 # ---------------------------------------------------------------------------
-# extract(): shapes for every variant A-F
+# extract(): shapes for every variant feat_a-feat_f
 # ---------------------------------------------------------------------------
 
 

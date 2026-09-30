@@ -5,7 +5,7 @@ This module implements the controlled decomposition from `docs/handoff.md` "Stag
     x[n] -> STFT X[m,k] -> power P[m,k] -> filterbank E[m,r] -> log L[m,r] -> DCT c[m,q]
     E[m,r] = sum_k P[m,k] * Psi_r[k]
 
-`configs/features.yaml` names six variants (A-F) that each turn a *single* pipeline on or
+`configs/features.yaml` names six variants (feat_a-feat_f) that each turn a *single* pipeline on or
 off at a different stage, so that a downstream backend's performance difference can be
 attributed to one representation choice at a time (frequency warping, filterbank smoothing,
 log compression, DCT/decorrelation, coefficient truncation, temporal derivatives) rather than
@@ -28,8 +28,9 @@ Parseval sense) requires exactly the standard DCT-II `norm="ortho"` row scaling:
     c[m, 0] = sqrt(1/J) * sum_r L[m, r]
     c[m, q] = sqrt(2/J) * sum_r L[m, r] * cos(pi*q/J*(r+1/2))      for q = 1 .. J-1
 
-`dct_coeffs(..., orthonormal=True)` (the default, and the only mode every variant A-F below
-uses) applies exactly this scaling by delegating to `scipy.fft.dct(type=2, norm="ortho")`
+`dct_coeffs(..., orthonormal=True)` (the default, and the only mode every variant
+feat_a-feat_f below uses) applies exactly this scaling by delegating to
+`scipy.fft.dct(type=2, norm="ortho")`
 along the filterbank axis — the simplest correct implementation path, per the researcher's
 note, and avoids hand-deriving the constants ourselves. `orthonormal=False` returns scipy's
 un-normalised DCT-II instead (`norm=None`); that mode is *not* invertible and is provided only
@@ -196,9 +197,10 @@ def dct_coeffs(L: np.ndarray, n_coeff: int | None = None, orthonormal: bool = Tr
 
     `orthonormal=False` returns scipy's un-normalised DCT-II (`norm=None`) instead — not
     invertible by a matching orthonormal IDCT, provided only so a caller can inspect the
-    (non-orthonormal) alternative. It is never what `extract` uses for variants B/C/E/F.
+    (non-orthonormal) alternative. It is never what `extract` uses for variants
+    feat_b/feat_c/feat_e/feat_f.
 
-    Truncation to `n_coeff < J` (variants C and E) is applied *after* the full DCT is
+    Truncation to `n_coeff < J` (variants feat_c and feat_e) is applied *after* the full DCT is
     computed, by slicing the first `n_coeff` (lowest-frequency, in DCT-coefficient sense)
     columns — the genuinely lossy step in the DCT stage (handoff, explicit): it discards the
     components of `L`'s row that vary fastest across filterbank channels, i.e. the
@@ -221,7 +223,7 @@ def add_deltas(C: np.ndarray, order: int = 2) -> np.ndarray:
     central and one-sided finite differences reproduce the true derivative *exactly*
     (first derivative constant, second derivative exactly zero, including at the boundary
     frames), which is what this module's delta test checks. `order=2` (the default, matching
-    variant F's "static + delta + delta-delta") returns `concatenate([C, delta1, delta2],
+    variant feat_f's "static + delta + delta-delta") returns `concatenate([C, delta1, delta2],
     axis=1)`, i.e. `D -> 3*D`; `order=1` returns `D -> 2*D`; `order=0` returns `C` unchanged.
     """
     if order < 0:
@@ -242,9 +244,9 @@ def extract(
     cache: FeatureCache | None = None,
     utt_id: str | None = None,
 ) -> np.ndarray:
-    """Run one of `configs/features.yaml`'s variants A-F end to end: `[T, D]`.
+    """Run one of `configs/features.yaml`'s variants feat_a-feat_f end to end: `[T, D]`.
 
-    `variant` is a key of `cfg["variants"]` (e.g. `"A_linear_logfb"`), and `cfg` is the full
+    `variant` is a key of `cfg["variants"]` (e.g. `"feat_a_linear_logfb"`), and `cfg` is the full
     feature config (`stft`, `filterbank`, `variants`, and optionally `sr` — defaults to
     16000 Hz, matching `audio.py.load_audio`'s default `target_sr`, if not given). Each
     variant entry supplies `spacing` (`"linear"`|`"mel"`), `log` (bool), `dct` (bool),
@@ -256,9 +258,9 @@ def extract(
     time, per the handoff's "critical implementation experiments" list.
 
     Documented `D` per variant (given `configs/features.yaml`'s `n_filters=20`):
-    A (`linear`, no DCT): `D=20`. B (`linear`, full DCT): `D=20`. C (`linear`, DCT trunc 13):
-    `D=13`. D (`mel`, no DCT): `D=20`. E (`mel`, DCT trunc 13, "mfcc"): `D=13`.
-    F (`linear`, full DCT + deltas, order=2): `D=20*3=60`.
+    feat_a (`linear`, no DCT): `D=20`. feat_b (`linear`, full DCT): `D=20`. feat_c (`linear`,
+    DCT trunc 13): `D=13`. feat_d (`mel`, no DCT): `D=20`. feat_e (`mel`, DCT trunc 13,
+    "mfcc"): `D=13`. feat_f (`linear`, full DCT + deltas, order=2): `D=20*3=60`.
 
     If `cache` is given, `utt_id` must be given too. The cache key is built from
     `cache_key(utt_id, {...})` over the *entire* extraction config relevant to this

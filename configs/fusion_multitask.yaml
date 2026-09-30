@@ -2,7 +2,7 @@
 defaults: {data: configs/data.yaml, features: configs/features.yaml}
 
 branch_handcrafted:
-  representation: B_lfcc_full    # replace with the empirically strongest Stage-2 variant
+  representation: feat_b_lfcc_full    # replace with the empirically strongest Stage-2 variant
   backbone: resnet18_1ch
   pooling: statistics
   out_dim: 256

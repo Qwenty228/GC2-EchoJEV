@@ -1,7 +1,7 @@
 # Stage 4: sequence-aware backend over a [B, 1, D, T] feature tensor.
 defaults: {data: configs/data.yaml, features: configs/features.yaml}
 
-representation: B_lfcc_full
+representation: feat_b_lfcc_full
 
 model:
   name: resnet18_1ch
