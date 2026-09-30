@@ -2,9 +2,9 @@
 """Build manifest CSVs and print the Stage-0 summary table.
 
 Usage:
-    uv run --no-sync python scripts/prepare_data.py --config configs/data.yaml
-    uv run --no-sync python scripts/prepare_data.py --dataset in_the_wild
-    uv run --no-sync python scripts/prepare_data.py --verify
+    uv run python scripts/prepare_data.py --config configs/data.yaml
+    uv run python scripts/prepare_data.py --dataset in_the_wild
+    uv run python scripts/prepare_data.py --verify
 
 Writes `data/manifests/<split>.csv` for every split of the chosen `--dataset`
 (`asvspoof2019_la`, the default, unchanged from before; or `in_the_wild`, which writes a

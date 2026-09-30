@@ -2,7 +2,7 @@
 """Run the Stage 0 leakage audit end-to-end and fail loudly if a shortcut is found.
 
 Usage:
-    uv run --no-sync python scripts/audit_leakage.py --config configs/data.yaml
+    uv run python scripts/audit_leakage.py --config configs/data.yaml
 
 Builds the manifest, extracts nuisance features (duration, sample rate, codec, RMS,
 leading/trailing/total silence, source corpus, speaker identity), audits each alone and all
