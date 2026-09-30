@@ -1,0 +1,13 @@
+# Target/benchmark machine for this project's experiments. capture_env() (exp_io.py)
+# reads `label` from here to fill the registry's short "machine" column, and records
+# its own live measurements (OS version, core counts, etc.) alongside it in env.json.
+
+label: "MacBook Air M4 (Mac16,13), fanless, 10-core CPU (4P+6E), 10-core GPU, 16 GB unified, MPS"
+
+note: >
+  Fanless chassis: sustained workloads throttle. All wall-time / ms-per-clip / RTF
+  numbers recorded on this machine (E6 efficiency, and any timing in other
+  experiments' metrics.json) are measured under throttling, not a idealized
+  peak-clock number. Treat two runs as comparable only if both ran on this same
+  machine label and were not started back-to-back with a still-hot chassis noted
+  in notes.md.

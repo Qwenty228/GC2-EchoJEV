@@ -15,6 +15,7 @@ from audio_df.metrics import (
     brier_score,
     compute_eer,
     compute_eer_interpolated,
+    min_dcf,
     per_attack_eer,
     pr_auc,
     prf1_at_threshold,
@@ -447,3 +448,168 @@ def test_brier_score_rejects_mismatched_lengths():
 def test_brier_score_rejects_empty_input():
     with pytest.raises(ValueError):
         brier_score([], [])
+
+
+# ---------------------------------------------------------------------------
+# min_dcf
+# ---------------------------------------------------------------------------
+
+
+def _brute_force_min_dcf(bonafide, spoof, c_miss, c_fa, p_spoof, normalize=True):
+    """Independent, non-vectorised reference implementation for cross-checking.
+
+    Sweeps every candidate threshold (all observed scores plus one point below
+    the global minimum) and computes P_miss/P_fa directly with plain Python
+    loops -- deliberately not sharing any code with `_compute_det_curve` or
+    `min_dcf`, so agreement is real evidence, not a shared-bug tautology.
+    """
+    bonafide = list(bonafide)
+    spoof = list(spoof)
+    candidates = [min(bonafide + spoof) - 0.001] + sorted(bonafide + spoof)
+
+    best_dcf = None
+    best_thr = None
+    for tau in candidates:
+        p_miss = sum(1 for b in bonafide if b <= tau) / len(bonafide)
+        p_fa = sum(1 for s in spoof if s > tau) / len(spoof)
+        dcf = c_miss * (1.0 - p_spoof) * p_miss + c_fa * p_spoof * p_fa
+        if best_dcf is None or dcf < best_dcf:
+            best_dcf = dcf
+            best_thr = tau
+
+    if not normalize:
+        return best_dcf, best_thr
+    # ASVspoof 5 Eq. 1 normalises unconditionally by C_fa * pi_spoof (not by
+    # min(C_miss*(1-pi), C_fa*pi)) -- see research/knowledge/methods/min-dcf.md.
+    normaliser = c_fa * p_spoof
+    return best_dcf / normaliser, best_thr
+
+
+def test_min_dcf_hand_computed_tiny_example():
+    # Small, asymmetric, partially-overlapping score set; higher = bonafide.
+    bonafide = [0.0, 1.0, 2.5]
+    spoof = [-1.0, 0.5, 1.5, 3.0]
+    scores = bonafide + spoof
+    labels = ["bonafide"] * len(bonafide) + ["spoof"] * len(spoof)
+
+    c_miss, c_fa, p_spoof = 1.0, 10.0, 0.05
+    expected_dcf, _ = _brute_force_min_dcf(bonafide, spoof, c_miss, c_fa, p_spoof)
+
+    got_dcf, got_thr = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof
+    )
+    assert got_dcf == pytest.approx(expected_dcf, abs=1e-9)
+    # threshold must be an actual candidate operating point (or the synthetic one below min)
+    assert got_thr <= min(scores) or got_thr in scores
+
+
+def test_min_dcf_perfect_separation_is_zero():
+    rng = np.random.default_rng(0)
+    bonafide = rng.normal(loc=5.0, scale=0.1, size=50)
+    spoof = rng.normal(loc=-5.0, scale=0.1, size=50)
+    scores = np.concatenate([bonafide, spoof])
+    labels = ["bonafide"] * 50 + ["spoof"] * 50
+
+    dcf, _ = min_dcf(scores, labels, higher_is_spoof=False, c_miss=1.0, c_fa=10.0, p_spoof=0.05)
+    assert dcf == pytest.approx(0.0, abs=1e-9)
+
+
+def test_min_dcf_normalized_value_is_bounded_by_one_for_default_params():
+    # This bound holds for the OFFICIAL ASVspoof 5 params (c_miss=1, c_fa=10,
+    # p_spoof=0.05) because beta = c_miss*(1-p_spoof)/(c_fa*p_spoof) ~= 1.90 >= 1,
+    # which makes c_fa*p_spoof (=0.5, the paper's fixed normaliser) the smaller of
+    # the two raw-DCF terms, so raw_DCF/normaliser <= raw_DCF/min(...) <= 1 for any
+    # scores. It is NOT a general property of min_dcf's normalisation -- see
+    # test_min_dcf_normalized_value_can_exceed_one_when_beta_below_one below.
+    rng = np.random.default_rng(3)
+    for _seed_offset in range(5):
+        s = rng.normal(size=200)
+        labels = rng.integers(0, 2, size=200)
+        # guarantee both classes present
+        labels[0], labels[1] = 0, 1
+        dcf, _ = min_dcf(
+            s, labels, higher_is_spoof=True, c_miss=1.0, c_fa=10.0, p_spoof=0.05, normalize=True
+        )
+        assert 0.0 <= dcf <= 1.0 + 1e-9
+
+
+def test_min_dcf_normalized_value_can_exceed_one_when_beta_below_one():
+    """ASVspoof 5 Eq. 1 normalises unconditionally by C_fa*pi_spoof, not by
+    min(C_miss*(1-pi_spoof), C_fa*pi_spoof). With c_miss=10, c_fa=1, p_spoof=0.5,
+    beta = 10*0.5/(1*0.5) = 10 (>= 1 actually -- pick params giving beta < 1
+    instead): c_miss=1, c_fa=10, p_spoof=0.5 -> beta = 1*0.5/(10*0.5) = 0.1 < 1.
+    Then C_fa*p_spoof = 5.0 while C_miss*(1-p_spoof) = 0.5, so the paper's fixed
+    normaliser (5.0) is the LARGER term -- the min(...) form would instead divide
+    by 0.5, giving a value 10x smaller. This test asserts the paper's formula
+    (divide by C_fa*p_spoof unconditionally), cross-checked against the
+    independent brute-force reference, not the min(...) convention."""
+    bonafide = [0.0, 1.0, 2.5]
+    spoof = [-1.0, 0.5, 1.5, 3.0]
+    scores = bonafide + spoof
+    labels = ["bonafide"] * len(bonafide) + ["spoof"] * len(spoof)
+    c_miss, c_fa, p_spoof = 1.0, 10.0, 0.5
+
+    beta = c_miss * (1 - p_spoof) / (c_fa * p_spoof)
+    assert beta < 1.0  # sanity-check the chosen params actually exercise this case
+
+    expected_dcf, _ = _brute_force_min_dcf(bonafide, spoof, c_miss, c_fa, p_spoof)
+    got_dcf, _ = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof
+    )
+    assert got_dcf == pytest.approx(expected_dcf, abs=1e-9)
+
+    # The min(...) convention would divide by min(0.5, 5.0) = 0.5 instead of 5.0,
+    # giving a value exactly 10x larger than the paper's own normalisation.
+    min_form_normaliser = min(c_miss * (1 - p_spoof), c_fa * p_spoof)
+    paper_normaliser = c_fa * p_spoof
+    assert paper_normaliser == pytest.approx(5.0)
+    assert min_form_normaliser == pytest.approx(0.5)
+    raw_dcf, _ = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        normalize=False,
+    )
+    min_form_value = raw_dcf / min_form_normaliser
+    assert got_dcf == pytest.approx(raw_dcf / paper_normaliser, abs=1e-9)
+    assert got_dcf != pytest.approx(min_form_value, abs=1e-6)
+
+
+def test_min_dcf_orientation_flip_is_consistent():
+    rng = np.random.default_rng(5)
+    bonafide = rng.normal(loc=1.0, size=40)
+    spoof = rng.normal(loc=-0.5, size=40)
+    scores = np.concatenate([bonafide, spoof])
+    labels = ["bonafide"] * 40 + ["spoof"] * 40
+
+    # higher_is_spoof=False on `scores` must equal higher_is_spoof=True on `-scores`,
+    # same symmetry compute_eer relies on for its polarity argument.
+    dcf_a, thr_a = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=1.0, c_fa=10.0, p_spoof=0.05
+    )
+    dcf_b, thr_b = min_dcf(
+        -scores, labels, higher_is_spoof=True, c_miss=1.0, c_fa=10.0, p_spoof=0.05
+    )
+    assert dcf_a == pytest.approx(dcf_b, abs=1e-9)
+    assert thr_a == pytest.approx(-thr_b, abs=1e-9)
+
+
+def test_min_dcf_unnormalized_matches_normalized_times_c_fa_p_spoof():
+    scores = [0.0, 1.0, 2.5, -1.0, 0.5, 1.5, 3.0]
+    labels = ["bonafide"] * 3 + ["spoof"] * 4
+    c_miss, c_fa, p_spoof = 1.0, 10.0, 0.05
+    normaliser = c_fa * p_spoof  # ASVspoof 5 Eq. 1's fixed normaliser
+
+    raw, thr_raw = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        normalize=False,
+    )
+    norm, thr_norm = min_dcf(
+        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        normalize=True,
+    )
+    assert raw == pytest.approx(norm * normaliser, abs=1e-9)
+    assert thr_raw == pytest.approx(thr_norm, abs=1e-9)
+
+
+def test_min_dcf_rejects_single_class():
+    with pytest.raises(ValueError):
+        min_dcf([0.1, 0.2, 0.3], ["bonafide", "bonafide", "bonafide"], higher_is_spoof=True)

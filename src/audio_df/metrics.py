@@ -96,6 +96,7 @@ __all__ = [
     "prf1_at_threshold",
     "brier_score",
     "per_attack_eer",
+    "min_dcf",
 ]
 
 _BONAFIDE_STRINGS = {"bonafide", "bona-fide", "genuine", "real"}
@@ -375,6 +376,85 @@ def brier_score(probs: Sequence, labels: Sequence) -> float:
     if np.any(np.isnan(probs_arr)):
         raise ValueError("probs contain NaN")
     return float(np.mean((probs_arr - is_spoof.astype(float)) ** 2))
+
+
+def min_dcf(
+    scores: Sequence,
+    labels: Sequence,
+    higher_is_spoof: bool,
+    c_miss: float = 1.0,
+    c_fa: float = 10.0,
+    p_spoof: float = 0.05,
+    normalize: bool = True,
+) -> tuple[float, float]:
+    """Minimum (normalised) detection cost function, ASVspoof 5 Track 1 definition.
+
+    Verified against the primary source (arXiv:2601.03944v1, Eq. 1, fetched and
+    read directly — see `research/knowledge/methods/min-dcf.md`). The paper defines
+    the (already-normalised) cost as:
+
+        DCF(tau) = beta * P_miss^cm(tau) + P_fa^cm(tau)
+        beta     = C_miss * (1 - pi_spoof) / (C_fa * pi_spoof)
+
+    which is algebraically `raw_DCF(tau) / (C_fa * pi_spoof)` where
+    `raw_DCF(tau) = C_miss*(1-pi_spoof)*P_miss^cm(tau) + C_fa*pi_spoof*P_fa^cm(tau)`.
+    **The paper normalises unconditionally by `C_fa * pi_spoof`** — not by
+    `min(C_miss*(1-pi_spoof), C_fa*pi_spoof)` (the classical NIST-SRE-style
+    "normalized DCF" convention). The two happen to coincide numerically for the
+    official ASVspoof 5 parameters (`C_miss=1, C_fa=10, pi_spoof=0.05` gives
+    `beta≈1.90 >= 1`, making `C_fa*pi_spoof=0.5` the smaller term), but they
+    diverge whenever `beta < 1`. This function implements the paper's actual,
+    unconditional normaliser, not the `min(...)` form, and a hand-checked test
+    with `beta < 1` params exists specifically to show the two differ generally.
+
+    For a countermeasure (CM) operating at threshold `tau`:
+      - `P_miss^cm(tau)` is the fraction of bonafide trials wrongly rejected
+        (scored on the "reject" side of `tau`), and
+      - `P_fa^cm(tau)` is the fraction of spoof trials wrongly accepted
+        (scored on the "accept" side of `tau`),
+    swept over every empirically observed operating point (never interpolated,
+    matching `compute_eer`'s DET curve). `min_dcf` is `min_tau DCF(tau)`.
+
+    `normalize=False` returns the raw, un-normalised cost
+    `raw_DCF(tau) = C_miss*(1-pi_spoof)*P_miss^cm(tau) + C_fa*pi_spoof*P_fa^cm(tau)`
+    instead (i.e. `normalize=True` result times `C_fa*pi_spoof`).
+
+    Reuses `_compute_det_curve` (the same official, non-interpolated DET curve
+    `compute_eer` uses) via the same sign-flip convention on `higher_is_spoof`,
+    so `P_miss^cm` is `frr` (fraction of bonafide/target scored at or below the
+    threshold) and `P_fa^cm` is `far` (fraction of spoof/nontarget scored above
+    the threshold) at every candidate threshold, including the synthetic
+    "accept everything" point below the global minimum score.
+
+    Returns `(min_dcf, threshold)`, where `threshold` is on the original score
+    scale (not sign-flipped), analogous to `compute_eer`'s second return value.
+
+    Args:
+        c_miss: cost of a missed spoof detection (bonafide wrongly rejected).
+        c_fa: cost of a false alarm (spoof wrongly accepted as bonafide).
+        p_spoof: prior probability of a spoof trial (`pi_spoof` above).
+        normalize: divide by the paper's fixed normaliser `C_fa * pi_spoof` when
+            True (default); note this is **not** `min(...)` — see docstring above.
+    """
+    scores_arr, is_spoof = _validate_scores_and_labels(scores, labels)
+    bonafide_scores = scores_arr[~is_spoof]
+    spoof_scores = scores_arr[is_spoof]
+
+    sign = -1.0 if higher_is_spoof else 1.0
+    frr, far, thresholds = _compute_det_curve(sign * bonafide_scores, sign * spoof_scores)
+
+    dcf = c_miss * (1.0 - p_spoof) * frr + c_fa * p_spoof * far
+    idx = int(np.argmin(dcf))
+    raw_min_dcf = float(dcf[idx])
+    thr = float(sign * thresholds[idx])
+
+    if not normalize:
+        return raw_min_dcf, thr
+
+    normaliser = c_fa * p_spoof
+    if normaliser <= 0.0:
+        raise ValueError("c_fa * p_spoof must be positive to normalise the DCF")
+    return raw_min_dcf / normaliser, thr
 
 
 def per_attack_eer(
