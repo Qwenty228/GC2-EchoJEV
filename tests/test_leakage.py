@@ -10,6 +10,7 @@ this module's tests).
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -195,3 +196,60 @@ class TestAuditAll:
             report = audit_all(feats, manifest["label"], threshold=0.65, seed=SEED)
         row = report.loc[report["feature"] == "speaker_id"].iloc[0]
         assert bool(row["flagged"])
+
+
+class TestAudioPathResolution:
+    """Regression: audio-derived features must actually populate on a real dataset tree.
+
+    `build_manifest` writes `path` already joined onto `dataset.root`, while `run_audit`
+    passes that same root in as `audio_root`. Prepending it a second time produced
+    `<root>/<root>/...`, whose `FileNotFoundError` `extract_nuisance_features` converts to
+    NaN and `audit_all` then drops — so rms and every silence feature vanished from the
+    report in silence. Silence is the one nuisance feature with a published shortcut result
+    (15.1% EER, arXiv:2106.12914), so dropping it unnoticed defeats the module's purpose.
+    """
+
+    def _tree(self, tmp_path, monkeypatch):
+        import soundfile as sf
+
+        monkeypatch.chdir(tmp_path)
+        root = Path("data/raw/ds/LA")
+        flac_dir = root / "ASVspoof2019_LA_train" / "flac"
+        flac_dir.mkdir(parents=True)
+        rng = np.random.default_rng(SEED)
+        rows = []
+        for i in range(4):
+            rel = flac_dir / f"u{i}.wav"
+            sf.write(str(rel), rng.normal(0, 0.1, 16000).astype(np.float32), 16000)
+            rows.append(
+                {
+                    "utt_id": f"u{i}",
+                    "path": str(rel),  # as build_manifest writes it: root already joined
+                    "label": "bonafide" if i % 2 == 0 else "spoof",
+                    "speaker_id": f"s{i}",
+                    "attack_id": "-",
+                    "source_corpus": "ds",
+                    "sample_rate": 16000,
+                    "duration_s": 1.0,
+                    "codec": "WAV",
+                    "split": "train",
+                    "language": "en",
+                }
+            )
+        return pd.DataFrame(rows), str(root)
+
+    def test_audio_features_populate_when_root_is_already_in_path(self, tmp_path, monkeypatch):
+        manifest, audio_root = self._tree(tmp_path, monkeypatch)
+        feats = extract_nuisance_features(manifest, audio_root=audio_root)
+        for col in ("rms", "silence_leading", "silence_trailing", "silence_total"):
+            assert feats[col].notna().all(), f"{col} is NaN — audio was not found"
+
+    def test_audio_features_survive_audit_all(self, tmp_path, monkeypatch):
+        manifest, audio_root = self._tree(tmp_path, monkeypatch)
+        feats = extract_nuisance_features(manifest, audio_root=audio_root)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            report = audit_all(feats, manifest["label"], threshold=0.65, seed=SEED)
+        audited = set(report["feature"].values)
+        for col in ("rms", "silence_leading", "silence_trailing", "silence_total"):
+            assert col in audited, f"{col} was dropped from the audit report"

@@ -117,12 +117,24 @@ def _labels_to_int(labels) -> np.ndarray:
 
 
 def _resolve_audio_path(row: pd.Series, audio_root: str | Path | None) -> Path:
+    """Locate a manifest row's audio file, tolerating both manifest path conventions.
+
+    Two conventions exist in this repo and both must work. `data.build_manifest` writes
+    `path` with `dataset.root` already joined on (`data/raw/.../LA/..._train/flac/x.flac`),
+    while `run_audit` separately passes that same `dataset.root` in as `audio_root`. A
+    manifest may also carry paths relative *to* the root. So try the path as written first
+    and only fall back to joining `audio_root`; joining unconditionally built `<root>/<root>/
+    ...`, and because the caller converts `FileNotFoundError` to NaN, every audio-derived
+    feature silently vanished from the report instead of failing.
+    """
     p = Path(row["path"])
+    if p.exists():
+        return p
     if audio_root is not None and not p.is_absolute():
-        p = Path(audio_root) / p
-    if not p.exists():
-        raise FileNotFoundError(str(p))
-    return p
+        candidate = Path(audio_root) / p
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(str(p))
 
 
 def _extract_rms(row: pd.Series, audio_root: str | Path | None = None) -> float:
