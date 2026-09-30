@@ -173,6 +173,7 @@ directly with our own runs.
 notebooks/01_dataset_audit.ipynb        manifest summary, leakage verdict
 notebooks/02_spectral_eda.ipynb         waveform/spectral distributions, per-bin effect sizes
 notebooks/03_cepstral_eda.ipynb         the feat_a…feat_f grid in feature space
+notebooks/09_a1_playground.ipynb        START HERE for A1: the B02 pipeline by hand + a mini GMM to play with
 ```
 
 They run end-to-end on a synthetic mini-manifest when no dataset is present. Open them in
