@@ -53,7 +53,7 @@ data:
     eval: data/manifests/eval.csv
     # Additional test sets (In-the-Wild, degraded eval subsets) can be added here by
     # the user once those manifests exist, e.g.:
-    # itw: data/manifests/itw.csv
+    itw: data/manifests/itw.csv
     # eval_mp3_32k: data/manifests/eval_mp3_32k.csv
 
 preprocessing:
