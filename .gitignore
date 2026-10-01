@@ -37,6 +37,8 @@ __pycache__/
 
 # --- notebooks ---
 .ipynb_checkpoints/
+# executed copies from scripts/run_notebooks.py
+notebooks/_executed/
 
 # --- os / editor ---
 .DS_Store
