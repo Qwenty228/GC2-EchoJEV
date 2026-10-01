@@ -348,6 +348,38 @@ class TestMemoryGuard:
         calls[0] = _fake_status(pressure_level=1, swap_used_gb=1.7)
         assert guard.check() == "pause"
 
+    def test_swap_pause_resumes_once_swap_stops_growing(self, cfg):
+        # macOS rarely shrinks swap, so a pause on "swap grew since start" must not be
+        # permanent: once pressure is normal and swap is stable, resume and re-baseline.
+        calls = [_fake_status(pressure_level=1, swap_used_gb=0.8)]
+
+        def status_fn():
+            return calls[0]
+
+        guard = MemoryGuard(cfg, status_fn=status_fn)
+        calls[0] = _fake_status(pressure_level=1, swap_used_gb=1.94)
+        assert guard.check() == "pause"
+        calls[0] = _fake_status(pressure_level=1, swap_used_gb=2.10)  # still growing (+0.16)
+        assert guard.check() == "pause"
+        calls[0] = _fake_status(pressure_level=1, swap_used_gb=2.12)  # stable (+0.02)
+        assert guard.check() == "ok"
+        calls[0] = _fake_status(pressure_level=1, swap_used_gb=2.6)  # +0.48 from new baseline
+        assert guard.check() == "ok"
+        calls[0] = _fake_status(pressure_level=1, swap_used_gb=3.2)  # +1.08: pause again
+        assert guard.check() == "pause"
+        assert guard.run_resource_summary()["swap_start_gb"] == pytest.approx(0.8)
+
+    def test_swap_pause_does_not_resume_while_pressure_is_warn(self, cfg):
+        calls = [_fake_status(pressure_level=1, swap_used_gb=0.2)]
+
+        def status_fn():
+            return calls[0]
+
+        guard = MemoryGuard(cfg, status_fn=status_fn)
+        calls[0] = _fake_status(pressure_level=2, swap_used_gb=1.5)
+        assert guard.check() == "pause"
+        assert guard.check() == "pause"  # swap stable, but pressure still warn
+
     def test_no_pause_for_small_swap_growth(self, cfg):
         calls = [_fake_status(pressure_level=1, swap_used_gb=0.2)]
 

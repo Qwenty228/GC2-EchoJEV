@@ -70,6 +70,8 @@ _REQUIRED_KEYS: dict[str, type | tuple[type, ...]] = {
 _REQUIRED_MEMORY_GUARD_KEYS = {"poll", "swap_growth_limit_gb", "pause_on", "exit_on"}
 
 _PRESSURE_NAME_TO_LEVEL = {"normal": 1, "warn": 2, "critical": 4}
+# Swap counts as "stopped growing" if it rose by at most this much between two checks.
+_SWAP_STABLE_GB = 0.05
 _PRESSURE_LEVEL_TO_NAME = {v: k for k, v in _PRESSURE_NAME_TO_LEVEL.items()}
 
 _DEFAULT_CONFIG_PATH = "configs/resources.yaml"
@@ -362,8 +364,15 @@ class MemoryGuard:
     - `"exit"` if pressure has reached `cfg["resources"]["memory_guard"]["exit_on"]`
       (default `"critical"`, level 4).
     - `"pause"` if pressure has reached `["pause_on"]` (default `"warn"`, level 2) **or**
-      swap has grown by more than `swap_growth_limit_gb` since job start.
+      swap has grown by more than `swap_growth_limit_gb` since the swap baseline.
     - `"ok"` otherwise.
+
+    The swap baseline starts at the job's starting swap. macOS rarely gives swap back, so
+    "swap grew since the start" alone would pause forever once tripped (it did, on
+    2026-10-01, with pressure back to normal). So a swap pause ends when pressure is
+    normal and swap has stopped growing between two checks (within `_SWAP_STABLE_GB`);
+    the current swap then becomes the new baseline, and a further growth of more than
+    `swap_growth_limit_gb` pauses again. `swap_start_gb` in the summary stays the job start.
 
     `status_fn` is injectable so tests never depend on this machine's real state.
     """
@@ -381,6 +390,9 @@ class MemoryGuard:
 
         start_status = status_fn()
         self.start_swap_gb: float = start_status["swap_used_gb"] or 0.0
+        self.baseline_swap_gb: float = self.start_swap_gb
+        self.last_swap_gb: float | None = start_status["swap_used_gb"]
+        self.paused_on_swap = False
         self.swap_peak_gb: float = self.start_swap_gb
         self.pressure_max: int = start_status["pressure_level"] or _PRESSURE_NAME_TO_LEVEL["normal"]
 
@@ -388,6 +400,7 @@ class MemoryGuard:
         status = self.status_fn()
         level = status["pressure_level"]
         swap = status["swap_used_gb"]
+        previous_swap, self.last_swap_gb = self.last_swap_gb, swap
 
         if swap is not None:
             self.swap_peak_gb = max(self.swap_peak_gb, swap)
@@ -396,11 +409,20 @@ class MemoryGuard:
 
         if level is not None and level >= self.exit_level:
             return "exit"
-
-        swap_grew = swap is not None and (swap - self.start_swap_gb) > self.swap_growth_limit_gb
-        if (level is not None and level >= self.pause_level) or swap_grew:
+        if level is not None and level >= self.pause_level:
             return "pause"
 
+        swap_grew = swap is not None and (swap - self.baseline_swap_gb) > self.swap_growth_limit_gb
+        if swap_grew:
+            stable = previous_swap is not None and swap - previous_swap <= _SWAP_STABLE_GB
+            if self.paused_on_swap and stable:
+                self.baseline_swap_gb = swap
+                self.paused_on_swap = False
+                return "ok"
+            self.paused_on_swap = True
+            return "pause"
+
+        self.paused_on_swap = False
         return "ok"
 
     def run_resource_summary(self) -> dict[str, Any]:
