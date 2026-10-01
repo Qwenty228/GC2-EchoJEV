@@ -113,9 +113,16 @@ def experiment_run(
         exp_dir = create_experiment(exp_id, config, root=root, resume=resume)
         env = capture_env()
         guard = MemoryGuard(res, status_fn=status_fn)
+        has_row = False
         if resume:
-            registry_update(exp_id, status="running", root=root)
-        else:
+            # A run interrupted between creating its folder and writing its row has no row
+            # yet; resuming it must add one rather than crash.
+            try:
+                registry_update(exp_id, status="running", root=root)
+                has_row = True
+            except (ValueError, FileNotFoundError):
+                has_row = False
+        if not has_row:
             registry_append(
                 exp_id,
                 date=_dt.date.today().isoformat(),

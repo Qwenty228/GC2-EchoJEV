@@ -78,6 +78,18 @@ def test_refuses_to_start_under_pressure_without_creating_anything(tmp_path):
     assert not (tmp_path / "experiments" / "E-20261001-e1-a1-raw").exists()
 
 
+def test_resume_adds_the_registry_row_if_it_is_missing(tmp_path):
+    # 2026-10-01: a run was interrupted after creating its folder but before its registry
+    # row was written, and `--resume` then crashed on "no row".
+    from audio_df.exp_io import create_experiment
+
+    create_experiment("E-20261001-e1-a1-raw", _config(), root=tmp_path / "experiments")
+    with _run(tmp_path, resume=True) as run:
+        assert "| running |" in _registry(tmp_path)
+    assert "| done |" in _registry(tmp_path)
+    assert run.exp_dir.name == "E-20261001-e1-a1-raw"
+
+
 def test_note_goes_to_notes_md_and_registry(tmp_path):
     with _run(tmp_path) as run:
         run.note("A1 uses whole utterances (B02), not the 4 s crop")
