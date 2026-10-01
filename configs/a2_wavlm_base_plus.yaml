@@ -10,7 +10,11 @@ system: a2
 model:
   id: microsoft/wavlm-base-plus
   tag: wavlm-base-plus
-  revision: null
+  revision: null        # TODO pin once the raw train/dev/eval extraction finishes (changing it
+                        # mid-extraction makes the resumable job refuse, by design). Cached on
+                        # 2026-10-01: main = 4c66d4806a428f2e922ccfa1a962776e232d487b
+                        # (pytorch_model.bin); transformers also fetched the auto-converted
+                        # model.safetensors at 98fd61b9c652129c839c0a25a05987d8f59256a4 (same weights).
   n_layers: 13          # embedding output + 12 transformer layers
   hidden_dim: 768
   do_normalize: false   # WavLM Base+'s own preprocessor_config.json: do_normalize=false
