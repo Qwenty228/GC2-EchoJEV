@@ -143,3 +143,14 @@ N/A — this is a corpus-construction note, not a formula-derivation note.
   HF dataset viewer (permissions error encountered); if this project needs per-utterance
   metadata beyond filename, it will need to be derived locally after download, not read from
   the HF card.
+
+## Local verification, 2026-10-01 (from the extracted Hugging Face zip)
+
+- `release_in_the_wild.zip` (8,161,489,023 bytes) extracts to `release_in_the_wild/` with
+  `meta.csv` (columns `file, speaker, label`; labels `spoof` / `bona-fide`) and 16 kHz WAVs.
+- **31,779 clips: 19,963 bona fide + 11,816 spoof.** This confirms the plan's clip count,
+  which had no primary source before (FC-plan-2026-09-30 item 3c is now resolved by data).
+  Note bona fide is the *majority* class here, the opposite of ASVspoof 2019 LA.
+- `meta.csv` names **54** distinct speakers, not the paper's 58. Unresolved: the paper may
+  count speakers differently, or some names may be merged in the release. Do not quote 58 as
+  a property of the files we use.
