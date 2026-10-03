@@ -1,0 +1,77 @@
+{
+  "exp_id": "E-20261001-e1-a1-trimmed",
+  "scoring_config": {
+    "min_dcf": {
+      "c_miss": 1,
+      "c_fa": 10,
+      "p_spoof": 0.05,
+      "source": "ASVspoof 5 evaluation paper, arXiv 2601.03944, Eq. 1"
+    },
+    "threshold": {
+      "selected_on": "dev",
+      "rule": "eer"
+    },
+    "f1": {
+      "positive_class": "spoof"
+    }
+  },
+  "scoring_config_hash": "sha256:f9c55642c165f2ab35c042ec9921223828bed3395040ab355b09bab8589717d4",
+  "threshold_source": {
+    "exp_dir": "experiments/E-20261001-e1-a1-raw",
+    "testset": "dev",
+    "value": 0.6874791192518259,
+    "dev_eer": 0.026221660726889084,
+    "reason": null
+  },
+  "score_file_hashes": {
+    "eval": "sha256:4dfef07eb1bf21e4b450613a95ffd3768a0770d74f3417d51176f099ceaf2d1b"
+  },
+  "testsets": {
+    "eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer": 0.19836709682968115,
+      "min_dcf": 0.46359589616400787,
+      "min_dcf_threshold": 0.4888684463407671,
+      "min_dcf_params": {
+        "c_miss": 1,
+        "c_fa": 10,
+        "p_spoof": 0.05
+      },
+      "roc_auc": 0.8895129724968139,
+      "f1": 0.8358901498120606,
+      "precision": 0.9821232355675767,
+      "recall": 0.7275601890986506,
+      "per_attack_eer": {
+        "per_attack": {
+          "A07": 0.2732921269630991,
+          "A08": 0.007164244723728069,
+          "A09": 0.0020372154974466327,
+          "A10": 0.3673435019798038,
+          "A11": 0.015075394681105081,
+          "A12": 0.36017925725607575,
+          "A13": 0.24908325302614903,
+          "A14": 0.03741678418768833,
+          "A15": 0.06128619599047879,
+          "A16": 0.3147833421456807,
+          "A17": 0.03619445488922035,
+          "A18": 0.1996129069208607,
+          "A19": 0.11191089042890538
+        },
+        "macro_eer": 0.1565676591300186,
+        "pooled_eer": 0.19836709682968115
+      }
+    }
+  },
+  "resources": {
+    "peak_rss_mb": 651.796875,
+    "swap_start_gb": 0.615048828125,
+    "swap_end_gb": 0.615048828125,
+    "swap_peak_gb": 0.615048828125,
+    "pressure_max": 1,
+    "wall_time_s": 322.1908521250007,
+    "mps_peak_mb": 0.453125
+  },
+  "generated_at_utc": "2026-10-01T13:44:38.246189+00:00"
+}

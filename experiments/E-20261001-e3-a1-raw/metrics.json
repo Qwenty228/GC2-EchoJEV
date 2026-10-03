@@ -1,0 +1,65 @@
+{
+  "exp_id": "E-20261001-e3-a1-raw",
+  "scoring_config": {
+    "min_dcf": {
+      "c_miss": 1,
+      "c_fa": 10,
+      "p_spoof": 0.05,
+      "source": "ASVspoof 5 evaluation paper, arXiv 2601.03944, Eq. 1"
+    },
+    "threshold": {
+      "selected_on": "dev",
+      "rule": "eer"
+    },
+    "f1": {
+      "positive_class": "spoof"
+    }
+  },
+  "scoring_config_hash": "sha256:f9c55642c165f2ab35c042ec9921223828bed3395040ab355b09bab8589717d4",
+  "threshold_source": {
+    "exp_dir": "experiments/E-20261001-e1-a1-raw",
+    "testset": "dev",
+    "value": 0.6874791192518259,
+    "dev_eer": 0.026221660726889084,
+    "reason": null
+  },
+  "score_file_hashes": {
+    "itw": "sha256:4bc110f9c9652b8cfcd73e8ddcc78ee99d090e33b1fbb7e58a8ed27151e5b1f2"
+  },
+  "testsets": {
+    "itw": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer": 0.5804116211809722,
+      "min_dcf": 0.8979706922939463,
+      "min_dcf_threshold": -0.7588355469938293,
+      "min_dcf_params": {
+        "c_miss": 1,
+        "c_fa": 10,
+        "p_spoof": 0.05
+      },
+      "roc_auc": 0.39814704512081267,
+      "f1": 0.36870497988711837,
+      "precision": 0.29190737174739545,
+      "recall": 0.5003385240352065,
+      "per_attack_eer": {
+        "per_attack": {
+          "unknown": 0.5804116211809722
+        },
+        "macro_eer": 0.5804116211809722,
+        "pooled_eer": 0.5804116211809722
+      }
+    }
+  },
+  "resources": {
+    "peak_rss_mb": 578.65625,
+    "swap_start_gb": 0.615048828125,
+    "swap_end_gb": 0.615048828125,
+    "swap_peak_gb": 0.615048828125,
+    "pressure_max": 1,
+    "wall_time_s": 194.4656289590057,
+    "mps_peak_mb": 0.453125
+  },
+  "generated_at_utc": "2026-10-01T13:39:12.121758+00:00"
+}
