@@ -325,6 +325,8 @@ def test_run_a2_end_to_end(a2_project, monkeypatch):
         testsets="eval",
         resume=False,
         root=str(tmp_path / "experiments"),
+        lock_path=str(tmp_path / "score.lock"),
+        status_fn=_status_fn,
     )
     run_a2.cmd_score(score_args)
 
@@ -332,3 +334,10 @@ def test_run_a2_end_to_end(a2_project, monkeypatch):
     assert (score_exp_dir / "scores" / "eval.csv").exists()
     rescored = pd.read_csv(score_exp_dir / "scores" / "eval.csv")
     assert len(rescored) == 6
+    # 2026-10-01: score runs had no registry row, so score_experiment.py crashed on them.
+    registry_text = (tmp_path / "experiments" / "REGISTRY.md").read_text()
+    assert f"| E-{today}-e3-a2-raw |" in registry_text
+
+    # Re-running with --resume (e.g. to repair a run) overwrites its scores instead of failing.
+    run_a2.cmd_score(argparse.Namespace(**{**vars(score_args), "resume": True}))
+    assert len(pd.read_csv(score_exp_dir / "scores" / "eval.csv")) == 6

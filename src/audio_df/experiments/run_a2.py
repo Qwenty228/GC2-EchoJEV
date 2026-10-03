@@ -78,7 +78,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from audio_df.audio import load_audio, preprocess
 from audio_df.device import resolve_device
-from audio_df.exp_io import create_experiment, make_exp_id, write_scores
+from audio_df.exp_io import make_exp_id, write_scores
 from audio_df.experiments.lifecycle import experiment_run
 from audio_df.models.ssl_head import SSLHead
 from audio_df.resources import (
@@ -580,19 +580,38 @@ def cmd_score(args: argparse.Namespace) -> None:
     head = head.to(device)
 
     exp_id = make_exp_id(date.today(), args.exp, cfg["system"], args.silence_mode)
-    full_config = {**cfg, "experiment": args.exp}
-    exp_dir = create_experiment(
-        exp_id, full_config, root=getattr(args, "root", "experiments"), resume=args.resume
-    )
-
+    full_config = {**cfg, "experiment": args.exp, "model_from": str(model_from)}
     testsets = [t.strip() for t in args.testsets.split(",") if t.strip()]
-    for testset in testsets:
-        manifest_df = pd.read_csv(resolve_manifest(cfg, testset))
-        cache_dir = cache_dir_for(
-            cfg["model"]["tag"], args.silence_mode, testset, root=cfg["cache_dir"]
-        )
-        df = score_testset(head, cache_dir, manifest_df, device)
-        write_scores(exp_dir, testset, df)
+
+    # Through experiment_run like every other run, so a score run gets its own registry row,
+    # resource summary and failure record (2026-10-01: without a row, score_experiment.py
+    # crashed on these runs).
+    with experiment_run(
+        exp_id,
+        full_config,
+        job_name="a2-score",
+        config_summary=(
+            f"a2 score, silence_mode={args.silence_mode}, testsets={','.join(testsets)}, "
+            f"model_from={model_from}"
+        ),
+        resume=args.resume,
+        root=getattr(args, "root", "experiments"),
+        lock_path=getattr(args, "lock_path", "data/cache/.heavy_job.lock"),
+        status_fn=getattr(args, "status_fn", memory_status),
+    ) as run:
+        if args.silence_mode == "trimmed":
+            run.note(
+                f"Trimmed-silence diagnostic: the raw-trained head from {model_from} scoring "
+                "trimmed test audio. The threshold must come from the RAW experiment's dev scores."
+            )
+        for testset in testsets:
+            manifest_df = pd.read_csv(resolve_manifest(cfg, testset))
+            cache_dir = cache_dir_for(
+                cfg["model"]["tag"], args.silence_mode, testset, root=cfg["cache_dir"]
+            )
+            df = score_testset(head, cache_dir, manifest_df, device)
+            write_scores(run.exp_dir, testset, df, force=args.resume)
+        exp_dir = run.exp_dir
 
     testset_list = ",".join(testsets)
     print(
