@@ -107,12 +107,8 @@ def _eval_result(eer=0.05, min_dcf=0.2, roc_auc=0.95, f1=0.9, per_attack=None):
 
 
 def test_load_done_experiments_excludes_non_done_status(tmp_path):
-    _write_experiment(
-        tmp_path, "E-1-e1-a1-raw", "a1", "e1", "raw", {"eval": _eval_result()}
-    )
-    _write_experiment(
-        tmp_path, "E-2-e1-a1-raw", "a1", "e1", "raw", {"eval": _eval_result()}
-    )
+    _write_experiment(tmp_path, "E-1-e1-a1-raw", "a1", "e1", "raw", {"eval": _eval_result()})
+    _write_experiment(tmp_path, "E-2-e1-a1-raw", "a1", "e1", "raw", {"eval": _eval_result()})
     _write_registry(
         tmp_path,
         [
@@ -232,6 +228,52 @@ def test_build_e3_per_attack_table_covers_a07_to_a19(tmp_path):
     assert pd.isna(df.iloc[0]["A08"])  # not present in per_attack -> NaN, not dropped
 
 
+def test_build_e3_per_attack_table_reads_eval_from_e1_runs(tmp_path):
+    # Eval (A07-A19) is scored once, under E1; E3's per-attack view must read it from
+    # there (2026-10-03: the table only looked at e3 runs, so it could never fill).
+    _write_experiment(
+        tmp_path,
+        "E-1-e1-a2-raw",
+        "a2",
+        "e1",
+        "raw",
+        {"eval": _eval_result(per_attack={"A10": 0.01, "A17": 0.08})},
+    )
+    _write_experiment(
+        tmp_path,
+        "E-2-e1-a2-trimmed",
+        "a2",
+        "e1",
+        "trimmed",
+        {"eval": _eval_result(per_attack={"A10": 0.30, "A17": 0.09})},
+    )
+    _write_registry(
+        tmp_path,
+        [{"id": "E-1-e1-a2-raw", "status": "done"}, {"id": "E-2-e1-a2-trimmed", "status": "done"}],
+    )
+    df = build_e3_per_attack_table(load_done_experiments(tmp_path))
+    assert list(df["silence_mode"]) == ["raw", "trimmed"]
+    assert df.loc[df["silence_mode"] == "trimmed", "A10"].iloc[0] == pytest.approx(0.30)
+
+
+def test_build_e3_itw_table_separates_silence_modes(tmp_path):
+    for i, mode in enumerate(["raw", "trimmed"]):
+        _write_experiment(
+            tmp_path,
+            f"E-{i}-e3-a2-{mode}",
+            "a2",
+            "e3",
+            mode,
+            {"itw": {"n": 50, "eer": 0.1 + i, "min_dcf": 0.4}},
+        )
+    _write_registry(
+        tmp_path,
+        [{"id": "E-0-e3-a2-raw", "status": "done"}, {"id": "E-1-e3-a2-trimmed", "status": "done"}],
+    )
+    df = build_e3_itw_table(load_done_experiments(tmp_path))
+    assert list(df["silence_mode"]) == ["raw", "trimmed"]
+
+
 # ---------------------------------------------------------------------------
 # E4
 # ---------------------------------------------------------------------------
@@ -304,9 +346,7 @@ def test_build_e6_table_reads_efficiency_block(tmp_path):
 
 
 def test_build_e6_table_handles_missing_efficiency_block(tmp_path):
-    _write_experiment(
-        tmp_path, "E-1-e6-a1-raw", "a1", "e6", "raw", {"eff_eval1k": _eval_result()}
-    )
+    _write_experiment(tmp_path, "E-1-e6-a1-raw", "a1", "e6", "raw", {"eff_eval1k": _eval_result()})
     _write_registry(tmp_path, [{"id": "E-1-e6-a1-raw", "status": "done"}])
     experiments = load_done_experiments(tmp_path)
     df = build_e6_table(experiments)

@@ -150,31 +150,40 @@ def build_e3_itw_table(experiments: list[dict[str, Any]]) -> pd.DataFrame:
         rows.append(
             {
                 "system": _system(exp["config"]),
+                "silence_mode": _silence_mode(exp["config"]),
                 "eer": itw.get("eer"),
                 "min_dcf": itw.get("min_dcf"),
                 "exp_id": exp["exp_id"],
             }
         )
-    df = pd.DataFrame(rows, columns=["system", "eer", "min_dcf", "exp_id"])
-    return df.sort_values(["system"]).reset_index(drop=True)
+    df = pd.DataFrame(rows, columns=["system", "silence_mode", "eer", "min_dcf", "exp_id"])
+    return df.sort_values(["system", "silence_mode"]).reset_index(drop=True)
 
 
 def build_e3_per_attack_table(experiments: list[dict[str, Any]]) -> pd.DataFrame:
-    """E3: per-attack eval EER for the unseen attacks A07..A19, one row per system."""
+    """E3: per-attack eval EER for the unseen attacks A07..A19, per system x silence mode.
+
+    Eval is scored once, under E1, so the eval scores come from E1 (or E3) runs; E3 is the
+    per-attack *view* of them, not a separate run.
+    """
     rows = []
     for exp in experiments:
-        if exp["config"].get("experiment") != "e3":
+        if exp["config"].get("experiment") not in ("e1", "e3"):
             continue
         eval_result = exp["metrics"].get("testsets", {}).get("eval")
         if eval_result is None:
             continue
         per_attack = (eval_result.get("per_attack_eer") or {}).get("per_attack", {})
-        row = {"system": _system(exp["config"]), "exp_id": exp["exp_id"]}
+        row = {
+            "system": _system(exp["config"]),
+            "silence_mode": _silence_mode(exp["config"]),
+            "exp_id": exp["exp_id"],
+        }
         for attack in _UNSEEN_ATTACKS:
             row[attack] = per_attack.get(attack)
         rows.append(row)
-    df = pd.DataFrame(rows, columns=["system", *_UNSEEN_ATTACKS, "exp_id"])
-    return df.sort_values(["system"]).reset_index(drop=True)
+    df = pd.DataFrame(rows, columns=["system", "silence_mode", *_UNSEEN_ATTACKS, "exp_id"])
+    return df.sort_values(["system", "silence_mode"]).reset_index(drop=True)
 
 
 def build_e4_table(experiments: list[dict[str, Any]]) -> pd.DataFrame:
