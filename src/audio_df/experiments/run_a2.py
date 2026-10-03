@@ -580,7 +580,13 @@ def cmd_score(args: argparse.Namespace) -> None:
     head = head.to(device)
 
     exp_id = make_exp_id(date.today(), args.exp, cfg["system"], args.silence_mode)
-    full_config = {**cfg, "experiment": args.exp, "model_from": str(model_from)}
+    full_config = {
+        **cfg,
+        "experiment": args.exp,
+        "model_from": str(model_from),
+        # Record the silence mode actually scored (2026-10-03: trimmed runs said "raw").
+        "preprocessing": {**cfg["preprocessing"], "silence_mode": args.silence_mode},
+    }
     testsets = [t.strip() for t in args.testsets.split(",") if t.strip()]
 
     # Through experiment_run like every other run, so a score run gets its own registry row,

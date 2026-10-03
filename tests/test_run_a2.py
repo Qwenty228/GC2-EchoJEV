@@ -337,6 +337,11 @@ def test_run_a2_end_to_end(a2_project, monkeypatch):
     # 2026-10-01: score runs had no registry row, so score_experiment.py crashed on them.
     registry_text = (tmp_path / "experiments" / "REGISTRY.md").read_text()
     assert f"| E-{today}-e3-a2-raw |" in registry_text
+    # The config must record what this score run did, since the results tables read it.
+    score_cfg = yaml.safe_load((score_exp_dir / "config.yaml").read_text())
+    assert score_cfg["experiment"] == "e3"
+    assert score_cfg["preprocessing"]["silence_mode"] == "raw"
+    assert score_cfg["model_from"] == str(exp_dir)
 
     # Re-running with --resume (e.g. to repair a run) overwrites its scores instead of failing.
     run_a2.cmd_score(argparse.Namespace(**{**vars(score_args), "resume": True}))

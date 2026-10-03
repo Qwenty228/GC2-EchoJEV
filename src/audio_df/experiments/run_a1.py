@@ -345,6 +345,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
 def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     resources_cfg = load_resources(args.resources)
+    cfg["experiment"] = args.exp  # --exp wins over the config file's default
 
     exp_id = make_exp_id(_dt.date.today(), args.exp, "a1", cfg["preprocessing"]["silence_mode"])
     config_summary = f"a1 lfcc-gmm train, {cfg['gmm']['n_components']}-component diag GMM x2"
@@ -467,6 +468,9 @@ def cmd_score(args: argparse.Namespace) -> None:
     cfg = dict(cfg)
     cfg["preprocessing"] = {**cfg["preprocessing"], "silence_mode": args.silence_mode}
     cfg["model_from"] = str(model_dir)
+    # --exp wins over the config file's default (2026-10-03: In-the-Wild runs were filed
+    # under e1 because the config hard-codes `experiment: e1`).
+    cfg["experiment"] = args.exp
 
     exp_id = make_exp_id(_dt.date.today(), args.exp, "a1", args.silence_mode)
     config_summary = f"a1 score, silence_mode={args.silence_mode}, model_from={model_dir}"

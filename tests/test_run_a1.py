@@ -186,7 +186,7 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
             "--model-from",
             str(raw_exp_dir),
             "--exp",
-            "smoke",
+            "e3",  # differs from the config's "smoke", so the override is actually tested
             "--silence-mode",
             "trimmed",
             "--testsets",
@@ -195,7 +195,7 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
     )
     score_args.fn(score_args)
 
-    trimmed_dirs = sorted((tmp_path / "experiments").glob("E-*-smoke-a1-trimmed"))
+    trimmed_dirs = sorted((tmp_path / "experiments").glob("E-*-e3-a1-trimmed"))
     assert len(trimmed_dirs) == 1
     trimmed_dir = trimmed_dirs[0]
     trimmed_eval = pd.read_csv(trimmed_dir / "scores" / "eval.csv")
@@ -204,6 +204,11 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
         "trimmed diagnostic"
         in "\n".join(line for line in (trimmed_dir / "notes.md").read_text().splitlines()).lower()
     )
+    # 2026-10-03: the score run's config kept the train config's experiment, so the
+    # results tables filed In-the-Wild runs (--exp e3) under E1.
+    trimmed_cfg = yaml.safe_load((trimmed_dir / "config.yaml").read_text())
+    assert trimmed_cfg["experiment"] == "e3"
+    assert trimmed_cfg["preprocessing"]["silence_mode"] == "trimmed"
 
 
 def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
