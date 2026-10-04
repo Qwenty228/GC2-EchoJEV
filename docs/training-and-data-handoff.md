@@ -29,6 +29,7 @@ reading, not yet tested.*
 | ASVspoof | Automatic Speaker Verification Spoofing and Countermeasures Challenge; its 2019 logical access (LA) set is our main data. LA19 = 2019 LA, DF21 = 2021 deepfake (DF) track |
 | AUC | area under the receiver operating characteristic (ROC) curve; 1.0 is perfect ranking, 0.5 is chance |
 | B02 | the official ASVspoof 2019 baseline number 2, LFCC + GMM, which A1 reproduces |
+| CI | confidence interval: the range a number would plausibly fall in if the data were resampled; we use 95 % bootstrap intervals |
 | CMVN | cepstral mean and variance normalisation: subtracting each recording's average feature, which removes the channel |
 | DCT | discrete cosine transform: turns log band energies into cepstral coefficients |
 | EER | equal error rate: the error at the threshold where missed bona fide equals accepted spoof; lower is better |
@@ -44,6 +45,7 @@ reading, not yet tested.*
 | MUSAN | Music, Speech and Noise corpus; we use its noise clips for E4 |
 | RawBoost | a raw-waveform data-augmentation method (adds filtered noise and distortions) |
 | RawNet2, RawGAT-ST | neural detectors that read the raw waveform; RawGAT-ST adds graph attention over spectral and temporal features |
+| RMS | root-mean-square: the square root of the mean squared sample value, i.e. overall loudness |
 | RSS | resident set size: how much memory a process is actually using |
 | SSL | self-supervised learning: models pre-trained on unlabelled audio |
 | TTS / VC | text-to-speech / voice conversion: the two ways spoofs are made |
@@ -251,7 +253,8 @@ detector can learn that metadata instead of synthesis evidence.
 **Method** ([src/audio_df/leakage.py](../src/audio_df/leakage.py),
 [scripts/audit_leakage.py](../scripts/audit_leakage.py), NB01 cells 14–21):
 
-- Features: duration, sample rate, codec, source corpus, speaker ID, root-mean-square (RMS) level, and the
+- Features: duration, sample rate, codec, source corpus, speaker ID, root-mean-square (RMS) level (overall loudness: the square root of the mean of
+  the squared sample values, $\sqrt{\tfrac1N\sum_n x[n]^2}$), and the
   fractions of leading, trailing and total silence.
 - Silence is measured with framed RMS energy relative to the loudest frame, with
   `top_db = 30`, frames of 2048 and hop 512, the same convention as `librosa.effects.split`
@@ -263,6 +266,19 @@ detector can learn that metadata instead of synthesis evidence.
   resamples.
 - A feature is flagged above AUC 0.65. **That threshold is a project convention, not a
   literature value.**
+
+**How to read the table.**
+
+- **AUC** is the probability that a randomly chosen spoof clip and a randomly chosen bona fide
+  clip are ranked the right way round by this one feature. 0.5 means the feature carries no
+  information about the label; 1.0 means it separates the classes perfectly.
+- **Why AUC and not accuracy.** It needs no threshold, so it measures the feature itself rather
+  than one cut-off. It is also unaffected by the 1 : 9 class imbalance, which would make a
+  useless "always spoof" rule look 90 % accurate.
+- **95 % CI.** The 95 % confidence interval comes from resampling the clips with replacement
+  1,000 times and recomputing AUC each time. The middle 95 % of those values is the interval.
+  Narrow intervals, such as [0.835, 0.840], mean the number is stable and is not luck from this
+  particular set of clips.
 
 **Result** on all 121,461 clips ([reports/tables/leakage_audit.csv](../reports/tables/leakage_audit.csv)):
 
@@ -277,7 +293,8 @@ detector can learn that metadata instead of synthesis evidence.
 | sample_rate / codec / source_corpus | 0.500 | — | no (constant) |
 | **all combined** | **0.876** | 22.9 % | ⚠ yes |
 
-**Reasoning.** This is a direct local replication of Müller et al. 2021 [S1]. They found that a
+**Reasoning.** This is a direct local replication of Müller et al. [27], *Speech is Silver, Silence is
+Golden*, the paper that first measured this shortcut in ASVspoof 2019. They found that a
 single leading-silence feature reaches 15.1 % EER on 2019 LA eval, and that RawNet2's EER rises
 from 3.61 % to 15.50 % when it is trained on trimmed audio. The cause is how the corpus was
 assembled. VCTK recordings keep their natural room-noise lead-in, and TTS/VC systems are trained
@@ -436,7 +453,7 @@ fixed weighted sum, so each has a direct physical reading:
 
 #### 5.1.3 Why high-band resolution should matter for spoofing (literature)
 
-- **Same GMM, LFCC vs MFCC, ASVspoof 2015 dev** [S2, Table 3, p.4]. Static features:
+- **Same GMM, LFCC vs MFCC, ASVspoof 2015 dev** [28, Table 3, p.4]. Static features:
   MFCC **3.46 %**, LFCC **2.46 %**, IMFCC (mel turned upside down, finest at high frequency)
   **1.33 %**. With Δ+ΔΔ: 1.09, 0.66 and 0.48 %. For static and static+Δ features,
   EER falls in the same order as high-band resolution rises. That ordering does not hold
@@ -467,7 +484,7 @@ with a finer 70-filter recipe
 - **Supports, weakly:** after removing level, spoof's 4.9–7.6 kHz channels sit 1.5 dB lower
   relative to mid band (§4.1, **recomputed**). Spoof also has smaller frame-to-frame change in
   the high-order coefficients c11–c19 (mean |Δc| d between −0.12 and −0.57). Both fit "finer
-  detail is smoother in synthetic speech" and [S2]'s finding that dynamics help.
+  detail is smoother in synthetic speech" and [28]'s finding that dynamics help.
 - **Does not support:** there is no large high-band *energy* gap (`band_high_ratio` d = −0.13,
   interval includes zero), and the tilt is partly silence (ρ = 0.57).
 - **Playground only:** in [notebook 09](../notebooks/09_a1_playground.ipynb) §7d, going from 20
@@ -558,7 +575,7 @@ classes.
   approach of [16] for deepfake detection. **No paper we read reports which layers carry spoof
   evidence for frozen WavLM.** [3] states the low and mid-layer motivation without reporting
   learned weights. [7] uses only the last layer. [22] repeats a "layer 5 beats the last layer"
-  result second-hand. Richer aggregations such as Sensitive Layer Selection (SLS) or MSLA (a multi-layer aggregation method, Meng et al. 2026) exist, but our research note could
+  result second-hand. Richer aggregations such as Sensitive Layer Selection (SLS) [29] or MSLA [30] (another multi-layer aggregation method) exist, but our research note could
   not read their mechanisms from primary sources, so they are not scheduled
   ([multi-layer-ssl-aggregation.md](../research/knowledge/methods/multi-layer-ssl-aggregation.md)).
 - **Time-averaged SSL states carry generator identity.** A plain 21-nearest-neighbour classifier
@@ -1037,7 +1054,7 @@ loudest frame. Pauses inside the clip stay.
 Full table and method:
 [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5.
 
-This **replicates Müller et al. [S1]**. Their strong models never did better than 19 % EER once
+This **replicates Müller et al. [27]**. Their strong models never did better than 19 % EER once
 silence access was removed, and RawNet2 went from 3.61 % to 15.50 %. Our A2 degrades *relatively*
 more than A1 because it had more to lose: a large share of its near-perfect raw separation came
 from silence.
@@ -1088,7 +1105,7 @@ rather than a cue. This is our interpretation and has not been tested.
   Base+, last layer, logistic regression, 38.6 % [8, Table 3]. A2 uses the same backbone with a
   layer-weighted head and different training data, and gets less than half that EER. Explaining
   this needs X6. It is **not** state of the art: fine-tuned XLS-R with SLS reports 7.46 % ITW EER
-  in its repository (literature, different training protocol). We freeze the backbone and train
+  in its repository [29] (literature, different training protocol). We freeze the backbone and train
   about 231k parameters on a laptop.
 - **Ranking survives; calibration does not.** AUC is 0.93, but the raw dev threshold rejects
   49 % of real ITW bona fide speech while accepting only 1.6 % of spoofs. ITW bona fide scores
@@ -1127,7 +1144,7 @@ evidence it rests on. "Test" names the §13 analysis that would confirm or kill 
 |---|---|---|---|
 | A1 gets 9.56 %, near B02's 8.09 % | exact B02 recipe; gap from EM init, variance floor, 10 iterations | measured + official code | seeds |
 | A1 is 10× worse than A2 in domain | probably mostly the generative, frame-independent GMM back end: an LFCC ResNet gets 1.47–2.19 % [17] | literature + our inference | X4, or a discriminative head on LFCC |
-| LFCC (not MFCC) for A1 | twice the filters and ~1.9× finer resolution in 4–8 kHz (§5.1.1); linear beat mel with the same GMM on 2015 and WaveFake [S2, 24]; not on SAS [25] | maths + literature; **no control of ours** | **X4** |
+| LFCC (not MFCC) for A1 | twice the filters and ~1.9× finer resolution in 4–8 kHz (§5.1.1); linear beat mel with the same GMM on 2015 and WaveFake [24, 28]; not on SAS [25] | maths + literature; **no control of ours** | **X4** |
 | A1 detects real synthesis cues, not only silence | A10 vs A11 differ only in vocoder, both silence-free, and A1's EER differs by 22 points (0.1 vs 22.4 %) | **measured**, natural experiment | X1, X2 on A10/A11 |
 | A1 trimmed: EER ×2.1 | M1 (bona fide pool moves −0.31), M2 (deep-quiet frames = spoof evidence for A12, A16), M3 (A17, A19 get easier) | measured shifts; mechanisms are hypotheses | **X3**, X2 |
 | A1 inverted on ITW (AUC 0.40) | c0 carries level and silence, no CMVN, so the GMMs model the VCTK channel; [13] blames the VCTK origin for the same collapse | maths + literature; hypothesis for A1 | band-limit/CMVN counterfactual (X7) |
@@ -1159,8 +1176,8 @@ Each has a cheap test in §13.
 |---|---|---|
 | LFCC-GMM B02 gets about 8 % EER on 2019 LA eval | 8.09 % [15] | **replicated:** 9.56 % |
 | ASVspoof-trained detectors collapse on real-world deepfakes | 60.10 / 67.25 % mean over 28 configs each, 33.94 % best [13, Tables 1–2] | **same qualitative collapse, different model family:** A1 58 % (AUC < 0.5) |
-| leading/trailing silence is a label shortcut in 2019 LA | 15.1 % EER from silence alone; RawNet2 ×4 when trimmed [S1] | **replicated on new systems:** AUC 0.84 in our audit; A1 ×2.1, A2 ×13.8 when trimmed; **new:** per-attack mechanisms M1–M3, tied to how [14] built each attack |
-| linear filterbanks beat mel for spoof detection | same GMM, 2015 and WaveFake [S2, 24]; reversed on SAS [25] | **not tested** (X4); maths in §5.1 |
+| leading/trailing silence is a label shortcut in 2019 LA | 15.1 % EER from silence alone; RawNet2 ×4 when trimmed [27] | **replicated on new systems:** AUC 0.84 in our audit; A1 ×2.1, A2 ×13.8 when trimmed; **new:** per-attack mechanisms M1–M3, tied to how [14] built each attack |
+| linear filterbanks beat mel for spoof detection | same GMM, 2015 and WaveFake [24, 28]; reversed on SAS [25] | **not tested** (X4); maths in §5.1 |
 | vocoder, not acoustic model, drives detectability | — | **new, measured:** A10 vs A11 (same pipeline, different vocoder): A1 22.4 vs 0.1 % |
 | SSL front ends generalise better than spectral features | [7] (fine-tuned), [22] (frozen) | **consistent:** frozen WavLM 14.7 % ITW against A1 58 % |
 | frozen SSL plus a simple back end generalises | only for a large backbone: XLS-R 2B 7.2 %, WavLM Base+ last layer 38.6 % ITW [8, Table 3] | **extended, unexplained:** same WavLM Base+ at 14.7 % with a ≈231k layer-weighted head trained in 17 s from an exact pooled cache; weights tilt toward the bottom layers; X6 tests why |
@@ -1268,44 +1285,51 @@ resumable chunks, and a 200-clip timing run first. Every run writes `config.yaml
 
 ## 15. References
 
-**From the provided reading list**
+Every citation in this document is a number in square brackets, optionally followed by where in
+the paper: `[n]`, `[n, Table 2, p.4]`, `[n, §3]`, `[n, Fig. 2, p.7]`. Authors are named in prose
+as "Author et al. [n]". Each entry below reads: authors. *Title.* Venue, year. Identifier. What
+we use it for. Link to the paper, and the name of the local note where one exists (notes are not
+in git; see `research/knowledge/papers/README.md`).
 
-- [1] Delgado et al., *On Deepfake Voice Detection – It's All in the Presentation.* arXiv:2509.26471, ICASSP 2026. (E4 motivation; playback vs injection.) [paper](https://arxiv.org/abs/2509.26471) · local note `delgado-2025-deepfake-voice-presentation.md`
-- [2] Wang et al., *ASVspoof 5: Evaluation of Spoofing, Deepfake, and Adversarial Attack Detection Using Crowdsourced Speech.* arXiv:2601.03944. (minDCF, Eq. 1; β = 1.90.)
-- [3] Stourbe et al., *Exploring WavLM Back-ends for Speech Spoofing and Deepfake Detection.* arXiv:2409.05032; ASVspoof 2024 Workshop, pp. 72–78, DOI 10.21437/ASVspoof.2024-11. Fine-tuned WavLM **Base** (not Base+) on ASVspoof 5; layer-weighted-average back end. [paper](https://arxiv.org/abs/2409.05032) · local note `stourbe-2024-wavlm-backends.md`
-- [4] Rimon et al., *Unmasking Deepfakes: Leveraging Augmentations and Features Variability for Deepfake Speech Detection.* arXiv:2501.05545 v2 (no venue stated). End-to-end fine-tuned SSL + ResNet34; augmentation gains on ASVspoof 5 only; no frozen or ITW experiment. [paper](https://arxiv.org/abs/2501.05545) · local note `rimon-2025-unmasking-deepfakes.md`
-- [5] Wang et al., *ASVspoof 5: Design, Collection and Validation of Resources…* arXiv:2502.08857. (Codec conditions; next-generation benchmark.)
-- [6] El Kheir et al., *Two Views, One Truth: Spectral and Self-Supervised Features Fusion for Robust Speech Deepfake Detection.* arXiv:2507.20417. WASPAA 2025. (Spectral + SSL fusion; helps out of domain, not on LA19.) [paper](https://arxiv.org/abs/2507.20417) · local note `el-kheir-2025-two-views-spectral-ssl-fusion.md`
-- [7] Tak et al., *Automatic Speaker Verification Spoofing and Deepfake Detection Using wav2vec 2.0 and Data Augmentation.* arXiv:2202.12233. Odyssey 2022. Fine-tuned XLS-R 0.3B + AASIST, last layer only, tested on 2021 LA/DF. [paper](https://arxiv.org/abs/2202.12233) · local note `tak-2022-wav2vec2-data-augmentation.md`
-- [8] Pascu et al., *Towards Generalisable and Calibrated Audio Deepfake Detection with Self-Supervised Representations.* arXiv:2309.05384. Interspeech 2024. Frozen last layer + logistic regression; ECE. [paper](https://arxiv.org/abs/2309.05384) · local note `pascu-2024-generalisable-calibrated-ssl.md`
-- [9] TypeSafe Jev — Project Knowledge Resource (community summary, 16 Sep 2026; **check against official docs**).
-- [10] *JEV-as-a-Judge: Accept When Confident, Escalate When Unsure.*
-- [11] Jev AI, model page (Jev is text-only).
-- [12] Jev AI, *About Jev AI* and evaluation and quality use cases.
-- [13] Müller et al., *Does Audio Deepfake Detection Generalize?* (introduces In-the-Wild), arXiv:2203.16263, Interspeech 2022. [paper](https://arxiv.org/abs/2203.16263) · local note `muller-2022-does-audio-deepfake-detection-generalize.md`
-- [14] Wang et al., *ASVspoof 2019: A Large-Scale Public Database of Synthesized, Converted and Replayed Speech.* Computer Speech & Language 64, 2020; arXiv:1911.01601. Table 1 (p.6) read for generators and A16 = A04, A19 = A06.
-- [15] Todisco et al., *ASVspoof 2019: Future Horizons in Spoofed and Fake Audio Detection,* arXiv:1904.05441 (Table 1: B02 8.09 % / t-DCF 0.2116; B01 9.57 %).
-- [16] Chen F. et al., *Deepfake Speech Detection Method Based on Wav2Vec2.0 Feature Merging and Joint Loss,* Journal of Signal Processing 41(9):1547–1557, 2025. DOI 10.12466/xhcl.2025.09.008. (Merging multiple SSL layers.)
+**Reading list provided with the project**
 
-**Added 2026-10-04 (read in full; one local note each)**
+- [1] Delgado et al. *On Deepfake Voice Detection – It's All in the Presentation.* ICASSP 2026. arXiv:2509.26471. Used for: E4 motivation, playback vs phone injection. [paper](https://arxiv.org/abs/2509.26471) · local note `delgado-2025-deepfake-voice-presentation.md`
+- [2] Wang et al. *ASVspoof 5: Evaluation of Spoofing, Deepfake, and Adversarial Attack Detection Using Crowdsourced Speech.* 2026. arXiv:2601.03944. Used for: minDCF definition (Eq. 1, β = 1.90). [paper](https://arxiv.org/abs/2601.03944)
+- [3] Stourbe et al. *Exploring WavLM Back-ends for Speech Spoofing and Deepfake Detection.* ASVspoof 2024 Workshop, pp. 72–78. DOI 10.21437/ASVspoof.2024-11. Used for: WavLM Base (not Base+) fine-tuned on ASVspoof 5; layer-weighted back end. [paper](https://arxiv.org/abs/2409.05032) · local note `stourbe-2024-wavlm-backends.md`
+- [4] Rimon et al. *Unmasking Deepfakes: Leveraging Augmentations and Features Variability for Deepfake Speech Detection.* arXiv preprint, 2025 (no venue stated). arXiv:2501.05545. Used for: augmentation with end-to-end fine-tuning on ASVspoof 5; no frozen or ITW experiment. [paper](https://arxiv.org/abs/2501.05545) · local note `rimon-2025-unmasking-deepfakes.md`
+- [5] Wang et al. *ASVspoof 5: Design, Collection and Validation of Resources for Spoofing, Deepfake, and Adversarial Attack Detection Using Crowdsourced Speech.* 2025. arXiv:2502.08857. Used for: codec conditions in the next-generation benchmark. [paper](https://arxiv.org/abs/2502.08857)
+- [6] El Kheir et al. *Two Views, One Truth: Spectral and Self-Supervised Features Fusion for Robust Speech Deepfake Detection.* WASPAA 2025. arXiv:2507.20417. Used for: spectral + SSL fusion (helps out of domain, not on LA19). [paper](https://arxiv.org/abs/2507.20417) · local note `el-kheir-2025-two-views-spectral-ssl-fusion.md`
+- [7] Tak et al. *Automatic Speaker Verification Spoofing and Deepfake Detection Using wav2vec 2.0 and Data Augmentation.* Odyssey 2022. arXiv:2202.12233. Used for: fine-tuned XLS-R + AASIST, last layer only, tested on 2021 LA/DF. [paper](https://arxiv.org/abs/2202.12233) · local note `tak-2022-wav2vec2-data-augmentation.md`
+- [8] Pascu et al. *Towards Generalisable and Calibrated Audio Deepfake Detection with Self-Supervised Representations.* Interspeech 2024. arXiv:2309.05384. Used for: frozen last layer + logistic regression; ECE. [paper](https://arxiv.org/abs/2309.05384) · local note `pascu-2024-generalisable-calibrated-ssl.md`
+- [9] TypeSafe. *Jev — Project Knowledge Resource.* Community summary, 16 Sep 2026. Used for: JEV interface. **Check against official docs.**
+- [10] *JEV-as-a-Judge: Accept When Confident, Escalate When Unsure.* Used for: A3 decision rule.
+- [11] Jev AI. *Model page.* Used for: Jev is text-only.
+- [12] Jev AI. *About Jev AI* and evaluation and quality use cases. Used for: JEV scope.
+- [13] Müller et al. *Does Audio Deepfake Detection Generalize?* Interspeech 2022. arXiv:2203.16263. Used for: In-the-Wild dataset and the collapse of ASVspoof-trained models. [paper](https://arxiv.org/abs/2203.16263) · local note `muller-2022-does-audio-deepfake-detection-generalize.md`
+- [14] Wang et al. *ASVspoof 2019: A Large-Scale Public Database of Synthesized, Converted and Replayed Speech.* Computer Speech & Language 64, 2020. arXiv:1911.01601. Used for: attack generators (Table 1, p.6); A16 = A04, A19 = A06. [paper](https://arxiv.org/abs/1911.01601)
+- [15] Todisco et al. *ASVspoof 2019: Future Horizons in Spoofed and Fake Audio Detection.* Interspeech 2019. arXiv:1904.05441. Used for: B02 8.09 % EER / t-DCF 0.2116, B01 9.57 % (Table 1). [paper](https://arxiv.org/abs/1904.05441)
+- [16] Chen F. et al. *Deepfake Speech Detection Method Based on Wav2Vec2.0 Feature Merging and Joint Loss.* Journal of Signal Processing 41(9):1547–1557, 2025. DOI 10.12466/xhcl.2025.09.008. Used for: merging multiple SSL layers.
 
-- [17] Mo, Wang, *Multi-task Learning Improves Synthetic Speech Detection,* ICASSP 2022, pp. 6392–6396, DOI 10.1109/ICASSP43922.2022.9746059. (LFCC ResNet on LA19 eval; auxiliary tasks.) [paper](https://doi.org/10.1109/ICASSP43922.2022.9746059) · local note `mo-2022-multi-task-learning-synthetic-speech-detection.md`
-- [18] Sutharya, Sasi, *Half-Truth Audio Detection and Localisation: A Lightweight Cross-Attentive Architecture and a Cross-Corpus Diagnostic Study,* arXiv:2605.29531v3, 2026. Preprint, AI-assisted writing disclosed. [paper](https://arxiv.org/abs/2605.29531) · local note `sutharya-2026-half-truth-cafnet-cross-corpus.md`
-- [19] Stan, Combei, Oneata, Cucu, *TADA: Training-free Attribution and Out-of-Domain Detection of Audio Deepfakes,* Interspeech 2025, DOI 10.21437/Interspeech.2025-472, arXiv:2506.05802. (kNN on time-averaged frozen SSL states; fake-only.) [paper](https://arxiv.org/abs/2506.05802) · local note `stan-2025-tada-attribution-ood.md`
-- [20] Zhu, Wang, Qin, Li, *Source Tracing: Detecting Voice Spoofing,* APSIPA ASC 2022, arXiv:2212.08601. (Attack attribute table; auxiliary attribute heads.) [paper](https://arxiv.org/abs/2212.08601) · local note `zhu-2022-source-tracing-voice-spoofing.md`
-- [21] Cheng, Yang, Xiong, Hu, *Explainable AI for Forensic Speech Authentication within Cognitive and Computational Neuroscience,* Frontiers in Neuroscience 19:1692122, 2025, DOI 10.3389/fnins.2025.1692122. **Low confidence**: a pointer to XAI methods only. [paper](https://doi.org/10.3389/fnins.2025.1692122) · local note `cheng-2025-xai-forensic-speech-authentication.md`
-- [22] Wang Z. et al., *Mixture of Experts Fusion for Fake Audio Detection Using Frozen wav2vec 2.0,* arXiv:2409.11909 (submitted to ICASSP 2025). (Closest protocol to ours: frozen SSL, train 2019 LA, test LA19 eval + ITW.) [paper](https://arxiv.org/abs/2409.11909) · local note `wang-2024-moe-fusion-frozen-wav2vec2.md`
-- [23] Zhou, Garcia-Romero, Duraiswami, Espy-Wilson, Shamma, *Linear versus Mel Frequency Cepstral Coefficients for Speaker Recognition,* IEEE ASRU 2011, pp. 559–564. (Speaker recognition, 300–3400 Hz; cited for filter geometry only.) [paper](https://doi.org/10.1109/ASRU.2011.6163888) · local note `linear-vs-mel-cepstral-speaker-recognition.md`
-- [24] Frank, Schönherr, *WaveFake: A Data Set to Facilitate Audio Deepfake Detection,* NeurIPS 2021 Datasets and Benchmarks, arXiv:2111.02813. (LFCC vs MFCC with the same GMM, Tables 2 and 6.) Read via [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md).
-- [25] Sriskandaraja et al., *Investigation of Sub-Band Discriminative Information Between Spoofed and Genuine Speech,* Interspeech 2016. (Counter-evidence: mel beat linear on SAS.) Read via the same note.
-- [26] Chen S. et al., *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing,* IEEE JSTSP 16(6), 2022, arXiv:2110.13900. (94k h pre-training data, p.5; layer roles, Fig. 2, p.6.)
+**Further sources (read for this document)**
 
-**Additional sources the repo already relies on (not on the list)**
+- [17] Mo and Wang. *Multi-task Learning Improves Synthetic Speech Detection.* ICASSP 2022, pp. 6392–6396. DOI 10.1109/ICASSP43922.2022.9746059. Used for: LFCC ResNet on LA19 eval; auxiliary tasks. [paper](https://doi.org/10.1109/ICASSP43922.2022.9746059) · local note `mo-2022-multi-task-learning-synthetic-speech-detection.md`
+- [18] Sutharya and Sasi. *Half-Truth Audio Detection and Localisation: A Lightweight Cross-Attentive Architecture and a Cross-Corpus Diagnostic Study.* arXiv preprint, 2026 (AI-assisted writing disclosed). arXiv:2605.29531. Used for: cross-corpus collapse of a handcrafted-feature model. [paper](https://arxiv.org/abs/2605.29531) · local note `sutharya-2026-half-truth-cafnet-cross-corpus.md`
+- [19] Stan et al. *TADA: Training-free Attribution and Out-of-Domain Detection of Audio Deepfakes.* Interspeech 2025. DOI 10.21437/Interspeech.2025-472. Used for: generator attribution from time-averaged frozen SSL states (fake clips only). [paper](https://arxiv.org/abs/2506.05802) · local note `stan-2025-tada-attribution-ood.md`
+- [20] Zhu et al. *Source Tracing: Detecting Voice Spoofing.* APSIPA ASC 2022. arXiv:2212.08601. Used for: attack attribute table; attribute heads as an auxiliary technique. [paper](https://arxiv.org/abs/2212.08601) · local note `zhu-2022-source-tracing-voice-spoofing.md`
+- [21] Cheng et al. *Explainable AI for Forensic Speech Authentication within Cognitive and Computational Neuroscience.* Frontiers in Neuroscience 19:1692122, 2025. DOI 10.3389/fnins.2025.1692122. Used for: pointer to XAI methods only (**low confidence**). [paper](https://doi.org/10.3389/fnins.2025.1692122) · local note `cheng-2025-xai-forensic-speech-authentication.md`
+- [22] Wang Z. et al. *Mixture of Experts Fusion for Fake Audio Detection Using Frozen wav2vec 2.0.* arXiv preprint, 2024 (submitted to ICASSP 2025). arXiv:2409.11909. Used for: the closest protocol to ours (frozen SSL, train 2019 LA, test LA19 eval and ITW). [paper](https://arxiv.org/abs/2409.11909) · local note `wang-2024-moe-fusion-frozen-wav2vec2.md`
+- [23] Zhou et al. *Linear versus Mel Frequency Cepstral Coefficients for Speaker Recognition.* IEEE ASRU 2011, pp. 559–564. DOI 10.1109/ASRU.2011.6163888. Used for: filter-count geometry only (speaker recognition, not spoofing). [paper](https://doi.org/10.1109/ASRU.2011.6163888) · local note `linear-vs-mel-cepstral-speaker-recognition.md`
+- [24] Frank and Schönherr. *WaveFake: A Data Set to Facilitate Audio Deepfake Detection.* NeurIPS 2021 Datasets and Benchmarks. arXiv:2111.02813. Used for: LFCC vs MFCC with the same GMM (Tables 2 and 6). [paper](https://arxiv.org/abs/2111.02813) · read in `research/knowledge/methods/lfcc-vs-mfcc-explained.md`
+- [25] Sriskandaraja et al. *Investigation of Sub-Band Discriminative Information Between Spoofed and Genuine Speech.* Interspeech 2016. Used for: counter-evidence, mel beat linear on SAS (Table 1). [paper](https://www.isca-archive.org/interspeech_2016/sriskandaraja16_interspeech.pdf) · read in `research/knowledge/methods/lfcc-vs-mfcc-explained.md`
+- [26] Chen S. et al. *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing.* IEEE Journal of Selected Topics in Signal Processing 16(6), 2022. arXiv:2110.13900. Used for: 94k h pre-training data (p.5); layer roles (Fig. 2, p.7). [paper](https://arxiv.org/abs/2110.13900)
+- [27] Müller, Dieckmann, Czempin, Canals, Böttinger and Williams. *Speech is Silver, Silence is Golden: What do ASVspoof-trained Models Really Learn?* ASVspoof 2021 Workshop. arXiv:2106.12914. Used for: the silence shortcut (silence-only classifier 15.12 % EER; RawNet2 3.61 → 15.50 % when trained on trimmed audio). [paper](https://arxiv.org/abs/2106.12914) · read in `research/knowledge/methods/leakage-audit.md`
+- [28] Sahidullah, Kinnunen and Hanilçi. *A Comparison of Features for Synthetic Speech Detection.* Interspeech 2015. Used for: the LFCC recipe B02 follows; LFCC vs MFCC vs IMFCC with the same GMM (Tables 3–4). [paper](https://www.isca-archive.org/interspeech_2015/sahidullah15_interspeech.pdf)
+- [29] Zhang, Wen and Hu. *Audio Deepfake Detection with Self-Supervised XLS-R and SLS Classifier.* ACM Multimedia 2024. DOI 10.1145/3664647.3681345. Used for: the 7.46 % ITW EER from its official repository README (paper text not reachable). [paper](https://dl.acm.org/doi/10.1145/3664647.3681345) · read in `research/knowledge/methods/multi-layer-ssl-aggregation.md`
+- [30] Meng et al. *MSLA-XLS-R: Enhancing Hierarchical SSL Representations for Audio Deepfake Detection.* Computer Speech & Language, 2026 (in press). DOI 10.1016/j.csl.2026.102044. Used for: existence of richer layer aggregation only (paper text not reachable). [paper](https://doi.org/10.1016/j.csl.2026.102044)
 
-- [S1] Müller et al., *Speech is Silver, Silence is Golden: What do ASVspoof-trained Models Really Learn?* arXiv:2106.12914. The quantitative source for the silence shortcut; read directly in [leakage-audit.md](../research/knowledge/methods/leakage-audit.md).
-- [S2] Sahidullah, Kinnunen, Hanilçi, *A Comparison of Features for Synthetic Speech Detection,* Interspeech 2015. The LFCC recipe B02 cites; Tables 3–4 re-read 2026-10-04.
-- Official ASVspoof 2019 baseline code `ASVspoof_2019_baseline_CM_v1.zip`, read line by line for A1 ([b02-lfcc-gmm.md](../research/knowledge/methods/b02-lfcc-gmm.md)).
-- SLS (Zhang et al., ACM MM 2024), the 7.46 % ITW figure, from its official repository README, as recorded in [multi-layer-ssl-aggregation.md](../research/knowledge/methods/multi-layer-ssl-aggregation.md).
+**Code**
+
+- Official ASVspoof 2019 baseline code, `ASVspoof_2019_baseline_CM_v1.zip`, read line by line for A1 (`research/knowledge/methods/b02-lfcc-gmm.md`).
 
 **How confident each claim is.** Every number from our runs comes from committed files, and the
 A1 per-attack score shifts in §10.3 were re-derived from the score CSVs for this revision.
@@ -1313,5 +1337,5 @@ Numbers marked *recomputed* come from light re-analysis described in the methods
 and are not committed outputs. On 2026-10-04 the descriptions of [1], [3], [4], [6]–[8], [13],
 [14] and [17]–[26] were checked against the papers, and the headline numbers were spot-checked
 against the PDF text by the integrating author. Each paper note quotes the page it relies on.
-Still **not** re-read: [2], [5], [9]–[12] and [16]. [9]–[12] are JEV sources to confirm against
+[27] and [28] were re-read on 2026-10-04 (PDF text). Still **not** re-read: [2], [5], [9]–[12], [16], and the full texts of [29] and [30], which were not reachable. [9]–[12] are JEV sources to confirm against
 official docs.
