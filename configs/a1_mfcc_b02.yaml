@@ -1,0 +1,83 @@
+# A1 X4 MFCC ARM (handoff §13 X4): identical to configs/a1_lfcc_gmm.yaml except
+# `features.spacing: mel` (filter edges equally spaced in mel instead of Hz).
+# Original header follows. A1: LFCC + GMM, the official ASVspoof 2019 B02 baseline.
+# Every front-end parameter below is tied to a specific line in the official baseline
+# code (`ASVspoof_2019_baseline_CM_v1.zip`), per `research/knowledge/methods/
+# b02-lfcc-gmm.md`. See `src/audio_df/lfcc_b02.py`'s module docstring for how each of
+# these differs from `configs/features.yaml`'s general ablation-grid primitives.
+
+system: a1
+experiment: e1
+
+features:
+  name: lfcc_b02
+  # X4: mel-spaced triangle edges (MFCC arm); everything else is the B02 pipeline.
+  spacing: mel
+  # 20 ms Hamming window == 320 samples @ 16 kHz (`extract_lfcc(x, fs, 20, 512, 20)`,
+  # `Window_Length=20`).
+  window_ms: 20
+  # 10 ms hop == 50% overlap (`buffer(..., frame_length_inSample/2, 'nodelay')`).
+  hop_ms: 10
+  # 512-point FFT, literal `NFFT=512` in the official call.
+  n_fft: 512
+  # 20 linear-frequency triangular filters (`No_Filter=20`).
+  n_filters: 20
+  # Filterbank spans 0-8000 Hz (`min(f)=0`, `max(f)=Fs/2=8000`) — NOT 30 Hz-8kHz; the
+  # research note corrects an earlier, unsourced 30 Hz belief.
+  fmin: 0.0
+  fmax: null  # null -> sample_rate / 2
+  # Pre-emphasis coefficient, applied unconditionally (`filter([1 -0.97], 1, speech)`).
+  preemph: 0.97
+  # Delta/delta-delta window width (`deltas(stat', 3)`), NOT the 9-point default some
+  # `deltas.m` implementations fall back to.
+  delta_window: 3
+  # log10 (not natural log) of filterbank energy, DCT-II orthonormal (matches MATLAB's
+  # default `dct()`), no CMVN anywhere in the official code.
+  total_dims: 60  # 20 static (19 + 0th) + 20 delta + 20 delta-delta
+
+gmm:
+  # 512-component diagonal-covariance GMM per class (`vl_gmm(features, 512, ...)`).
+  n_components: 512
+  covariance: diag
+  # EM with random initialisation, max 10 iterations (`Readme.txt`).
+  em_iters: 10
+  init: random_frames  # seeded random frame selection for means; global variance; equal weights
+  # Frames processed per EM chunk — bounds peak memory well under the ~2 GB training
+  # budget (tasks/CONVENTIONS.md); see src/audio_df/models/gmm.py.
+  chunk_frames: 50000
+  # Project-local choice (not sourced from vl_gmm's internals — see gmm.py docstring).
+  variance_floor: 0.001
+  # Frames sampled (seeded) to initialise means/variance before the first EM pass.
+  init_sample_size: 200000
+
+data:
+  train: data/manifests/train.csv
+  testsets:
+    dev: data/manifests/dev.csv
+    eval: data/manifests/eval.csv
+    # Additional test sets (In-the-Wild, degraded eval subsets) can be added here by
+    # the user once those manifests exist, e.g.:
+    itw: data/manifests/itw.csv
+    # eval_mp3_32k: data/manifests/eval_mp3_32k.csv
+
+preprocessing:
+  sample_rate: 16000
+  # Whole utterances, no cropping — the official B02 baseline never crops
+  # (`audioread` reads the full file; `extract_lfcc` runs on the whole signal). This is
+  # a deliberate, logged deviation from this project's usual 4 s crop
+  # (configs/data.yaml: audio.crop_seconds).
+  crop_seconds: null
+  silence_mode: raw
+
+seed: 1337
+
+literature_reference:
+  # arXiv:1904.05441 Table 1, B02 row (LA, eval, pooled). Dev-set B02 numbers are NOT
+  # in that paper (Table 1 is eval-only) — never write a "B02 dev EER" without its own
+  # citation. Never compared in the same column as our own runs (tag: literature).
+  source: "arXiv:1904.05441 Table 1"
+  scenario: LA
+  split: eval
+  eer_percent: 8.09
+  min_tdcf: 0.2116
+  tag: literature

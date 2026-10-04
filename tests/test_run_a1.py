@@ -259,3 +259,78 @@ def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
     )["n_frames"]
     assert n_frames_after == n_frames_before
     assert exp_dir.exists()
+
+
+def test_front_end_hash_unchanged_without_spacing_and_differs_for_mel():
+    base = {
+        "features": {"name": "lfcc_b02", "n_filters": 20, "fmin": 0.0, "fmax": None},
+        "preprocessing": {"sample_rate": SR, "crop_seconds": None, "silence_mode": "raw"},
+        "seed": 1337,
+    }
+    h0 = run_a1._front_end_config_hash(base)
+    # Hash must not depend on the seed (frames are seed-independent; seeds share a cache).
+    assert run_a1._front_end_config_hash({**base, "seed": 2337}) == h0
+    mel = {**base, "features": {**base["features"], "spacing": "mel"}}
+    assert run_a1._front_end_config_hash(mel) != h0
+
+
+def test_existing_lfcc_config_hash_is_the_cached_one():
+    cfg = run_a1.load_config("configs/a1_lfcc_gmm.yaml")
+    assert "spacing" not in cfg["features"]
+    assert run_a1._front_end_config_hash(cfg) == "06c95e9be4b94e0f"
+
+
+def test_mfcc_config_differs_from_lfcc_only_in_spacing_and_name():
+    lfcc = run_a1.load_config("configs/a1_lfcc_gmm.yaml")
+    mfcc = run_a1.load_config("configs/a1_mfcc_b02.yaml")
+    assert mfcc["features"]["spacing"] == "mel"
+    mfcc_feat = {k: v for k, v in mfcc["features"].items() if k != "spacing"}
+    assert mfcc_feat == lfcc["features"]
+    for key in ("gmm", "data", "preprocessing", "seed"):
+        assert mfcc[key] == lfcc[key]
+
+
+def test_tag_and_seed_flags(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(run_a1, "_STATUS_FN", lambda: NORMAL_STATUS)
+
+    manifest_paths = _build_dataset(tmp_path, {"train": 4, "dev": 2, "eval": 2})
+    config_path = _build_config(tmp_path, manifest_paths)
+    resources_path = tmp_path / "resources.yaml"
+    _write_resources_yaml(resources_path)
+    common = ["--config", str(config_path), "--resources", str(resources_path)]
+
+    parser = run_a1.build_arg_parser()
+    args = parser.parse_args(
+        [*common, "train", "--exp", "smoke", "--tag", "mfcc-s2337", "--seed", "2337"]
+    )
+    args.fn(args)
+    exp_dir = next((tmp_path / "experiments").glob("E-*-smoke-a1-raw-mfcc-s2337"))
+    saved = yaml.safe_load((exp_dir / "config.yaml").read_text())
+    assert saved["seed"] == 2337
+
+    args = parser.parse_args(
+        [
+            *common,
+            "score",
+            "--model-from",
+            str(exp_dir),
+            "--exp",
+            "smoke",
+            "--silence-mode",
+            "trimmed",
+            "--testsets",
+            "eval",
+            "--tag",
+            "mfcc-s2337",
+            "--seed",
+            "2337",
+        ]
+    )
+    args.fn(args)
+    score_dir = next((tmp_path / "experiments").glob("E-*-smoke-a1-trimmed-mfcc-s2337"))
+    assert yaml.safe_load((score_dir / "config.yaml").read_text())["seed"] == 2337
+
+    # No flags -> default id, config seed untouched.
+    args = parser.parse_args([*common, "train", "--exp", "e1"])
+    assert args.tag is None and args.seed is None

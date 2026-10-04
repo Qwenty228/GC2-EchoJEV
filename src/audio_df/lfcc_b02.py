@@ -88,6 +88,9 @@ DEFAULT_LFCC_B02_CONFIG: dict[str, Any] = {
     "delta_window": 3,
     "fmin": 0.0,
     "fmax": None,  # None -> sample_rate / 2, matching `Fs/2` in the official code
+    # "linear" = official B02 (LFCC). "mel" = X4 MFCC arm: only the filter edge placement
+    # changes (mel-spaced edges, same peak-1 trimf triangles, same everything else).
+    "spacing": "linear",
 }
 
 _LOG10_EPS = np.finfo(np.float64).eps  # 2.220446049250313e-16, matches MATLAB's `eps`
@@ -189,7 +192,12 @@ def _trimf(x: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
 
 
 def lfcc_b02_filterbank(
-    n_filters: int, n_fft: int, sr: int, fmin: float = 0.0, fmax: float | None = None
+    n_filters: int,
+    n_fft: int,
+    sr: int,
+    fmin: float = 0.0,
+    fmax: float | None = None,
+    spacing: str = "linear",
 ) -> np.ndarray:
     """Literal transcription of `extract_lfcc.m`'s filterbank construction:
 
@@ -203,11 +211,25 @@ def lfcc_b02_filterbank(
     Returns `Psi[n_filters, n_fft//2+1]`. `fmax` defaults to `sr/2` (`Fs/2`), matching
     `min(f)=0`/`max(f)=Fs/2` exactly when `fmin=0.0` (the B02 default; NOT 30 Hz — see
     the module docstring).
+
+    `spacing="mel"` (X4 only) replaces the `linspace` edges with edges equally spaced on
+    the HTK mel scale (`features.hz_to_mel`) between `fmin` and `fmax`, mapped back to Hz;
+    triangles are still peak-1 `trimf`. The default `"linear"` path is unchanged.
     """
+    if spacing not in ("linear", "mel"):
+        raise ValueError(f"spacing must be 'linear' or 'mel', got {spacing!r}")
     fmax = sr / 2.0 if fmax is None else fmax
     n_bins = n_fft // 2 + 1
     f = fmax * np.linspace(0.0, 1.0, n_bins)
-    edges = np.linspace(fmin, fmax, n_filters + 2)
+    if spacing == "linear":
+        edges = np.linspace(fmin, fmax, n_filters + 2)
+    else:
+        from audio_df.features import hz_to_mel, mel_to_hz
+
+        edges = np.asarray(
+            mel_to_hz(np.linspace(hz_to_mel(fmin), hz_to_mel(fmax), n_filters + 2)),
+            dtype=np.float64,
+        )
     psi = np.zeros((n_filters, n_bins), dtype=np.float64)
     for i in range(n_filters):
         psi[i] = _trimf(f, edges[i], edges[i + 1], edges[i + 2])
@@ -258,7 +280,12 @@ def extract_lfcc_b02(
     # 4. 20 linear triangular filters, 0 Hz to sr/2 (research note: NOT 30 Hz), via a
     #    direct trimf/linspace transcription (lfcc_b02_filterbank), not features.py.
     psi = lfcc_b02_filterbank(
-        n_filters=n_filters, n_fft=n_fft, sr=sr, fmin=full_cfg["fmin"], fmax=fmax
+        n_filters=n_filters,
+        n_fft=n_fft,
+        sr=sr,
+        fmin=full_cfg["fmin"],
+        fmax=fmax,
+        spacing=full_cfg["spacing"],
     )
     energy = power @ psi.T  # [T, n_filters]
 

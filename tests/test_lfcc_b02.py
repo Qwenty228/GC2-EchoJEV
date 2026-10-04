@@ -294,3 +294,52 @@ def test_sr_mismatch_raises():
     x = _tone(sr=8000, seconds=0.2)
     with pytest.raises(ValueError):
         extract_lfcc_b02(x, sr=8000)
+
+
+# ---------------------------------------------------------------------------
+# X4: optional mel spacing; the default (linear) path must stay bit-identical.
+# ---------------------------------------------------------------------------
+
+
+def test_linear_spacing_is_default_and_bit_identical():
+    from audio_df.lfcc_b02 import _LOG10_EPS  # noqa: F401  (module still importable)
+
+    x = _tone(freq=700.0, seconds=0.5)
+    base = extract_lfcc_b02(x, sr=16000, cfg={})
+    explicit = extract_lfcc_b02(x, sr=16000, cfg={"spacing": "linear"})
+    assert np.array_equal(base, explicit)
+    psi_default = lfcc_b02_filterbank(n_filters=20, n_fft=512, sr=16000)
+    psi_linear = lfcc_b02_filterbank(n_filters=20, n_fft=512, sr=16000, spacing="linear")
+    assert np.array_equal(psi_default, psi_linear)
+
+
+def test_features_filterbank_linear_reproduces_b02_filterbank():
+    from audio_df.features import filterbank
+
+    ours = lfcc_b02_filterbank(n_filters=20, n_fft=512, sr=16000, fmin=0.0, fmax=8000.0)
+    theirs = filterbank(20, 512, 16000, spacing="linear", fmin=0.0, fmax=8000.0)
+    np.testing.assert_allclose(ours, theirs, atol=1e-12)
+
+
+def test_mel_spacing_matches_features_filterbank_mel():
+    from audio_df.features import filterbank
+
+    ours = lfcc_b02_filterbank(
+        n_filters=20, n_fft=512, sr=16000, fmin=0.0, fmax=8000.0, spacing="mel"
+    )
+    theirs = filterbank(20, 512, 16000, spacing="mel", fmin=0.0, fmax=8000.0)
+    np.testing.assert_allclose(ours, theirs, atol=1e-12)
+    assert ours.max() <= 1.0 + 1e-12  # peak-1 triangles, not area-normalised
+
+
+def test_mel_extract_differs_from_linear_only_via_filterbank():
+    x = _tone(freq=700.0, seconds=0.5)
+    lin = extract_lfcc_b02(x, sr=16000, cfg={})
+    mel = extract_lfcc_b02(x, sr=16000, cfg={"spacing": "mel"})
+    assert lin.shape == mel.shape == (mel.shape[0], 60)
+    assert not np.allclose(lin, mel)
+
+
+def test_invalid_spacing_raises():
+    with pytest.raises(ValueError):
+        lfcc_b02_filterbank(n_filters=20, n_fft=512, sr=16000, spacing="bark")

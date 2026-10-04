@@ -346,9 +346,17 @@ def cmd_train(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     resources_cfg = load_resources(args.resources)
     cfg["experiment"] = args.exp  # --exp wins over the config file's default
+    if args.seed is not None:
+        cfg["seed"] = args.seed  # recorded in the saved config (experiment_run saves cfg)
 
-    exp_id = make_exp_id(_dt.date.today(), args.exp, "a1", cfg["preprocessing"]["silence_mode"])
-    config_summary = f"a1 lfcc-gmm train, {cfg['gmm']['n_components']}-component diag GMM x2"
+    exp_id = make_exp_id(
+        _dt.date.today(), args.exp, "a1", cfg["preprocessing"]["silence_mode"], tag=args.tag
+    )
+    spacing = cfg["features"].get("spacing", "linear")
+    front_end = "mfcc" if spacing == "mel" else "lfcc"
+    config_summary = (
+        f"a1 {front_end}-gmm train, {cfg['gmm']['n_components']}-component diag GMM x2"
+    )
 
     try:
         with experiment_run(
@@ -471,8 +479,10 @@ def cmd_score(args: argparse.Namespace) -> None:
     # --exp wins over the config file's default (2026-10-03: In-the-Wild runs were filed
     # under e1 because the config hard-codes `experiment: e1`).
     cfg["experiment"] = args.exp
+    if args.seed is not None:
+        cfg["seed"] = args.seed
 
-    exp_id = make_exp_id(_dt.date.today(), args.exp, "a1", args.silence_mode)
+    exp_id = make_exp_id(_dt.date.today(), args.exp, "a1", args.silence_mode, tag=args.tag)
     config_summary = f"a1 score, silence_mode={args.silence_mode}, model_from={model_dir}"
     testset_names = args.testsets.split(",")
 
@@ -535,6 +545,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_train = sub.add_parser("train")
     p_train.add_argument("--exp", required=True)
     p_train.add_argument("--resume", action="store_true")
+    p_train.add_argument("--tag", default=None, help="suffix for the experiment id (slug)")
+    p_train.add_argument("--seed", type=int, default=None, help="override cfg['seed']")
     p_train.set_defaults(fn=cmd_train)
 
     p_score = sub.add_parser("score")
@@ -543,6 +555,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_score.add_argument("--silence-mode", choices=["raw", "trimmed"], required=True)
     p_score.add_argument("--testsets", required=True)
     p_score.add_argument("--resume", action="store_true")
+    p_score.add_argument("--tag", default=None, help="suffix for the experiment id (slug)")
+    p_score.add_argument("--seed", type=int, default=None, help="override cfg['seed']")
     p_score.set_defaults(fn=cmd_score)
 
     return parser
