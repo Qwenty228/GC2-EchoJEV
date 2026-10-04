@@ -94,8 +94,8 @@ The six findings, in order of importance:
 5. **A1 is at chance on In-the-Wild, and its exact score there depends on the random seed.**
    Across 3 seeds of the Gaussian mixture model (GMM) initialisation, its In-the-Wild EER is
    46–59 % (AUC 0.40, 0.56, 0.38). Two of the three are *inverted*: the spoof model scores
-   real-world bona fide audio as *more* spoof-like than real spoofs. In domain the seeds agree
-   to within half a point. Our reading (**hypothesis**, §10.6):
+   real-world bona fide audio as *more* spoof-like than real spoofs. In domain the seeds agree closely:
+   dev EER 2.62–3.10 %, eval EER 8.67–9.56 %. Our reading (**hypothesis**, §10.6):
    with c0 kept and no cepstral mean and variance normalisation (CMVN), a GMM over LFCC frames models the recording channel and level as
    much as synthesis.
 6. **A1's weakness is probably more the GMM than LFCC.** A discriminatively trained residual network (ResNet) on
