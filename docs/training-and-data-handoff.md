@@ -10,36 +10,72 @@ like-for-like comparison with our runs.*
 kept locally in `research/knowledge/papers/` (not in git; named in §15 as "local note"). The
 PDFs are on the team Google Drive linked from that folder's README. Every reference in §15 links
 to the public paper. Literature citations below give
-`[key, page/table]` so they can be checked. New in this revision: §5.1 now explains *what* LFCC
-measures and why it might beat MFCC, with the maths. §10.6 brings together why each result came
+`[key, page/table]` so they can be checked. New in this revision: §5.1 now explains *what* linear-frequency cepstral coefficients (LFCC)
+measure and why they might beat mel-frequency cepstral coefficients (MFCC), with the maths. §10.6 brings together why each result came
 out the way it did, and §13 lists the explainability analyses that would test those reasons.
 Claims are tagged by strength. **Measured** means a committed number from our runs.
 **Literature** means another paper's number under another protocol. **Hypothesis** means our
 reading, not yet tested.*
 
+<details>
+<summary><b>Glossary of abbreviations and names</b> (each is also spelled out where it first appears)</summary>
+
+| term | meaning |
+|---|---|
+| A1, A2, A3 | our three systems: LFCC + GMM baseline; frozen WavLM + small head; A2 + JEV |
+| E1–E6 | our experiments: benchmark, ablation, generalisation, robustness, JEV, efficiency |
+| X1–X8 | proposed explainability analyses (§13) |
+| AASIST | Audio Anti-Spoofing using Integrated Spectro-Temporal graph attention networks: a strong neural spoof detector, an official ASVspoof baseline |
+| ASVspoof | Automatic Speaker Verification Spoofing and Countermeasures Challenge; its 2019 logical access (LA) set is our main data. LA19 = 2019 LA, DF21 = 2021 deepfake (DF) track |
+| AUC | area under the receiver operating characteristic (ROC) curve; 1.0 is perfect ranking, 0.5 is chance |
+| B02 | the official ASVspoof 2019 baseline number 2, LFCC + GMM, which A1 reproduces |
+| CMVN | cepstral mean and variance normalisation: subtracting each recording's average feature, which removes the channel |
+| DCT | discrete cosine transform: turns log band energies into cepstral coefficients |
+| EER | equal error rate: the error at the threshold where missed bona fide equals accepted spoof; lower is better |
+| ECE | expected calibration error: how far predicted probabilities are from observed frequencies |
+| EM | expectation-maximisation, the algorithm that fits a GMM |
+| GMM | Gaussian mixture model: a weighted sum of Gaussian bell curves used as a probability density |
+| In-the-Wild (ITW) | 31,779 real-world clips of celebrities and politicians, real and deepfake; our zero-training test set |
+| JEV | a generalised classifier API (typed text or JSON in, typed probabilities out); not a large language model |
+| LFCC / MFCC | linear- / mel-frequency cepstral coefficients: hand-made audio features that differ only in where the frequency filters sit (§5.1) |
+| LLR | log-likelihood ratio: log p(x given bona fide) − log p(x given spoof) |
+| minDCF | minimum detection cost function: a weighted miss and false-accept cost, ASVspoof 5 definition |
+| MPS | Metal Performance Shaders: Apple's GPU backend for PyTorch |
+| MUSAN | Music, Speech and Noise corpus; we use its noise clips for E4 |
+| RawBoost | a raw-waveform data-augmentation method (adds filtered noise and distortions) |
+| RawNet2, RawGAT-ST | neural detectors that read the raw waveform; RawGAT-ST adds graph attention over spectral and temporal features |
+| RSS | resident set size: how much memory a process is actually using |
+| SSL | self-supervised learning: models pre-trained on unlabelled audio |
+| TTS / VC | text-to-speech / voice conversion: the two ways spoofs are made |
+| VCTK | Voice Cloning Toolkit corpus: the studio recordings of 107 English speakers that all ASVspoof 2019 bona fide speech comes from |
+| wav2vec 2.0, XLS-R, WavLM | self-supervised speech models. XLS-R (cross-lingual speech representations) is a multilingual wav2vec 2.0; WavLM (Microsoft) adds denoising during pre-training |
+| WORLD, STRAIGHT, WaveNet, WaveRNN, Griffin-Lim, Vocaine | waveform generators (vocoders) used to build the ASVspoof attacks (§10.2) |
+
+</details>
+
 ---
 
-## 0. TL;DR
+## 0. Summary
 
-We built three detectors for spoofed speech and tested them on ASVspoof 2019 LA. A1 is the
-classical **LFCC + GMM** baseline. A2 is a **frozen WavLM Base+** model with a small trained
-head. A3 adds the **JEV API** to A2 and is only scaffolded so far. We also check every result
+We built three detectors for spoofed speech and tested them on Automatic Speaker Verification Spoofing and Countermeasures Challenge (ASVspoof) 2019 logical access (LA). A1 is the
+classical **LFCC + Gaussian mixture model (GMM)** baseline. A2 is a **frozen WavLM Base+** model with a small trained
+head. A3 adds the **JEV application programming interface (API)** to A2 and is only scaffolded so far. We also check every result
 against the silence shortcut, a known flaw in this dataset.
 
-| EER (lower is better) | 2019 LA eval, raw | 2019 LA eval, trimmed | In-the-Wild, raw | In-the-Wild, trimmed |
+| equal error rate, EER (lower is better) | 2019 LA eval, raw | 2019 LA eval, trimmed | In-the-Wild, raw | In-the-Wild, trimmed |
 |---|---|---|---|---|
 | **A1** LFCC-GMM (B02 reproduction) | **9.56 %** | 19.84 % | 58.04 % | 61.36 % |
 | **A2** WavLM Base+, frozen, layer-weighted head | **0.96 %** | 13.27 % | **14.70 %** | 13.89 % |
 | *literature:* official B02 [15] | *8.09 %* | — | — | — |
-| *literature:* RawGAT-ST, best in-domain model of Müller et al. [13, Table 1] | *1.23 %* | — | *37.15 %* | — |
-| *literature:* frozen wav2vec 2.0 + MoE fusion + AASIST, RawBoost [22, Table II] | *0.74 %* | — | *12.48 %* | — |
+| *literature:* raw-waveform spectro-temporal graph attention network (RawGAT-ST), best in-domain model of Müller et al. [13, Table 1] | *1.23 %* | — | *37.15 %* | — |
+| *literature:* frozen wav2vec 2.0 + mixture of experts (MoE) fusion + Audio Anti-Spoofing using Integrated Spectro-Temporal graph attention networks (AASIST), RawBoost [22, Table II] | *0.74 %* | — | *12.48 %* | — |
 | *literature:* frozen WavLM Base+, last layer + logistic regression [8, Table 3] | — | — | *38.6 %* | — |
 
 The six findings, in order of importance:
 
 1. **We reproduced the official baseline.** A1 gets 9.56 % against the published B02's 8.09 %
    [15], using the exact B02 recipe read from the official MATLAB code.
-2. **Frozen SSL beats the baseline in domain and generalises far better.** On In-the-Wild, A1
+2. **Frozen self-supervised learning (SSL) beats the baseline in domain and generalises far better.** On In-the-Wild, A1
    collapses to chance (58 %) and A2 holds 14.7 %. The collapse repeats the central finding of
    [13]: models trained on ASVspoof fall apart on real-world deepfakes. That frozen SSL survives
    is less expected than it sounds. Under [8]'s protocol (last layer only, logistic regression),
@@ -47,7 +83,7 @@ The six findings, in order of importance:
    fusion head gets 12.48 % [22, Table II]. Our layer-weighted head may explain part of that gap
    (**hypothesis**, test X6 in §13).
 3. **Both models lean heavily on silence.** Our leakage audit shows leading silence alone
-   predicts the label with AUC 0.84. Trimming silence at test time doubles A1's EER and raises
+   predicts the label with area under the receiver operating characteristic curve (AUC) 0.84. Trimming silence at test time doubles A1's EER and raises
    A2's EER 14-fold. A2's median bona fide score falls from +14.9 to −4.2 while spoof scores
    barely move. Part of this may be train/test mismatch rather than the shortcut (§12).
 4. **A2's threshold does not transfer.** Its In-the-Wild ranking is good (AUC 0.93), but the
@@ -55,9 +91,9 @@ The six findings, in order of importance:
    domain shift; the calibration does not.
 5. **A1's In-the-Wild scores are inverted** (AUC 0.40). Its spoof model scores real-world
    bona fide audio as *more* spoof-like than real spoofs. Our reading (**hypothesis**, §10.6):
-   with c0 kept and no CMVN, a GMM over LFCC frames models the recording channel and level as
+   with c0 kept and no cepstral mean and variance normalisation (CMVN), a GMM over LFCC frames models the recording channel and level as
    much as synthesis.
-6. **A1's weakness is probably more the GMM than LFCC.** A discriminatively trained ResNet on
+6. **A1's weakness is probably more the GMM than LFCC.** A discriminatively trained residual network (ResNet) on
    LFCC input reaches 1.47–2.19 % on the same 2019 LA eval split [17, Tables 2 and 4]
    (literature). Its LFCC settings are not given, and its best columns were picked on eval. So
    "LFCC + GMM is 10× worse than WavLM" is a statement about the whole pipeline, not about the
@@ -117,8 +153,8 @@ Hard rule: **no metric is ever computed inside training code.** Runners write
 - **Source:** Edinburgh DataShare `LA.zip` (7.12 GB), unpacked under `data/raw/ASVspoof2019/LA/`
   (gitignored). The layout was checked against the official RawNet2 and AASIST loaders.
   See [research/knowledge/datasets/asvspoof-2019-la.md](../research/knowledge/datasets/asvspoof-2019-la.md).
-- **Origin:** all bona fide speech is VCTK: 107 English speakers, studio-quality, one
-  recording chain. Spoofs are TTS or VC outputs built on the same VCTK material [14].
+- **Origin:** all bona fide speech is Voice Cloning Toolkit corpus (VCTK): 107 English speakers, studio-quality, one
+  recording chain. Spoofs are text-to-speech (TTS) or voice conversion (VC) outputs built on the same VCTK material [14].
 - **Protocol format:** `SPEAKER_ID UTT_ID - SYSTEM_ID KEY`, five whitespace-separated fields,
   parsed by [`parse_asvspoof_protocol`](../src/audio_df/data.py#L121).
 
@@ -135,11 +171,11 @@ cells 3–6, real-data mode):
 Two properties drive the design:
 
 1. **The classes are imbalanced, about 1:9 bona fide to spoof.** Accuracy would be
-   meaningless. A model that always says "spoof" scores 90 %. So we report EER, minDCF and
+   meaningless. A model that always says "spoof" scores 90 %. So we report EER, minimum detection cost function (minDCF) and
    per-attack EER, and the A2 loss is reweighted (§7.3).
 2. **Eval attacks never appear in train or dev.** The official eval split is therefore already
    an *unseen-generator* test, at no extra cost
-   ([ADR-001](../research/decisions/ADR-001-generalization-data-strategy.md), option C). A gap
+   (architecture decision record [ADR-001](../research/decisions/ADR-001-generalization-data-strategy.md), option C). A gap
    between dev and eval is expected. It is not a sign of ordinary overfitting.
    - **Resolved 2026-10-04: only 11 of the 13 eval attacks are unseen.** The database paper says
      so directly: "Note that A04 and A16 use same waveform concatenation TTS algorithm, and A06
@@ -150,10 +186,10 @@ Two properties drive the design:
 Integrity checks that pass:
 
 - No speaker overlap between train and dev, enforced by
-  [`assert_no_speaker_overlap`](../src/audio_df/data.py#L252) (NB01 cell 10).
+  [`assert_no_speaker_overlap`](../src/audio_df/data.py#L252) (notebook 01, NB01, cell 10).
 - `split_hash` is independent of row order, so every run can prove which split it used
   (NB01 cell 12).
-- Manifests are gitignored; their SHA-256 sums are committed under `data/manifests/`.
+- Manifests are gitignored; their Secure Hash Algorithm, 256-bit (SHA-256) sums are committed under `data/manifests/`.
 
 ### 2.2 In-the-Wild: zero-training external test [13]
 
@@ -170,7 +206,7 @@ Integrity checks that pass:
   clip length 4.3 s, and fakes cut from 219 videos [13, §3, p.2]. It gives **no clip count**.
   [8, Table 1, p.2] describes the set as about 20k real and 12k fake clips, which matches our
   19,963 / 11,816.
-- The licence is in conflict: the HF card says CC-BY-SA-4.0 and the authors' page says
+- The licence is in conflict: the Hugging Face (HF) card says Creative Commons Attribution-ShareAlike (CC-BY-SA) 4.0 and the authors' page says
   Apache-2.0. Flag this in the report. See
   [research/knowledge/datasets/in-the-wild.md](../research/knowledge/datasets/in-the-wild.md).
 - Loaded by [`build_itw_manifest`](../src/audio_df/data.py#L347).
@@ -183,24 +219,24 @@ Integrity checks that pass:
   0.01 % ([notebooks/13_e4_degradations.ipynb](../notebooks/13_e4_degradations.ipynb) cell 4).
   The clip IDs are frozen in [configs/e4_degradations.yaml](../configs/e4_degradations.yaml).
 - **Four test-time degradations** in [src/audio_df/degrade.py](../src/audio_df/degrade.py):
-  MP3 at 32 kbps, Opus at 16 kbps, MUSAN `noise/` at 10 dB SNR, and a 16→8→16 kHz resample.
+  MP3 at 32 kbps, Opus at 16 kbps, Music, Speech and Noise corpus (MUSAN) `noise/` at 10 dB signal-to-noise ratio (SNR), and a 16→8→16 kHz resample.
   The motivation is [1]: what a detector meets in practice is speech after a channel (codecs,
   noise, narrowband audio), and ASVspoof 5 [2, 5] builds codec conditions into its evaluation
   for the same reason.
 - **E4 tests the mild case, not presentation.** [1] finds that the harsh condition is
   loudspeaker *playback*, not the phone line. For WavLM-LLGF, the miss rate at 1 % false alarms
   goes from 25.2 % on pooled raw test sets to 26.7 % under direct phone injection and 57.6 %
-  under real playback [1, Fig. 3 / Table 2, p.4] (literature: 8 kHz, VAD on every input,
+  under real playback [1, Fig. 3 / Table 2, p.4] (literature: 8 kHz, voice activity detection (VAD) on every input,
   codec-augmented training, different data). E4 has no re-recording, so the report must not
   claim "presentation robustness". [1] gives no per-codec numbers, so it cannot predict E4's
   magnitudes. [1] also uses one pooled threshold across conditions [1, p.3]; reusing the clean
   dev threshold in E4 follows the same logic.
-- MUSAN (OpenSLR 17) is fetched by [scripts/get_musan.py](../scripts/get_musan.py), which keeps
+- MUSAN (Open Speech and Language Resources, OpenSLR, corpus 17) is fetched by [scripts/get_musan.py](../scripts/get_musan.py), which keeps
   only `noise/`, about 929 files.
 
 ### 2.4 Considered but parked
 
-These are listed in [docs/backlog.md](backlog.md): ASVspoof 2021 LA/DF, ASVspoof 5, MLAAD
+These are listed in [docs/backlog.md](backlog.md): ASVspoof 2021 LA/DF, ASVspoof 5, Multi-Language Audio Anti-Spoofing Dataset (MLAAD)
 held-out architectures (ADR-001 option B), and a self-generated TTS set. ADR-001 explains why
 generating our own fakes is dangerous. Pairing them with bona fide audio from another
 recording chain *creates* a corpus shortcut.
@@ -215,14 +251,14 @@ detector can learn that metadata instead of synthesis evidence.
 **Method** ([src/audio_df/leakage.py](../src/audio_df/leakage.py),
 [scripts/audit_leakage.py](../scripts/audit_leakage.py), NB01 cells 14–21):
 
-- Features: duration, sample rate, codec, source corpus, speaker ID, RMS level, and the
+- Features: duration, sample rate, codec, source corpus, speaker ID, root-mean-square (RMS) level, and the
   fractions of leading, trailing and total silence.
 - Silence is measured with framed RMS energy relative to the loudest frame, with
   `top_db = 30`, frames of 2048 and hop 512, the same convention as `librosa.effects.split`
   ([`silence_ratio`](../src/audio_df/audio.py#L142)). An earlier per-sample threshold counted
   zero-crossings as silence and was replaced. The docstring explains why.
 - Classifiers: logistic regression and a depth-2 tree, scored **only out of fold** with
-  5-fold stratified CV ([`_cross_val_oof_scores`](../src/audio_df/leakage.py#L234)).
+  5-fold stratified cross-validation (CV) ([`_cross_val_oof_scores`](../src/audio_df/leakage.py#L234)).
   Categorical features use fold-safe target encoding, and CIs come from 1,000 bootstrap
   resamples.
 - A feature is flagged above AUC 0.65. **That threshold is a project convention, not a
@@ -230,7 +266,7 @@ detector can learn that metadata instead of synthesis evidence.
 
 **Result** on all 121,461 clips ([reports/tables/leakage_audit.csv](../reports/tables/leakage_audit.csv)):
 
-| feature | AUC [95 % CI] | EER | flagged |
+| feature | AUC [95 % confidence interval (CI)] | EER | flagged |
 |---|---|---|---|
 | silence_leading | **0.837** [0.835, 0.840] | 24.7 % | ⚠ yes |
 | silence_total | **0.825** [0.822, 0.827] | 25.5 % | ⚠ yes |
@@ -269,7 +305,7 @@ would add the very silence we are trying to control.
 
 ## 4. Analyze: where do the classes differ?
 
-### 4.1 Spectral EDA ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb), real data, 240-clip stratified sample)
+### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb), real data, 240-clip stratified sample)
 
 We report effect sizes (Cohen's *d*, spoof minus bona fide, with bootstrap 95 % CI, and Cliff's
 δ), not p-values. With samples this large, a t-test calls trivial differences "significant".
@@ -293,7 +329,7 @@ which is why per-attack EER is required.
 
 **What the EDA does *not* show: a large high-band energy deficit.** The obvious version of
 "spoofs lack high frequencies" fails on our data. The committed share of energy at ≥ 4 kHz
-(`band_high_ratio`) has d = −0.13 [−0.37, 0.09] and AUC 0.53 (NB02 cells 9 and 12), so the
+(`band_high_ratio`) has d = −0.13 [−0.37, 0.09] and AUC 0.53 (notebook 02, NB02, cells 9 and 12), so the
 interval includes zero. A finer check (**recomputed** on 600 clips through the exact B02
 pipeline, not committed output) does find a small *gain-free* tilt. Compared with the 1.1–4.2 kHz
 channels, the 4.9–7.6 kHz channels sit 1.5 dB lower in spoof (d = −0.33 [−0.50, −0.17], louder
@@ -308,7 +344,7 @@ Details:
 ### 4.2 Cepstral EDA ([notebooks/03_cepstral_eda.ipynb](../notebooks/03_cepstral_eda.ipynb), 90-clip sample)
 
 This compares six representations from [configs/features.yaml](../configs/features.yaml):
-linear vs mel filters, with or without the DCT, truncated or not, with or without deltas.
+linear vs mel filters, with or without the discrete cosine transform (DCT), truncated or not, with or without deltas.
 The key measured fact (cell 11):
 
 | representation (bona fide only) | mean \|off-diagonal correlation\| |
@@ -327,9 +363,9 @@ log-filterbanks (§6.3).
 | | A1 LFCC + GMM | A2 frozen SSL + head | A3 A2 + JEV |
 |---|---|---|---|
 | role | the **anchor**: an official, fully specified baseline we can reproduce exactly [15] | the **modern front end** the field has moved to [3, 6, 7, 8] | a **decision layer**: accept when confident, escalate when unsure [10] |
-| Z | hand-designed: linear cepstra plus dynamics | learned: hidden states of a model pre-trained on 94k h of real speech [26, p.5] | A2's score plus a few interpretable acoustic summaries, as JSON |
+| Z | hand-designed: linear cepstra plus dynamics | learned: hidden states of a model pre-trained on 94k h of real speech [26, p.5] | A2's score plus a few interpretable acoustic summaries, as JavaScript Object Notation (JSON) |
 | what is trained | two density models, no discriminative training | ~231k head parameters; the 94M-parameter backbone is frozen | nothing (typed questions to an API) |
-| fits a 16 GB fanless Mac? | yes (peak RSS 3.8 GB) | yes, *because* we freeze and pool-cache | yes, network-bound |
+| fits a 16 GB fanless Mac? | yes (peak memory, resident set size (RSS), 3.8 GB) | yes, *because* we freeze and pool-cache | yes, network-bound |
 
 ### 5.1 Why LFCC and not MFCC
 
@@ -341,7 +377,7 @@ would turn it into a measurement. The full derivation, with a per-filter table, 
 
 #### 5.1.1 The only difference is where the filters sit
 
-LFCC and MFCC share every step (pre-emphasis → window → |FFT|² → triangular filterbank → log →
+LFCC and MFCC share every step (pre-emphasis → window → fast Fourier transform (FFT) power |·|² → triangular filterbank → log →
 DCT) except the placement of the filter edges. LFCC spaces them equally in Hz. MFCC spaces them
 equally on the mel scale, $m(f) = 2595\,\log_{10}(1+f/700)$, which was designed for *speech
 recognition* to mimic the ear. Its slope tells you the resolution:
@@ -410,10 +446,10 @@ fixed weighted sum, so each has a direct physical reading:
   LFCC 1.67 % vs MFCC 3.84 % (Table 4).
 - **WaveFake** [24, Tables 2 and 6]. A GMM on LFCC beat the same GMM on MFCC in all seven
   training conditions on average (aEER 0.129 vs 0.295), though not on every test set: MelGAN-trained
-  models did better with MFCC on the two JSUT sets. WaveFake also removed silences over 2 s. Vocoder spectrograms differ "especially in the
+  models did better with MFCC on the two JSUT (Japanese speech corpus of Saruwatari-lab, University of Tokyo) test sets. WaveFake also removed silences over 2 s. Vocoder spectrograms differ "especially in the
   higher frequencies", differences that are "generally inaudible when listening" (p.6). That is
   exactly the band a perceptual (mel) scale compresses.
-- **Counter-evidence** [25, Table 1, p.4]. On the SAS corpus a 26-filter linear bank scored
+- **Counter-evidence** [25, Table 1, p.4]. On the Spoofing and Anti-Spoofing (SAS) corpus a 26-filter linear bank scored
   8.91 % against 6.89 % for mel. The most discriminative regions were 0–1, 2.5–5.5 and 7–8 kHz,
   not only the top. Linear spacing is not uniformly better. The useful bands depend on the
   generators.
@@ -468,7 +504,7 @@ needs no negative-class balancing, and it is cheap. Its built-in limits are the 
 need A2: it treats a clip as a **bag of frames** with no temporal context beyond Δ and ΔΔ, and
 it models *everything* about the frames, recording channel included.
 
-The back end costs a lot. Mo and Wang train a ResNet34 with OC-softmax on LFCC and reach
+The back end costs a lot. Mo and Wang train a ResNet34 with one-class softmax (OC-softmax) on LFCC and reach
 2.19 % on the same 2019 LA eval split. Adding three auxiliary tasks brings it to 1.47 %
 [17, Tables 2 and 4] (literature: best column per loss chosen on eval, single runs). [17] does not state its LFCC settings,
 so this is not a same-features comparison. Still, against A1's 9.56 %, it suggests that most of
@@ -484,7 +520,7 @@ classes.
   which the WavLM paper contradicts. Its representations encode what natural speech looks like
   at several levels, and a classifier can measure deviations from that.
 - **What the SSL literature does and does not show.**
-  - Tak et al. [7] *fine-tune* XLS-R 0.3B jointly with AASIST on 2019 LA. Pooled EER on 2021 LA
+  - Tak et al. [7] *fine-tune* cross-lingual speech representations model (XLS-R) 0.3B jointly with AASIST on 2019 LA. Pooled EER on 2021 LA
     falls from 11.47 % (sinc front end) to 6.15 %, and to 0.82 % with RawBoost and a
     self-attentive layer [7, Table 2, p.5]. The backbone is fine-tuned, only the last layer is
     used, and they test on 2021 LA/DF, not In-the-Wild. So [7] supports "SSL front ends help",
@@ -498,11 +534,11 @@ classes.
     (RawBoost on every run). Fine-tuning instead reached 9.17 % on In-the-Wild, so fine-tuning
     beat freezing there.
 - **Why frozen.** Fine-tuning a 94–300M-parameter model on a fanless 16 GB machine is not
-  practical (the GPU-dependent A2-alt variant is parked in [backlog.md](backlog.md)). Freezing
+  practical (the A2-alt variant, which needs a graphics processing unit (GPU), is parked in [backlog.md](backlog.md)). Freezing
   also means **one** forward pass per clip, cached, after which head training takes seconds:
   16.9 s for the whole run. The literature puts this on the "cheaper, probably not best" side.
   Stourbe et al. got 6.78 % with a frozen encoder against 6.41 % fine-tuned. Only the fine-tuned
-  model with noise, RIR and codec augmentation reached 2.18 % [3, Table 2 row 6, p.4], and they
+  model with noise, room impulse response (RIR) and codec augmentation reached 2.18 % [3, Table 2 row 6, p.4], and they
   conclude fine-tuning is needed. [22] found the same on In-the-Wild.
 - **Why WavLM first.** WavLM's pre-training adds denoising and utterance mixing to masked
   prediction, so it is built to be robust to overlapped and noisy audio, which matters for
@@ -510,7 +546,7 @@ classes.
   they use WavLM *Base* (960 h), not Base+, and they fine-tune it. One of their back ends is a
   layer-weighted average, then a time mean, then one linear layer (about 1.5k parameters)
   [3, §4.2.1, p.3]. That is the same pooling structure as our A2 head. Base+ (12 layers,
-  768 dimensions) runs at about 53 ms per clip on MPS. **XLS-R 300M** (24 layers, 1,024
+  768 dimensions) runs at about 53 ms per clip on Metal Performance Shaders (MPS), Apple's GPU backend. **XLS-R 300M** (24 layers, 1,024
   dimensions, 128 languages) is the second backbone. It is the one most papers fine-tune [7];
   we run it raw-only and overnight.
 - **Why a learned weight per layer.** Different transformer layers carry different information.
@@ -518,20 +554,20 @@ classes.
   speaker-related tasks… content and semantic information are encoded in the top layers"
   [26, Fig. 2, p.7]. Our working hypothesis is that spoof evidence is more acoustic and
   speaker-like than linguistic. Instead of guessing a layer, the head learns a **softmax weight
-  per layer**, the SUPERB-style weighted sum. Merging multiple wav2vec2 layers is also the
+  per layer**, the weighted sum used by the SUPERB benchmark (Speech processing Universal PERformance Benchmark). Merging multiple wav2vec2 layers is also the
   approach of [16] for deepfake detection. **No paper we read reports which layers carry spoof
   evidence for frozen WavLM.** [3] states the low and mid-layer motivation without reporting
   learned weights. [7] uses only the last layer. [22] repeats a "layer 5 beats the last layer"
-  result second-hand. Richer aggregations such as SLS or MSLA exist, but our research note could
+  result second-hand. Richer aggregations such as Sensitive Layer Selection (SLS) or MSLA (a multi-layer aggregation method, Meng et al. 2026) exist, but our research note could
   not read their mechanisms from primary sources, so they are not scheduled
   ([multi-layer-ssl-aggregation.md](../research/knowledge/methods/multi-layer-ssl-aggregation.md)).
 - **Time-averaged SSL states carry generator identity.** A plain 21-nearest-neighbour classifier
   on time-averaged hidden states of a frozen SSL model names the generator checkpoint of a fake
   clip with macro F1 0.93 across 243 checkpoints [19, pp.1, 4]. That supports our time-mean cache
   holding real synthesis evidence. But [19] uses fake clips only, and its one cross-corpus test transfers poorly (F1 0.30 from an
-  xTTS-dominated MLAAD support set to ASVspoof 5 and TIMIT [19, Table 5, p.4]).
-- **Spectral and SSL views together.** El Kheir et al. [6] fuse MFCC, LFCC or CQCC frames with
-  XLS-R-53 in front of AASIST. It helps on 2021 DF, In-the-Wild (LFCC: 14.03 → 6.87 %) and
+  xTTS-dominated MLAAD support set to ASVspoof 5 and Texas Instruments / Massachusetts Institute of Technology speech corpus (TIMIT) [19, Table 5, p.4]).
+- **Spectral and SSL views together.** El Kheir et al. [6] fuse MFCC, LFCC or constant-Q cepstral coefficients (CQCC) frames with
+  XLS-R-53 in front of AASIST. It helps on 2021 deepfake (DF), In-the-Wild (LFCC: 14.03 → 6.87 %) and
   ASVspoof 5, but **not on 2019 LA**, where LFCC fusion only ties the baseline [6, Table 1, p.3].
   "Complementary" is their interpretation of aggregate gains. They give no per-attack or
   error-overlap analysis, and their 4 s inputs are zero-padded with no silence control. Our
@@ -541,7 +577,7 @@ classes.
 ### 5.4 Why A3 (JEV)
 
 JEV [9, 11, 12] is a **generalised classifier API: typed text or JSON in, typed probabilities
-out**. It is text-only [11], and **it is not an LLM doing open-ended reasoning**; do not describe
+out**. It is text-only [11], and **it is not a large language model (LLM) doing open-ended reasoning**; do not describe
 A3 that way. A3 gives it a small, **label-free** JSON *evidence state* per clip: A2's score and
 confidence level, high-band energy share, leading silence, duration. It then asks three fixed,
 versioned questions: yes/no "synthetic?", a three-way choice, and a 0–3 consistency score. The
@@ -606,7 +642,7 @@ p(\mathbf{x}\mid c) = \sum_{k=1}^{512} \pi_k^{c}\ \mathcal{N}\big(\mathbf{x};\bo
 \log\mathcal N = -\tfrac12\Big[D\log 2\pi + \sum_d \log\sigma_{kd}^2 + \sum_d \tfrac{(x_d-\mu_{kd})^2}{\sigma_{kd}^2}\Big].
 $$
 
-**EM** with 10 iterations, random-frame initialisation, a global-variance start and equal
+**expectation-maximisation (EM)** with 10 iterations, random-frame initialisation, a global-variance start and equal
 weights ([`fit_em`](../src/audio_df/models/gmm.py#L136)):
 
 - E-step: $\gamma_{tk} = \dfrac{\pi_k \mathcal N(\mathbf x_t;\mu_k,\sigma_k^2)}{\sum_j \pi_j \mathcal N(\mathbf x_t;\mu_j,\sigma_j^2)}$,
@@ -649,7 +685,7 @@ heuristic. Higher means more bona fide.
 
 **Mechanism for the silence shortcut in A1** (our reading, consistent with §10.3). Low-energy
 silence frames (low c0) are common in bona fide training clips and rare in spoof ones. They earn
-a large positive per-frame LLR, so a clip's score rises with its silence fraction. When silence
+a large positive per-frame log-likelihood ratio (LLR), so a clip's score rises with its silence fraction. When silence
 is trimmed, the A1 eval median bona fide score falls from 1.50 to 1.19, and the share of bona
 fide clips rejected at the dev threshold rises from 1.6 % to 11.5 %.
 
@@ -717,7 +753,7 @@ Two tests check this numerically: `tests/test_ssl_cache.py` and `tests/test_ssl_
 also why LayerNorm comes **after** pooling: LayerNorm is nonlinear and would break the identity.
 
 The price is that the head sees only the **average** frame. Timing information is gone, along
-with any artifact that is local in time. Frame-level heads (Transformer, CNN or ECAPA over the
+with any artifact that is local in time. Frame-level heads (Transformer, convolutional neural network (CNN) or Emphasized Channel Attention, Propagation and Aggregation (ECAPA) over the
 weighted sequence) would need about 37 GB of cache and are parked. Frame-level augmentation is
 ruled out for the same reason. [4]'s MaskedFeature masks frame-level latents [4, §2.2.2, p.7],
 which a time-mean cache cannot do, and frame-level spectral-SSL fusion as in [6] needs frames
@@ -734,9 +770,9 @@ s &= \mathrm{Linear}_{128\to1}\Big(\mathrm{Dropout}_{0.1}\big(\mathrm{GELU}(\mat
 $$
 
 The logit *s* is oriented so that $\sigma(s)\approx P(\text{bona fide})$. **The head has
-≈231k trainable parameters**: LN 1,536 + projection 196,864 + MLP 33,025 + 13 layer logits.
+≈231k trainable parameters**: layer normalisation (LN) 1,536 + projection 196,864 + multilayer perceptron (MLP) 33,025 + 13 layer logits.
 
-**Loss: BCE with a positive-class weight**, where the target is $y = 1$ for bona fide:
+**Loss: binary cross-entropy (BCE) with a positive-class weight**, where the target is $y = 1$ for bona fide:
 
 $$
 \mathcal L = -\big[\,w_p\,y\log\sigma(s) + (1-y)\log(1-\sigma(s))\,\big],\qquad
@@ -770,7 +806,7 @@ and cannot tell good checkpoints apart.
   comes from epoch 8 of a uniform start, which does not move softmax logits far. The test is X6 (§13): 13 single-layer heads and
   leave-one-layer-out, seconds each. If layer 3 is not near the best single layer, the weights
   are not tracking usefulness.
-- **Why this may matter beyond A2.** [8] reports 38.6 % ITW EER for the same frozen WavLM Base+
+- **Why this may matter beyond A2.** [8] reports 38.6 % In-the-Wild dataset (ITW) EER for the same frozen WavLM Base+
   using the **last layer only**. A2 gets 14.70 % with a mixture tilted toward the bottom layers.
   The training data also differ (theirs is train+dev), so the comparison is not clean. But if a
   layer-12-only head on our cache lands near [8]'s figure, then layer choice is a large part of
@@ -832,7 +868,7 @@ $$
 \qquad \text{minDCF}=\min_\theta \text{DCF}(\theta).
 $$
 
-**This is not the 2019 t-DCF.** t-DCF needs a fixed ASV system's scores, which we do not have, so
+**This is not the 2019 tandem detection cost function (t-DCF).** t-DCF needs a fixed automatic speaker verification (ASV) system's scores, which we do not have, so
 B02's published t-DCF of 0.2116 cannot sit in the same column as our minDCF.
 
 **Per-attack EER** ([`per_attack_eer`](../src/audio_df/metrics.py#L460)) scores each attack's
@@ -892,14 +928,14 @@ Waveform generators per [14, Table 1, p.6]:
 
 | attack | generator |
 |---|---|
-| A07 | WORLD with a GAN |
+| A07 | WORLD with a generative adversarial network (GAN) |
 | A08 | neural source-filter |
 | A09 | Vocaine |
 | A10 | WaveRNN |
 | A11 | Griffin-Lim |
 | A12, A15 | WaveNet |
 | A13 | waveform filtering |
-| A14 | STRAIGHT |
+| A14 | Speech Transformation and Representation using Adaptive Interpolation of weiGHTed spectrum (STRAIGHT) |
 | A16 | waveform concatenation |
 | A17 | waveform filtering |
 | A18 | MFCC vocoder |
@@ -911,7 +947,7 @@ Waveform generators per [14, Table 1, p.6]:
   make A09, A12 and A16 easy for A1 (§10.3).
 - **A10 vs A11 is a natural controlled experiment on the vocoder.** In [14, Table 1] the two
   attacks share the input processor (CNN + bi-RNN), duration model (attention), acoustic model
-  (AR RNN + CNN), speaker encoder (d-vector) and output (mel-spectrograms). They differ **only**
+  (autoregressive (AR) recurrent neural network (RNN) + CNN), speaker encoder (d-vector) and output (mel-spectrograms). They differ **only**
   in the waveform generator: WaveRNN (neural) for A10, Griffin-Lim (iterative phase
   reconstruction) for A11. Both have zero leading silence, so the silence cue is held fixed too.
   Yet A1 gets 22.4 % on A10 and 0.1 % on A11, and A2 gets 2.0 % and 0.2 %. So **the vocoder
@@ -946,7 +982,7 @@ The per-attack view tells the story. For A2:
   A15 0.5 → 17.9 %, A14 0.4 → 17.8 %, A07 0.2 → 13.5 %.
 - **A17**, whose silence already looks like bona fide, barely moves (0.9 → 1.8 %), and neither
   does **A13** (0.0 → 0.7 %).
-- Score medians from the score CSVs (a read-only check run for this document):
+- Score medians from the score comma-separated values (CSV) files (a read-only check run for this document):
 
 | A2, eval | median bona fide score | median spoof score | bona fide rejected at the raw dev threshold |
 |---|---|---|---|
@@ -1057,7 +1093,7 @@ rather than a cue. This is our interpretation and has not been tested.
 - **Ranking survives; calibration does not.** AUC is 0.93, but the raw dev threshold rejects
   49 % of real ITW bona fide speech while accepting only 1.6 % of spoofs. ITW bona fide scores
   are centred at −2.2, against +14.9 for VCTK bona fide. A deployed A2 would need
-  re-calibration on in-domain bona fide audio. [8] measures a related problem: ECE rises on ITW
+  re-calibration on in-domain bona fide audio. [8] measures a related problem: expected calibration error (ECE) rises on ITW
   even for its best model, from 1.8 % on ASVspoof to 16.1 % [8, Table 3]. Its ECE is
   probability calibration; our rejection rate at a fixed threshold measures *threshold transfer*.
   These are related but not the same metric. [8]'s argument also assumes unweighted cross-entropy,
@@ -1128,7 +1164,7 @@ Each has a cheap test in §13.
 | vocoder, not acoustic model, drives detectability | — | **new, measured:** A10 vs A11 (same pipeline, different vocoder): A1 22.4 vs 0.1 % |
 | SSL front ends generalise better than spectral features | [7] (fine-tuned), [22] (frozen) | **consistent:** frozen WavLM 14.7 % ITW against A1 58 % |
 | frozen SSL plus a simple back end generalises | only for a large backbone: XLS-R 2B 7.2 %, WavLM Base+ last layer 38.6 % ITW [8, Table 3] | **extended, unexplained:** same WavLM Base+ at 14.7 % with a ≈231k layer-weighted head trained in 17 s from an exact pooled cache; weights tilt toward the bottom layers; X6 tests why |
-| spectral + SSL fusion helps out of domain | ITW 14.03 → 6.87 %, LA19 unchanged [6, Table 1] | **not tested**; A1 is inverted on ITW, so naive fusion with A1 is not expected to help |
+| spectral + SSL fusion helps out of domain | ITW 14.03 → 6.87 %, ASVspoof 2019 LA (LA19) unchanged [6, Table 1] | **not tested**; A1 is inverted on ITW, so naive fusion with A1 is not expected to help |
 | auxiliary tasks improve unseen-attack EER | LFCC ResNet 2.19 → 1.47 % [17, Table 4] | **not tested** |
 | "SSL is robust" | — | **qualified:** robust in *ranking* (AUC 0.93), but a dev threshold is badly mis-calibrated in a new domain (49 % of bona fide rejected), and much of its in-domain margin is silence |
 | method discipline | in-domain choices should be checked cross-corpus [18, p.16] | official-exact EER; per-attack EER with a shared bona fide pool; thresholds only from dev; leakage audit before modelling; trimmed diagnostic on every test set; a registry with resource accounting on a 16 GB fanless machine |
@@ -1164,8 +1200,8 @@ Each has a cheap test in §13.
    - No source shows augmentation helping a frozen, pooled-cache head, or fixing the silence
      shortcut.
 8. **Literature quality.** [21] has internal inconsistencies (dataset counts in Table 2 vs
-   §4.1; non-standard FAR/FRR in Eq. 13–14), so we use it only as a pointer to methods. [18] is a
-   preprint with AI-assisted writing disclosed. [6]'s baseline (DF21 5.29 %, ITW 14.03 %) is
+   §4.1; non-standard false acceptance and false rejection rates (FAR/FRR) in Eq. 13–14), so we use it only as a pointer to methods. [18] is a
+   preprint with AI-assisted writing disclosed. [6]'s baseline (ASVspoof 2021 DF, DF21: 5.29 %, ITW 14.03 %) is
    numerically identical to the Tak et al. row of its own Table 2, and its provenance is unstated. It is not stated whether [6]'s XLS-R is frozen.
 9. **WavLM's revision is not pinned** (`revision: null`). The cached commit is noted in the
    config. Pin it.
@@ -1181,7 +1217,7 @@ Each has a cheap test in §13.
 | E4 robustness | generator ready | `scripts/get_musan.py` → `scripts/make_degraded.py timing/generate` → score A1 and A2 on the four sets |
 | A3 / E5 | scaffold, dry run | needs JEV API docs; then measure latency and cost on ≤20 clips before choosing the subset size |
 | E2 ablation | "later" | needs a team decision. The candidates that also explain results are X4 (LFCC vs MFCC) and X6 (layers). If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
-| E6 efficiency | not built | code to measure parameters, ms/clip and RTF on 1,000 eval clips |
+| E6 efficiency | not built | code to measure parameters, ms/clip and real-time factor (RTF) on 1,000 eval clips |
 
 **Explainability analyses (proposed, none run, all need team approval).** Each uses existing
 models or caches. Expectations are written down *before* running, so surprises stay visible.
