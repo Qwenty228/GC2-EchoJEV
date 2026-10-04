@@ -82,7 +82,7 @@ N/A — this is a corpus-construction note, not a formula-derivation note.
 
 ## Implications for us
 
-- **In-the-Wild has no attack/generator labels.** `revisedata.md`'s plan to hold out "at
+- **In-the-Wild has no attack/generator labels.** The data-plan review's proposal to hold out "at
   least one generator" for an unseen-generator test cannot be built from In-the-Wild itself —
   that experiment has to come from our own custom-generated TTS set (or from MLAAD, which
   does carry a `model_name`/`architecture` field). In-the-Wild's role can only be

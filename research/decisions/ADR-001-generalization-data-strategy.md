@@ -9,16 +9,23 @@ supersedes: none
 
 ## Context
 
-`always-ignore/revisedata.md` proposes a three-level evaluation (known-attack,
-unseen-generator, cross-dataset) and adds a workstream that does not exist anywhere in
-`tasks/`: **generating our own test set with several contemporary TTS / voice-cloning
-systems**, holding at least one out of training. It also introduces **In-the-Wild** as an
-external set and a **controlled MLAAD subset** in place of full MLAAD.
+Before fixing the evaluation design, we reviewed the data plan against one
+question: what would it take to claim a detector *generalises*? Two things came out of that
+review.
 
-`always-ignore/concern.md` otherwise ratifies the built plan. Two of its warnings had already
-been independently arrived at: §2's pre-modelling leakage audit is T09, and §7's "do not
-create a cache larger than the original dataset without noticing" is the measured 1.24 TB vs
-6.22 GB constraint now pinned in `configs/ssl_probe.yaml`.
+The first was a proposal for a **three-level evaluation**: known attacks, unseen generators,
+and a different dataset altogether. To get the middle level it suggested a workstream that did
+not exist anywhere in `tasks/`: **generating our own test set with several contemporary TTS /
+voice-cloning systems**, holding at least one out of training. This is the approach VoxENES
+2026 (arXiv:2607.11706) takes at benchmark scale, with 10 LLM-era TTS and voice-conversion
+systems, and its headline result is that pretrained detectors fall to near chance on them. The
+proposal also brought in **In-the-Wild** as an external set, and a **controlled MLAAD subset**
+in place of full MLAAD.
+
+The second was a list of risks, and it otherwise backed the plan we had already built. Two of
+its warnings we had already reached on our own: the pre-modelling leakage audit is T09, and
+"do not create a cache larger than the original dataset without noticing" is the measured
+1.24 TB vs 6.22 GB constraint now pinned in `configs/ssl_probe.yaml`.
 
 The orchestrator and the researcher agent formed views independently and compared.
 
@@ -26,8 +33,9 @@ The orchestrator and the researcher agent formed views independently and compare
 
 If we synthesise fakes and pair them against bonafide from a different corpus, recording
 chain or processing pipeline, a detector reaches near-perfect EER by learning **corpus**, not
-**synthesis**. The number looks like a triumph and means nothing. This is `concern.md` §2's
-shortcut in its most seductive form, because we would have built the shortcut ourselves.
+**synthesis**. The number looks like a triumph and means nothing. This is the shortcut the
+leakage audit exists to catch, in its most seductive form, because we would have built it
+ourselves.
 
 Evidence this is the default outcome rather than a tail risk, all from our own knowledge base:
 - `methods/leakage-audit.md` — a single silence-duration scalar yields 15.1% EER on
@@ -57,10 +65,10 @@ its own.
 **Get unseen-generator evidence from C and B before considering A.**
 
 1. **Level 2 is already free.** ASVspoof 2019 LA's official protocol is itself an
-   unseen-generator test — A07–A19 at eval, A01–A06 at train/dev. `revisedata.md` frames
+   unseen-generator test — A07–A19 at eval, A01–A06 at train/dev. The proposal treated
    level 2 as requiring new audio; it does not.
 2. **Prefer holding out MLAAD architectures over generating our own.** This keeps
-   `revisedata.md`'s scientific goal — at least one generator excluded from training —
+   the proposal's scientific goal — at least one generator excluded from training —
    while inheriting a bonafide pairing that MLAAD's authors already validated. Pin a named
    subset of 8–12 architectures with ≤2 held out, recorded in a reproducible manifest, and
    pin the MLAAD **version**: it is a moving target, v1 was 63.0 h / 21 models and v11 is
@@ -86,8 +94,8 @@ its own.
 **SLS** (ACM MM 2024, 10.1145/3664647.3681345) and **MSLA-XLS-R** (Computer Speech & Language,
 10.1016/j.csl.2026.102044) are real and citable, but both are paywalled and we could not read
 their mechanisms from primary sources. Writing a spec from secondary descriptions would break
-this project's cite-or-delete rule in the same way `concern.md` §8 forbids inventing an
-auxiliary task because the name sounds right. They stay gated behind T22. If NUS library
+this project's cite-or-delete rule in the same way we refuse to invent an auxiliary task
+because its name sounds right. They stay gated behind T22. If NUS library
 access resolves the paywalls, revisit — that is the single action that would change this.
 
 ## Reversal condition

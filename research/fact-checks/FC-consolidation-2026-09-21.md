@@ -1,6 +1,6 @@
 ---
 id: FC-consolidation-2026-09-21
-task: consolidation of always-ignore/{SESSION-NOTES,concern,research,revisedata,remaining-tasks}.md into one handoff file
+task: consolidation of the project's working notes (session log, data-plan review, research notes, remaining-task list) into one handoff file
 claim_by: orchestrator (pre-merge fact-check request)
 verdict: mixed — see per-claim verdicts below
 checked_on: 2026-09-21
@@ -9,7 +9,7 @@ checked_on: 2026-09-21
 # FC-consolidation-2026-09-21 — verdicts on 12 claims proposed for the merged handoff
 
 Twelve claims, checked by running commands and reading code/data/sources directly, not by
-trusting the always-ignore prose. Verdicts: CONFIRMED / WRONG / STALE / UNVERIFIABLE.
+trusting the working notes' prose. Verdicts: CONFIRMED / WRONG / STALE / UNVERIFIABLE.
 
 ## Claim 1 — `uv run pytest` passes; "194 tests passing"; "11 leakage tests pass"
 
@@ -19,7 +19,7 @@ trusting the always-ignore prose. Verdicts: CONFIRMED / WRONG / STALE / UNVERIFI
   dependency issues).
 - `uv run pytest tests/test_leakage.py -q` → `11 passed`. The "11 leakage tests" figure is
   correct.
-- The **194** figure in `remaining-tasks.md`/`SESSION-NOTES.md` is stale: it predates the
+- The **194** figure in the session log and the remaining-task list is stale: it predates the
   uncommitted `tests/test_leakage.py` diff, which adds a new `TestAudioPathResolution` class
   with 2 tests (11 leakage tests now vs presumably 9 before). 194 + 2 = 196, consistent with
   the diff being the entire delta.
@@ -55,7 +55,7 @@ $ git status --short
 ?? data/metadata/nuisance_features.csv
 ```
 
-`remaining-tasks.md` §0 is factually wrong about the manifests: they are untracked but **not**
+The remaining-task list is factually wrong about the manifests: they are untracked but **not**
 gitignored — no `.gitignore` rule matches `data/manifests/*.csv`. They currently sit as
 untracked files in `git status`, which means the next `git add -A` (or careless `git add .`)
 would stage them. Only `reports/tables/leakage_audit.csv` is actually covered, by the
@@ -118,9 +118,9 @@ $ wc -l .../ASVspoof2019.LA.cm.eval.trl.txt
    71237
 ```
 Exact match, from the protocol files themselves (not third-party citation). This also settles
-the "eval count has no ASVspoof-hosted primary source" caveat in `SESSION-NOTES.md` §7 — it's
+the "eval count has no ASVspoof-hosted primary source" caveat in the session log — it's
 now directly counted from the extracted, ASVspoof-hosted protocol file, so that caveat is
-stale and should be dropped in the merged doc, as `remaining-tasks.md` §2 already says.
+stale and should be dropped in the merged doc, as the remaining-task list already says.
 
 ## Claim 6 — attack partition: train/dev = A01–A06, eval = A07–A19
 
@@ -161,7 +161,7 @@ silence_leading 0.837 (0.835–0.840, EER 0.247, flagged=True), silence_total 0.
 (0.822–0.827, EER 0.255, flagged=True), rms 0.664 (0.660–0.669, EER 0.383, flagged=True),
 speaker_id 0.649 (0.643–0.654, EER 0.414, flagged=False), duration_s 0.624 (0.620–0.628, EER
 0.486, flagged=False), silence_trailing 0.611 (0.606–0.616, EER 0.437, flagged=False). Every
-number, CI, and flag in `remaining-tasks.md`'s table matches the current CSV exactly, to the
+number, CI, and flag in the remaining-task list's table matches the current CSV exactly, to the
 rounding shown. sample_rate/codec/source_corpus all sit at AUC 0.500 / EER 0.600, also
 matching.
 
@@ -227,7 +227,7 @@ rather than left implying something about the eval split itself.
   merged doc, not smoothing over — it suggests eval's attack mix is intrinsically harder for
   this single feature than train→eval generalization was for their FCNN, or that the specific
   feature computation/thresholding differs slightly between the two pipelines. Neither this
-  note nor the always-ignore files resolve which; it should be flagged as open, not asserted.
+  note nor the working notes resolve which; it should be flagged as open, not asserted.
   Per `research/README.md`'s rule, tag Müller et al.'s number `source: literature` and never
   put it in the same column/table as `0.1825`; report them as two separate, independently
   interesting numbers that corroborate the same qualitative finding (silence is a large,
@@ -251,20 +251,19 @@ $ ls research/decisions/
 ADR-001-generalization-data-strategy.md
 _TEMPLATE.md
 ```
-Only `ADR-001` exists. `remaining-tasks.md` §4 reserves `ADR-002` for "which Stage-2
-representation carries into Stage 9." A separately-drafted `always-ignore/HANDOFF.md` (found
-in the same directory, not one of the five files named in this task, dated later than the
-others) already resolves this the same way I would recommend: give `ADR-002` to whichever
+Only `ADR-001` exists. The remaining-task list reserves `ADR-002` for "which Stage-2
+representation carries into Stage 9." A separately drafted handoff (not one of the notes named
+in this task, and written later than them) already resolves this the same way I would recommend: give `ADR-002` to whichever
 decision **gates Wave 4 chronologically** — the silence-control decision, since Wave 4
 baselines cannot be responsibly speced without it — and push the Stage-2-representation
 decision to `ADR-003`. Flagging for the merge: the merged handoff must pick one and state it
 explicitly (`ADR-002` = silence-control decision, `ADR-003` = representation choice), because
-`remaining-tasks.md`'s unmodified §4 language, if carried forward unedited, would collide with
+the remaining-task list's unmodified language, if carried forward unedited, would collide with
 whatever the silence-control ADR is filed as.
 
-**Note on `always-ignore/HANDOFF.md`:** this file exists in the same directory as the five
-named for merging but was not in the task's file list. It appears to already be a draft of
-the merged document (626 lines, most recently modified). I did not fact-check its contents
+**Note on the separately drafted handoff:** it sits alongside the notes named for merging but
+was not in the task's input list. It appears to already be a draft of the merged document
+(626 lines, most recently modified). I did not fact-check its contents
 beyond the ADR-numbering passage quoted above, since it is outside this task's scope — flag it
 to the orchestrator explicitly rather than silently ignoring or silently treating it as
 authoritative.
@@ -301,5 +300,5 @@ authoritative.
    column/table from our 0.1825, and state the cross-split-vs-in-split-CV difference
    explicitly wherever both appear together.
 5. Resolve the ADR-002/ADR-003 numbering before the merged doc is finalized, and surface
-   `always-ignore/HANDOFF.md`'s existence to the orchestrator — it wasn't in my task's input
+   the separately drafted handoff to the orchestrator — it wasn't in my task's input
    list and may itself need a fact-check pass if it's intended to become the merged file.

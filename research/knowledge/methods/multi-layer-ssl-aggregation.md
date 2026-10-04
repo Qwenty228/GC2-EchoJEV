@@ -51,7 +51,7 @@ not be treated as settling the "is it worth scheduling" question on its own.
 ### What I could confirm about MSLA-XLS-R (Meng, Tang, Sun, Deng, Li, Li)
 - Title: "MSLA-XLS-R: Enhancing Hierarchical SSL Representations for Audio Deepfake Detection."
   Venue: Computer Speech & Language, DOI 10.1016/j.csl.2026.102044. Search-engine metadata
-  places it "in press"/2026, consistent with `concern.md`'s framing of MSLA-XLS-R as a named,
+  places it "in press"/2026, consistent with the data-plan review's framing of MSLA-XLS-R as a named,
   real, contemporary-but-not-yet-fully-established method.
 - "MSLA" almost certainly expands to **multi-scale layer aggregation** based on the title and
   on adjacent-paper conventions (multiple *other* 2024–2025 papers in this space, e.g. "A
@@ -94,7 +94,7 @@ consistent with (a), but this is not confirmed against SLS's own text.
   sources, which contradicts the project's "cite or delete" discipline as much as scheduling a
   benchmark model without knowing its architecture would.
 - **The simple learned-softmax weighting already in `configs/ssl_probe.yaml` remains the
-  correct starting point**, and is explicitly what `concern.md` §6 itself says to do first
+  correct starting point**, and is explicitly what the data-plan review itself says to do first
   ("begin with the simplest interpretable experiment"). SLS/MSLA-style aggregation is,
   on the evidence available, a **later refinement gated on T22 showing the simple weighting
   already helps** (per `tasks/BACKLOG.md` T22's own gate) — not a replacement for it, and not

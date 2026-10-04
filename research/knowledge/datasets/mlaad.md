@@ -38,7 +38,7 @@ is fixed by construction, not a free choice we get to make.
 
 **This is the number the project should cite, not a single fixed "MLAAD size."** Any prior
 note or plan that says "MLAAD is ~200 GB / hundreds of hours" needs a version number attached
-— `concern.md`'s "hundreds of GB" framing is consistent with v9–v11, not with v1–v4, and the
+— the data-plan review's "hundreds of GB" framing is consistent with v9–v11, not with v1–v4, and the
 practical implication (too large to use wholesale on a Mac) holds most strongly for the
 current, largest versions. The HF card (checked separately) states a **183 GB** total download
 size at the version it describes (v8, per the `reference_speaker`-since-v8 note on the card),
@@ -117,8 +117,8 @@ N/A — corpus-construction and versioning note.
 
 ## Implications for us
 
-- **`revisedata.md`'s "controlled MLAAD subset instead of full MLAAD" is well-founded and the
-  dataset's own metadata already supports it.** `concern.md`'s explicit requirement — "prefer
+- **The data-plan review's "controlled MLAAD subset instead of full MLAAD" is well-founded and
+  the dataset's own metadata already supports it.** The review's explicit requirement — "prefer
   holding out complete generator families... do not randomly sample individual utterances" —
   maps directly onto MLAAD's `architecture` field (Table III), and the severe per-architecture
   hour imbalance (Table IV) makes clear that a naive random utterance sample would already be a
@@ -155,7 +155,7 @@ N/A — corpus-construction and versioning note.
 - I have not verified the exact size-on-disk or file count for any MLAAD version other than
   what the HF card states for its own snapshot (183 GB, described alongside the v8
   `reference_speaker` field) — the paper's Table I gives hours, not GB, per version, so the
-  GB-per-version mapping used by `concern.md` is an approximation, not something I confirmed
+  GB-per-version mapping used in the data-plan review is an approximation, not something I confirmed
   directly against a specific version's download manifest.
 - I could not access the MLAAD GitHub/HF repository's actual file tree to confirm whether
   per-architecture subsets can be downloaded independently (e.g. via HF `datasets` filtering)
