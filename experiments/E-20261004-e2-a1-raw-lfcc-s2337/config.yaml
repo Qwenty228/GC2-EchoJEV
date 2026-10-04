@@ -1,0 +1,39 @@
+system: a1
+experiment: e2
+features:
+  name: lfcc_b02
+  window_ms: 20
+  hop_ms: 10
+  n_fft: 512
+  n_filters: 20
+  fmin: 0.0
+  fmax: null
+  preemph: 0.97
+  delta_window: 3
+  total_dims: 60
+gmm:
+  n_components: 512
+  covariance: diag
+  em_iters: 10
+  init: random_frames
+  chunk_frames: 50000
+  variance_floor: 0.001
+  init_sample_size: 200000
+data:
+  train: data/manifests/train.csv
+  testsets:
+    dev: data/manifests/dev.csv
+    eval: data/manifests/eval.csv
+    itw: data/manifests/itw.csv
+preprocessing:
+  sample_rate: 16000
+  crop_seconds: null
+  silence_mode: raw
+seed: 2337
+literature_reference:
+  source: arXiv:1904.05441 Table 1
+  scenario: LA
+  split: eval
+  eer_percent: 8.09
+  min_tdcf: 0.2116
+  tag: literature
