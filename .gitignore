@@ -43,3 +43,7 @@ notebooks/_executed/
 # --- os / editor ---
 .DS_Store
 .vscode/
+
+# --- research ---
+# paper PDFs are shared on Google Drive (link in research/knowledge/papers/README.md)
+research/**/*.pdf
