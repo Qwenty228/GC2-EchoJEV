@@ -113,8 +113,8 @@ The six findings, in order of importance:
 
    The extra high-frequency resolution that helps on ASVspoof hurts on real-world audio.
 8. **A2's layers specialise** (measured, X6, §7.5).
-   - Bottom layers catch voice conversion of real recordings (A19: 2.5 % EER at layer 1 against
-     24.3 % at layer 12).
+   - Bottom layers catch two of the three voice conversions of real recordings (A19: 2.5 % EER
+     at layer 1 against 24.3 % at layer 12; A18 likewise; A17 is caught best by middle layers).
    - Middle layers 3–5 lean least on silence.
    - No single layer explains A2's advantage over [8]. A last-layer logistic regression on our
      cache still gets 24.75 % on In-the-Wild, far better than [8]'s 38.6 %.
@@ -523,9 +523,12 @@ What the signs and the two measures mean:
    bandwidth. Real clips have more silent frames, so part of their higher bandwidth may simply
    be their silence. The test is to recompute *d* on clips with less than 20 % silence. Until
    then, "spectral shape" is a candidate cue, not one proven independent of silence.
-4. ***d* and δ agree** on the sign and ranking of every feature, so no row depends on a few
-   extreme clips. One nuance: leading silence has the largest *d* (−1.42) but the same δ as
-   bandwidth. About a quarter of the sampled fakes sit at or near 0 s of lead-in, and that pile
+4. ***d* and δ agree on the direction** (sign) of every feature, and broadly on which features
+   matter most, so no conclusion here depends on a few extreme clips. They do not agree on the
+   exact *order*. Several neighbouring pairs swap places between the two measures: bandwidth
+   and leading silence, flatness and trailing silence, mid and high band, low band and duration
+   (notebook 02, d-vs-δ table). Skew and ties move *d* more than δ. The clearest case: leading
+   silence has the largest *d* (−1.42) but the same δ as bandwidth. About a quarter of the sampled fakes sit at or near 0 s of lead-in, and that pile
    stretches the gap between the averages more than it changes who wins each pair.
 5. **The direction depends on the attack.** In the per-attack centroid table (notebook 02,
    cell 19), A11's centroid is about 1,400 Hz and A18's about 2,290 Hz, either side of real
@@ -1142,7 +1145,9 @@ of the full head does not reproduce the original GPU run exactly. Eval is 1.10�
 
    The WavLM paper finds that bottom layers carry speaker and acoustic information and top
    layers carry content [26, Fig. 2, p.7]. VC of a real person keeps that person's words and
-   rhythm, so only the acoustic layers can tell it is converted. The content layers see natural
+   rhythm, so only the acoustic layers can tell it is converted. The pattern is clear for A19
+   and A18, but **not for A17**, which is detected best by the middle layers (2.5 % at layer 7)
+   rather than the bottom ones (4.5 % at layer 1). The content layers see natural
    speech and fail. TTS is caught at least as well by the upper layers, possibly because its
    prosody and phrasing are synthetic too. The per-layer numbers are **measured**; this reading
    of them is a **hypothesis**, and each layer was trained with a single seed.
