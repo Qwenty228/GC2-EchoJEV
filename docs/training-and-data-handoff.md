@@ -339,10 +339,34 @@ would add the very silence we are trying to control.
 
 ### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb), real data, 240-clip stratified sample)
 
-We report **effect sizes**, not p-values. An effect size says *how far apart* the two classes
-are on one feature. A p-value only says whether *some* difference exists, and on a corpus of
-121k clips even a trivial difference comes out "significant". Two effect sizes are used, both
-computed as spoof against bona fide ([`cohens_d`, `cliffs_delta`](../src/audio_df/stats.py#L78)):
+**What is being compared.** The two **classes** are bona fide (real human speech) and spoof
+(fake speech). A **feature** is one number measured from each clip. Notebook 02 measures 13
+features on a stratified sample of 240 clips (120 of each class):
+
+| feature | what the number is for one clip |
+|---|---|
+| duration | length in seconds |
+| rms | overall loudness (root-mean-square level, §3) |
+| silence_leading / _trailing / _total | fraction of the clip that is quiet at the start, at the end, or overall |
+| centroid | the "centre of mass" of the frequencies; higher sounds brighter |
+| bandwidth | how widely the frequencies spread around that centre |
+| rolloff | the frequency below which 85 % of the energy sits |
+| flatness | how noise-like (flat) rather than tone-like the spectrum is |
+| zcr | zero-crossing rate: how often the waveform crosses zero |
+| band_low / _mid / _high_ratio | share of energy below 1 kHz, 1–4 kHz and above 4 kHz |
+
+For each feature the question is: **are the real clips' values and the fake clips' values
+different, and by how much?** For example, real clips start with about 0.3 s of room quiet
+while many fakes start speaking at once, so leading silence separates the classes well. Real
+and fake clips have about the same duration, so duration does not.
+
+**Why effect sizes and not p-values.** A significance test (for example a t-test) gives a
+p-value: how likely a difference this big would be by chance if the two classes really had the
+same average. A p-value shrinks as more clips are added even when the difference stays tiny. On
+the full 121k-clip corpus, a duration difference of a few milliseconds would come out
+"significant" while being useless for detection. An **effect size** instead measures *how big*
+the difference is, and does not grow with sample size. We use two, both computed as spoof
+against bona fide ([`cohens_d`, `cliffs_delta`](../src/audio_df/stats.py#L78)):
 
 - **Cohen's *d*: the gap between the class means, in units of spread.**
 
