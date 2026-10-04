@@ -57,7 +57,7 @@ duration or recording condition is matched beyond the authors' manual best-effor
   on In-the-Wild.
 - Best ASVspoof19-eval performer (RawGAT-ST, full-length raw input): **1.23% EER** in-domain
   vs **37.15% EER** on In-the-Wild — a ~30x relative degradation.
-- Averaged across all 24 configurations: ASVspoof19-eval EER 9.85–18.89% (full vs 4s input)
+- Averaged across the 28 configurations per input length (56 in Table 1; corrected 2026-10-04, see muller-2022-does-audio-deepfake-detection-generalize): ASVspoof19-eval EER 9.85–18.89% (full vs 4s input)
   vs In-the-Wild EER **60.10–67.25%**, i.e. close to or at chance (50%).
 - Training RawNet2 on **all** ASVspoof19 splits (train+dev+eval combined) and re-testing on
   In-the-Wild still yields 33.1% EER — "no improvement over training with only the train and
