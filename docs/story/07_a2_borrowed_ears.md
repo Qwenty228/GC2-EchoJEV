@@ -51,7 +51,8 @@ A2 needs, for each clip, one 768-number summary. The obvious recipe:
 But the weights change during training, so this would need all 13 × 199 × 768 numbers per clip
 kept on disk: about 4 MB (megabytes) per clip at 2 bytes per number, roughly 0.1 TB (terabytes)
 for the 25,380 training clips alone (our arithmetic). For the larger model we planned to try
-(XLS-R, 25 × 199 × 1,024 numbers per clip, not yet run) over all 121,461 ASVspoof clips, the
+(XLS-R, 25 × 199 × 1,024 numbers per clip, not yet run) over all 121,461 ASVspoof clips (the Automatic Speaker Verification Spoofing and
+Countermeasures Challenge 2019 dataset, chapter 2), the
 handoff puts it at about 1.24 TB (handoff §7.2). Instead, A2 does it the other way round:
 
 1. average each layer over time, once, and store just 13 × 768 numbers per clip;

@@ -4,7 +4,7 @@
 
 ## No single number does it
 
-Chapter 5 turned every 10 ms of audio into 60 numbers, the linear-frequency cepstral
+Chapter 5 turned every 10 milliseconds (ms) of audio into 60 numbers, the linear-frequency cepstral
 coefficients (LFCC) plus their changes over time. Do real and fake frames differ?
 
 Open [notebook 09](../../notebooks/09_a1_playground.ipynb), cell 13. For 150 real and 150 fake

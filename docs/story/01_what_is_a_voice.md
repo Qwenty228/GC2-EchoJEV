@@ -66,7 +66,7 @@ to pull the filter out of a recording.
 A fake voice has to produce both parts convincingly. The dataset's own description of its
 attacks shows that the generators are built in exactly two stages (from paper [14, §3, p.6]).
 
-Take attack A01 as a concrete case. In the database paper's words, "an NN-based acoustic model
+Take attack A01 as a concrete case. In the database paper's words, "an NN-based [NN: neural network] acoustic model
 predicts a sequence of acoustic features, including the Mel-cepstral coefficients (MCCs) of 60
 dimensions, interpolated F0, and voicing flags. Finally, the WaveNet vocoder is used to convert
 the MCCs and F0 into a waveform" (from paper [14, §3, p.6]). MCCs are a short list of numbers

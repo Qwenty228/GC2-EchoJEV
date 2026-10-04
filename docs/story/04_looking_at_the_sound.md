@@ -33,6 +33,7 @@ we need it to be honest.
 ### Cohen's *d*: the gap between the averages, in units of spread
 
 Picture two piles. The obvious measure is the distance between their averages. But "300 Hz
+(hertz)
 apart" means a lot if each pile is 50 Hz wide and little if each is 2,000 Hz wide. So divide the
 gap by the typical width:
 
