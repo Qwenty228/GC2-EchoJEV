@@ -91,15 +91,33 @@ The six findings, in order of importance:
 4. **A2's threshold does not transfer.** Its In-the-Wild ranking is good (AUC 0.93), but the
    threshold fixed on dev rejects 49 % of real In-the-Wild speech. The separation survives the
    domain shift; the calibration does not.
-5. **A1's In-the-Wild scores are inverted** (AUC 0.40). Its spoof model scores real-world
-   bona fide audio as *more* spoof-like than real spoofs. Our reading (**hypothesis**, §10.6):
+5. **A1 is at chance on In-the-Wild, and its exact score there depends on the random seed.**
+   Across 3 seeds of the Gaussian mixture model (GMM) initialisation, its In-the-Wild EER is
+   46–59 % (AUC 0.40, 0.56, 0.38). Two of the three are *inverted*: the spoof model scores
+   real-world bona fide audio as *more* spoof-like than real spoofs. In domain the seeds agree
+   to within half a point. Our reading (**hypothesis**, §10.6):
    with c0 kept and no cepstral mean and variance normalisation (CMVN), a GMM over LFCC frames models the recording channel and level as
    much as synthesis.
 6. **A1's weakness is probably more the GMM than LFCC.** A discriminatively trained residual network (ResNet) on
    LFCC input reaches 1.47–2.19 % on the same 2019 LA eval split [17, Tables 2 and 4]
    (literature). Its LFCC settings are not given, and its best columns were picked on eval. So
    "LFCC + GMM is 10× worse than WavLM" is a statement about the whole pipeline, not about the
-   features alone (our inference, §5.2). We have **not** run an MFCC control (§5.1).
+   features alone (our inference, §5.2).
+7. **LFCC beats MFCC in domain, but MFCC generalises much better** (measured, X4, §5.1.5).
+   With everything else identical and 3 seeds per arm:
+
+   | | LFCC | MFCC |
+   |---|---|---|
+   | eval EER | 9.12 ± 0.44 % | 10.61 ± 0.30 % |
+   | In-the-Wild EER | 54.2 ± 7.1 % | **32.5 ± 1.6 %** |
+
+   The extra high-frequency resolution that helps on ASVspoof hurts on real-world audio.
+8. **A2's layers specialise** (measured, X6, §7.5).
+   - Bottom layers catch voice conversion of real recordings (A19: 2.5 % EER at layer 1 against
+     24.3 % at layer 12).
+   - Middle layers 3–5 lean least on silence.
+   - No single layer explains A2's advantage over [8]. A last-layer logistic regression on our
+     cache still gets 24.75 % on In-the-Wild, far better than [8]'s 38.6 %.
 
 ---
 
@@ -560,9 +578,10 @@ log-filterbanks (§6.3).
 ### 5.1 Why LFCC and not MFCC
 
 **Status up front.** We use LFCC because it is the official B02 recipe, and A1 exists to
-reproduce B02. We have **not** run a controlled LFCC-vs-MFCC comparison. Everything below that
-says "linear beats mel" is **literature**; the maths explains *why it could*. Test X4 (§13)
-would turn it into a measurement. The full derivation, with a per-filter table, is in
+reproduce B02. On 2026-10-04 we also **measured** LFCC against MFCC (X4, §5.1.5): identical
+pipeline, only the filter spacing changed, 3 seeds each. In domain LFCC wins, as the literature
+predicts; on In-the-Wild MFCC wins by a wide margin. §5.1.1–5.1.4 give the maths and the
+literature; §5.1.5 gives our measurement and what it means. The full derivation, with a per-filter table, is in
 [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md).
 
 #### 5.1.1 The only difference is where the filters sit
@@ -668,6 +687,69 @@ with a finer 70-filter recipe
   high-band shape (§10.3). Changing the filter spacing would not obviously remove that. Our
   expectation, written *before* running X4: pooled eval EER differs by under 4 points, about 65 %
   likely in LFCC's favour, and both arms are near chance on In-the-Wild.
+
+#### 5.1.5 Measured: LFCC against MFCC (X4)
+
+**Set-up.** The A1 pipeline was rerun with only the filter edges moved from linear to mel
+(`features.spacing: mel`, [configs/a1_mfcc_b02.yaml](../configs/a1_mfcc_b02.yaml)). Everything
+else is unchanged: pre-emphasis, window, 20 coefficients, Δ/ΔΔ, no CMVN, 2 × 512 GMMs, 10 EM
+iterations. Each arm was trained with 3 EM seeds: LFCC is E1 (seed 1337) plus 2337 and 3337;
+MFCC uses 1337, 2337 and 3337. Runs are `E-20261004-e2-a1-*` in
+[REGISTRY.md](../experiments/REGISTRY.md), scored by `score_experiment.py`.
+
+| mean ± sd over 3 seeds | LFCC | MFCC |
+|---|---|---|
+| dev EER (A01–A06) | **2.89 ± 0.25 %** | 6.66 ± 0.30 % |
+| eval EER (A07–A19, unseen) | **9.12 ± 0.44 %** | 10.61 ± 0.30 % |
+| eval minDCF | **0.223 ± 0.010** | 0.242 ± 0.009 |
+| In-the-Wild EER | 54.2 ± 7.1 % (46.0, 58.0, 58.6) | **32.5 ± 1.6 %** |
+| In-the-Wild AUC | 0.45 ± 0.10 (0.56, 0.40, 0.38) | **0.73 ± 0.03** |
+| eval trimmed EER (seed 1337 only) | 19.84 % | 21.85 % |
+
+**Reading.**
+
+1. **In domain, LFCC is better, as the literature says.** The 1.5-point eval gap is more than
+   3 seed standard deviations, and the dev gap is larger (2.9 vs 6.7 %). Our pre-registered
+   expectation, an eval gap of under 4 points with LFCC likely ahead, held.
+2. **Out of domain, the ranking flips, and that was not expected.** We expected both arms near
+   chance on In-the-Wild. MFCC instead reaches 32.5 % EER (AUC 0.73) and is stable across seeds.
+   LFCC sits at chance and swings with the seed (AUC 0.38–0.56). The likely mechanism
+   (**hypothesis**, test X7) follows from §5.1.1:
+   - LFCC spends 10 of its 20 filters above 4 kHz; mel spends 5.
+   - The 4–8 kHz band is exactly where recording chains differ most. VCTK is studio audio
+     downsampled from 96 kHz; In-the-Wild is podcasts and web video, often compressed, which
+     thins or removes high-frequency detail.
+   - So LFCC models more of "what the VCTK microphone sounds like up top", which helps on
+     ASVspoof and becomes noise on real-world audio.
+   - Zhou et al. found the same weakness for speaker recognition: linear banks are less robust
+     in noise, which they attribute to the extra high-band filters [23, §III.B].
+3. **Per attack, the winner depends on the generator.** Means over 3 seeds, eval EER:
+
+   | attack (generator, [14]) | LFCC | MFCC | better |
+   |---|---|---|---|
+   | A19 (= A06, spectral filtering + overlap-add) | **12.8** | 29.1 | LFCC |
+   | A18 (MFCC vocoder) | **4.4** | 8.0 | LFCC |
+   | A17 (waveform filtering, human source) | **8.6** | 10.6 | LFCC |
+   | A11 (Griffin-Lim) | **0.1** | 1.2 | LFCC |
+   | A13 (waveform filtering, TTS source) | 12.0 | **2.3** | MFCC |
+   | A12 (WaveNet) | 6.6 | **1.7** | MFCC |
+   | A10 (WaveRNN) | 21.1 | 19.6 | about equal |
+
+   Two readings, both **hypotheses**:
+   - **A19 and its training twin A06 are the clearest LFCC win.** On dev, A06 is 4.9 % with
+     LFCC against 16.8 % with MFCC. Their artefact sits where mel is coarse, at high frequency.
+   - **A18 is synthesised from MFCCs.** An MFCC vocoder keeps exactly what MFCC features
+     encode and loses the rest, so an MFCC-feature detector sees the part the vocoder got right
+     and misses the part it got wrong. A linear front end sees more of what was lost.
+   - This mixed picture echoes the SAS result [25]: the useful bands depend on the generators.
+4. **Silence does not care about the filter spacing.** Trimming hurts both arms by a similar
+   amount (19.8 vs 21.9 %, one seed). As §10.3 argues, A1's silence cue lives in c0, which both
+   spacings share.
+
+**What this means for the project.** "LFCC is better than MFCC" is true *for ASVspoof*, and
+false for the real-world test. The extra high-frequency resolution is a double-edged sword: it
+captures synthesis detail and recording-chain detail alike. This is a measured result of this
+project, and it qualifies the literature in §5.1.3, which only tested in domain.
 
 **Why the other B02 choices:** each is pinned to a line of the official MATLAB in
 [src/audio_df/lfcc_b02.py](../src/audio_df/lfcc_b02.py) and
@@ -1000,7 +1082,70 @@ and cannot tell good checkpoints apart.
   using the **last layer only**. A2 gets 14.70 % with a mixture tilted toward the bottom layers.
   The training data also differ (theirs is train+dev), so the comparison is not clean. But if a
   layer-12-only head on our cache lands near [8]'s figure, then layer choice is a large part of
-  why A2 generalises. That would be a finding of this project (**hypothesis**, X6).
+  why A2 generalises. That would be a finding of this project (**hypothesis**, X6). §7.5 has the
+  answer: it does not.
+
+### 7.5 What each layer does (X6, measured)
+
+**Set-up.** Everything below comes from the existing WavLM Base+ cache, with no new
+extraction: [experiments/E-20261004-e2-a2-raw-layers](../experiments/E-20261004-e2-a2-raw-layers/summary.md),
+31 variants, 2 minutes on CPU.
+
+- **Full head, 3 seeds:** the standard A2 head, retrained three times.
+- **13 single-layer heads:** the same head fed one layer only.
+- **Leave-one-layer-out:** the original E1 head with one layer's weight set to 0, no retraining.
+- **Logistic regression on layer 12 or layer 0:** [8]'s protocol, except that we train on train
+  only.
+
+All are scored by `score_experiment` with their own dev threshold. One caveat: the CPU retrain
+of the full head does not reproduce the original GPU run exactly. Eval is 1.10–1.56 % against
+0.96 %, though the scores correlate at 0.99.
+
+| variant | eval EER | eval trimmed EER | In-the-Wild EER |
+|---|---|---|---|
+| full head, 3 seeds (mean ± sd) | 1.32 ± 0.23 % | 13.7 ± 0.6 % | 14.0 ± 0.5 % |
+| best single layer on eval: layer 5 | 1.41 % | **10.1 %** | 15.2 % |
+| layer 3 (highest learned weight) | 1.50 % | 13.7 % | 19.1 % |
+| layer 0 (CNN output, before the transformer) | 11.0 % | 38.9 % | **13.8 %** |
+| layer 12 (last) | 6.0 % | 23.2 % | 16.5 % |
+| leave any one layer out | 0.91–1.22 % | 12.4–14.8 % | 13.6–15.2 % |
+| logistic regression, layer 12 | 5.4 % | 23.2 % | 24.75 % |
+| logistic regression, layer 0 | 7.5 % | 26.4 % | 35.7 % |
+
+**Reading.**
+
+1. **Layer choice does not explain the gap to [8].** Our Pascu-style probe (last layer, logistic
+   regression) gets 24.75 % on In-the-Wild, not 38.6 %. An MLP head on the same layer gets
+   16.5 %, and the full mixture 14.0 %. The *head* matters as much as the layer, and some
+   remaining difference between [8]'s set-up and ours, which we have not identified, accounts
+   for the rest.
+2. **No layer is essential.** Removing any single layer moves In-the-Wild EER by at most about
+   1 point. The near-flat learned weights (§7.4) are consistent with that: the information is
+   spread across layers.
+3. **The learned weights are a weak guide.** Layer 3 has the highest weight and is near-best in
+   domain (1.50 %), but it is among the worst on In-the-Wild (19.1 %).
+4. **Middle layers lean least on silence.** Under trimming:
+   - layers 3–6 stay at 10–16 % EER, and layer 5 alone (10.1 %) beats the full head (13.7 %);
+   - layers 0–1 and 7–12 collapse to 21–39 % (layer 2 sits between, at 17 %).
+
+   So the silence shortcut is carried mostly by the bottom and top layers (**reading**; a probe
+   that predicts silence from each layer, X8, would test it directly).
+5. **Different layers catch different attacks.** Per-attack eval EER, single-layer heads (full
+   heatmap: `per_attack_heatmap.png` in the run folder):
+
+   | attack | layer 1 | layer 7 | layer 12 | kind of attack [14] |
+   |---|---|---|---|---|
+   | A19 | **2.5** | 6.8 | 24.3 | VC of a **human** recording |
+   | A18 | **1.3** | 2.9 | 9.3 | VC of a human recording |
+   | A17 | 4.5 | 2.5 | 6.7 | VC of a human recording |
+   | A10 | 4.8 | **1.2** | 2.1 | neural TTS (WaveRNN) |
+
+   The WavLM paper finds that bottom layers carry speaker and acoustic information and top
+   layers carry content [26, Fig. 2, p.7]. VC of a real person keeps that person's words and
+   rhythm, so only the acoustic layers can tell it is converted. The content layers see natural
+   speech and fail. TTS is caught at least as well by the upper layers, possibly because its
+   prosody and phrasing are synthetic too. The per-layer numbers are **measured**; this reading
+   of them is a **hypothesis**, and each layer was trained with a single seed.
 
 ---
 
@@ -1258,7 +1403,10 @@ rather than a cue. This is our interpretation and has not been tested.
 | A1 raw | **58.0 %** | 0.898 | **0.398** | 71.8 % | 50.0 % |
 | A2 raw | **14.7 %** | 0.388 | 0.934 | 48.9 % | 1.6 % |
 
-- **A1 collapses to chance and is in fact inverted** (AUC < 0.5). Median scores are 0.44 for
+- **A1 collapses to chance; for this seed it is inverted** (AUC < 0.5). The inversion is
+  seed-dependent: the other two LFCC seeds of X4 give AUC 0.56 and 0.38 (EER 46.0 % and 58.6 %),
+  so the robust statement is "at chance", not "inverted". The MFCC arm does much better here
+  (32.5 %, §5.1.5). Median scores are 0.44 for
   bona fide and 0.69 for spoof, so ITW spoofs look *more* like VCTK than ITW bona fide does.
   Our explanation: with no CMVN and c0 kept, the GMMs model the **recording channel** as much as
   the speech. "Bona fide" has come to mean "VCTK's microphone and room". Real podcast audio is
@@ -1316,14 +1464,16 @@ evidence it rests on. "Test" names the §13 analysis that would confirm or kill 
 | result | explanation | evidence | test |
 |---|---|---|---|
 | A1 gets 9.56 %, near B02's 8.09 % | exact B02 recipe; gap from EM init, variance floor, 10 iterations | measured + official code | seeds |
-| A1 is 10× worse than A2 in domain | probably mostly the generative, frame-independent GMM back end: an LFCC ResNet gets 1.47–2.19 % [17] | literature + our inference | X4, or a discriminative head on LFCC |
-| LFCC (not MFCC) for A1 | twice the filters and ~1.9× finer resolution in 4–8 kHz (§5.1.1); linear beat mel with the same GMM on 2015 and WaveFake [24, 28]; not on SAS [25] | maths + literature; **no control of ours** | **X4** |
+| A1 is 10× worse than A2 in domain | probably mostly the generative, frame-independent GMM back end: an LFCC ResNet gets 1.47–2.19 % [17]; MFCC is no better (10.6 %) | literature + our inference | a discriminative head on LFCC |
+| LFCC beats MFCC in domain (9.1 vs 10.6 %) | twice the filters and ~1.9× finer resolution in 4–8 kHz (§5.1.1); agrees with [24, 28] | **measured (X4, 3 seeds)** | — |
+| MFCC beats LFCC on In-the-Wild (32.5 vs 54.2 %) | LFCC's extra high-band filters model the VCTK recording chain, which real-world audio does not share | **measured**; mechanism hypothesis | X7 (low-pass both arms at 4 kHz) |
 | A1 detects real synthesis cues, not only silence | A10 vs A11 differ only in vocoder, both silence-free, and A1's EER differs by 22 points (0.1 vs 22.4 %) | **measured**, natural experiment | X1, X2 on A10/A11 |
 | A1 trimmed: EER ×2.1 | M1 (bona fide pool moves −0.31), M2 (deep-quiet frames = spoof evidence for A12, A16), M3 (A17, A19 get easier) | measured shifts; mechanisms are hypotheses | **X3**, X2 |
-| A1 inverted on ITW (AUC 0.40) | c0 carries level and silence, no CMVN, so the GMMs model the VCTK channel; [13] blames the VCTK origin for the same collapse | maths + literature; hypothesis for A1 | band-limit/CMVN counterfactual (X7) |
+| A1 at chance on ITW (AUC 0.38–0.56 over 3 seeds) | c0 carries level and silence, no CMVN, so the GMMs model the VCTK channel; [13] blames the VCTK origin for the same collapse | measured; mechanism is maths + literature, hypothesis for A1 | band-limit/CMVN counterfactual (X7) |
 | A2 0.96 % in domain, small dev→eval gap | 94k h real-speech prior; frozen features are not overfit to A01–A06 | literature context [22] | seeds |
 | A2 trimmed: EER ×13.8 | time mean over 199 frames; silence frames shift every layer's mean; repeat padding amplifies; bona fide median moves 19 logits, spoof < 3 | measured shifts; mechanism hypothesis; mismatch not separated | X8 (probe silence), trimmed-train head (§12.3) |
-| A2 ITW 14.7 %, vs [8]'s 38.6 % for the same backbone | layer mixture tilted toward bottom (speaker/acoustic) layers [26] instead of last layer only | **hypothesis** | **X6** |
+| A2 ITW 14.7 %, vs [8]'s 38.6 % for the same backbone | **not** the layer choice: our last-layer logistic regression gets 24.75 %, last-layer MLP 16.5 %; head type and an unidentified protocol difference | **measured (X6)**; residual unexplained | — |
+| A2 catches human-source VC with bottom layers | bottom layers = acoustic/speaker, top = content [26]; VC of a real person keeps natural content | per-layer EER **measured**; reading hypothesis | seeds per layer |
 | A2's dev threshold fails on ITW (49 % bona fide rejected) | VCTK bona fide is pushed up by its lead-in; ITW bona fide has none | hypothesis | X8 |
 
 **What we can already say with confidence.**
@@ -1333,10 +1483,14 @@ evidence it rests on. "Test" names the §13 analysis that would confirm or kill 
 2. A1 also detects genuine waveform-generation artifacts (A10 vs A11).
 3. A2's ranking survives a domain shift that destroys A1, but its calibration does not.
 
+4. LFCC beats MFCC in domain but MFCC generalises much better (X4).
+5. A2's evidence is spread across layers, with bottom layers key for VC of human speech and
+   middle layers least dependent on silence (X6).
+
 **What we cannot yet say.**
 
-- That LFCC beats MFCC *on our data*.
-- Which A2 layers carry the evidence.
+- *Why* MFCC generalises better (X7 would test the high-band explanation).
+- Why our frozen WavLM Base+ beats [8]'s by so much even with their protocol.
 - How much of the trimmed-test drop is shortcut versus train/test mismatch.
 
 Each has a cheap test in §13.
@@ -1350,10 +1504,10 @@ Each has a cheap test in §13.
 | LFCC-GMM B02 gets about 8 % EER on 2019 LA eval | 8.09 % [15] | **replicated:** 9.56 % |
 | ASVspoof-trained detectors collapse on real-world deepfakes | 60.10 / 67.25 % mean over 28 configs each, 33.94 % best [13, Tables 1–2] | **same qualitative collapse, different model family:** A1 58 % (AUC < 0.5) |
 | leading/trailing silence is a label shortcut in 2019 LA | 15.1 % EER from silence alone; RawNet2 ×4 when trimmed [27] | **replicated on new systems:** AUC 0.84 in our audit; A1 ×2.1, A2 ×13.8 when trimmed; **new:** per-attack mechanisms M1–M3, tied to how [14] built each attack |
-| linear filterbanks beat mel for spoof detection | same GMM, 2015 and WaveFake [24, 28]; reversed on SAS [25] | **not tested** (X4); maths in §5.1 |
+| linear filterbanks beat mel for spoof detection | same GMM, 2015 and WaveFake [24, 28]; reversed on SAS [25] | **replicated in domain** (9.1 vs 10.6 %, 3 seeds); **new: reversed out of domain** (In-the-Wild 54.2 vs 32.5 %) |
 | vocoder, not acoustic model, drives detectability | — | **new, measured:** A10 vs A11 (same pipeline, different vocoder): A1 22.4 vs 0.1 % |
 | SSL front ends generalise better than spectral features | [7] (fine-tuned), [22] (frozen) | **consistent:** frozen WavLM 14.7 % ITW against A1 58 % |
-| frozen SSL plus a simple back end generalises | only for a large backbone: XLS-R 2B 7.2 %, WavLM Base+ last layer 38.6 % ITW [8, Table 3] | **extended, unexplained:** same WavLM Base+ at 14.7 % with a ≈231k layer-weighted head trained in 17 s from an exact pooled cache; weights tilt toward the bottom layers; X6 tests why |
+| frozen SSL plus a simple back end generalises | only for a large backbone: XLS-R 2B 7.2 %, WavLM Base+ last layer 38.6 % ITW [8, Table 3] | **extended:** same WavLM Base+ at 14.0 ± 0.5 % with a ≈231k head; even a last-layer logistic regression on our cache gets 24.75 %, so layer choice is not the explanation (X6) |
 | spectral + SSL fusion helps out of domain | ITW 14.03 → 6.87 %, ASVspoof 2019 LA (LA19) unchanged [6, Table 1] | **not tested**; A1 is inverted on ITW, so naive fusion with A1 is not expected to help |
 | auxiliary tasks improve unseen-attack EER | LFCC ResNet 2.19 → 1.47 % [17, Table 4] | **not tested** |
 | "SSL is robust" | — | **qualified:** robust in *ranking* (AUC 0.93), but a dev threshold is badly mis-calibrated in a new domain (49 % of bona fide rejected), and much of its in-domain margin is silence |
@@ -1371,16 +1525,18 @@ Each has a cheap test in §13.
    53 ms/clip) and a training run of seconds. The current plan rules out trimmed training, so
    this needs a team decision. Without it, phrase §10.3 as "removing silence at test time
    costs…", not "the model relies on silence for X %".
-4. **Single seed** (1337) for every run, with no confidence intervals on model EERs. A2's dev loss
-   is noisy, so a few seeds of the head (seconds each) would give error bars cheaply. [7] saw
+4. **Seeds.** A1 now has 3 EM seeds per arm and the A2 head 3 seeds (X4, X6). In domain, the
+   spread is small: about 0.4 EER points for A1 and 0.2 for A2. A1 on In-the-Wild swings by
+   13 points between seeds (46–59 %), so a single-seed A1 In-the-Wild number should not be
+   quoted alone. The single-layer heads, E3 and the trimmed runs are still single seeds. [7] saw
    gaps of up to 2.9 EER points between seeds (1.7 for wav2vec 2.0 rows) [7, Table 2].
 5. **4 s centre crop for A2 against whole utterances for A1.** The two systems see different
    amounts of audio. In [13], truncating to 4 s raised mean ASVspoof EER from 9.85 % to 18.89 %
    and mean ITW EER from 60.10 % to 67.25 % [13, Table 2]. Their crops are random at training
    time; ours is a fixed centre crop. This favours A1, so it does not weaken A2's lead, but say
    it.
-6. **No MFCC control.** "LFCC rather than MFCC" rests on literature plus maths (§5.1). X4 is
-   the measurement.
+6. **MFCC control: done** (X4, §5.1.5). Every seed of both arms was scored on dev, eval and
+   In-the-Wild; only the trimmed comparison uses a single seed per arm (1337).
 7. **Augmentation is an experiment, not a presumed fix.**
    - In [3], noise + RIR on a *frozen* encoder raised EER from 6.78 to 8.78 %, and RawBoost on a
      fine-tuned model gave 28.91 % [3, Table 2].
@@ -1406,10 +1562,11 @@ Each has a cheap test in §13.
 | A2 with XLS-R 300M | config ready | `run_a2 --config configs/a2_xlsr_300m.yaml timing`, then a resumable overnight `extract --testsets train,dev,eval,itw` |
 | E4 robustness | generator ready | `scripts/get_musan.py` → `scripts/make_degraded.py timing/generate` → score A1 and A2 on the four sets |
 | A3 / E5 | scaffold, dry run | needs JEV API docs; then measure latency and cost on ≤20 clips before choosing the subset size |
-| E2 ablation | "later" | needs a team decision. The candidates that also explain results are X4 (LFCC vs MFCC) and X6 (layers). If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
+| E2 ablation | "later" | needs a team decision. X4 (LFCC vs MFCC) and X6 (layers) are done and could be reported as E2. If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
 | E6 efficiency | not built | code to measure parameters, ms/clip and real-time factor (RTF) on 1,000 eval clips |
 
-**Explainability analyses (proposed, none run, all need team approval).** Each uses existing
+**Explainability analyses.** X4 and X6 were run on 2026-10-04 (§5.1.5, §7.5); the rest are
+proposed and need team approval. Each uses existing
 models or caches. Expectations are written down *before* running, so surprises stay visible.
 The full specs are in
 [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §6 and the
@@ -1422,10 +1579,10 @@ each analysis here has a control.
 | X1 | band occlusion: replace filterbank channel groups (0–1.5 … 6.1–8 kHz) with train means, rescore | A1 | minutes | does the high band matter, and for which attacks? |
 | X2 | exact per-dimension LLR shares (§6.4), grouped static/Δ/ΔΔ and by coefficient | A1 | minutes | is c0 the trimmed-shift driver for A09, A12, A16? |
 | X3 | frame LLR by c0 decile and by position (first/last 10 frames, interior, exact zeros) | A1 | minutes | M2, and the A18 exception |
-| X4 | controlled MFCC arm: identical B02 pipeline, only `spacing="mel"`, 3 EM seeds per arm (optional IMFCC) | A1 | ~2 h | LFCC vs MFCC on our data |
+| X4 ✅ | controlled MFCC arm: identical B02 pipeline, only `spacing="mel"`, 3 EM seeds per arm | A1 | 3 h (run) | **done:** LFCC wins in domain, MFCC wins on In-the-Wild (§5.1.5) |
 | X5 | drop Δ/ΔΔ; drop pre-emphasis | A1 | ~20 min each | dynamics and high-band weighting |
-| X6 | 13 single-layer heads, leave-one-layer-out, per-attack × layer heatmap raw and trimmed | A2 | seconds each | which layers carry evidence; explains the gap to [8] |
-| X7 | counterfactuals: low-pass at 4 and 6 kHz; CMVN at scoring | A1 (A2 needs re-extraction, ~9 min per 10k clips) | minutes | bandwidth and channel reliance; the ITW inversion |
+| X6 ✅ | 13 single-layer heads, leave-one-layer-out, per-attack × layer heatmap raw and trimmed | A2 | 2 min (run) | **done:** no layer is essential; layer choice does not explain the gap to [8] (§7.5) |
+| X7 | counterfactuals: low-pass at 4 and 6 kHz; CMVN at scoring; run on **both** X4 arms | A1 (A2 needs re-extraction, ~9 min per 10k clips) | minutes | bandwidth and channel reliance; **why MFCC generalises better** (top priority after X4) |
 | X8 | concept probes: regress leading silence, duration, high-band share on each layer's pooled vector and on A2's logit | A2 | seconds | where silence is encoded; the threshold shift |
 
 To check the explanations themselves: a deletion test against random removals, and a
