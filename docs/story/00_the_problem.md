@@ -19,9 +19,9 @@ A spectrogram is a picture of sound:
 
 The left clip is a real person reading a sentence. The right clip is a fake made by a
 text-to-speech (TTS) system: attack **A03** (the dataset calls each fake-making system an
-"attack" and numbers them A01–A19). Both show the same kind of
-pattern: bright blobs where words are spoken, thin horizontal stripes inside them, dark gaps
-between words. If you were asked "which one is fake?", the picture would not make it obvious.
+"attack" and numbers them A01–A19). Both show bright blobs where words are spoken, thin
+horizontal stripes inside them and dark gaps between words. The picture does not make the fake
+obvious.
 
 Notice two small things anyway, because they come back later:
 
@@ -29,27 +29,22 @@ Notice two small things anyway, because they come back later:
    starts speaking after about 0.35 s.
 2. The real clip is about 3.1 s long, the fake about 1.7 s.
 
-Neither of these has anything to do with *how* the fake voice was made. Keep that thought.
-
-The notebook itself warns that one pair of clips is "context only, not evidence" (notebook 02,
-cell 26). One example can mislead. Every *claim* after this chapter rests on thousands of clips.
+Neither has anything to do with *how* the fake was made. Keep that thought. The notebook itself
+warns that one pair is "context only, not evidence" (notebook 02, cell 26); every *claim* after this chapter rests on
+thousands of clips.
 
 ## Why anyone cares
 
-Fake voices are now good enough to matter.
-
-- Müller et al. write that text-to-speech "enables the cloning of politicians' voices", with
-  risks that include "the spread of misinformation" (from paper [13, §1, p.1]).
-- The dataset we use describes one of its attacks, A10, like this: "synthetic speech produced by
-  this system has high naturalness and good similarity to target speakers perceptually"
-  (from paper [14, §3, p.8]).
-
-So a person listening may not notice. We want a program that does.
+Müller et al. write that text-to-speech "enables the cloning of politicians' voices", with
+risks that include "the spread of misinformation" (from paper [13, §1, p.1]). Our dataset says
+of attack A10: "synthetic speech produced by this system has high naturalness and good
+similarity to target speakers perceptually" (from paper [14, §3, p.8]). A listener may not notice; we want a program
+that does.
 
 ## The question, in plain words
 
-The project asks one question. The [README](../../README.md) and
-[handoff §1](../training-and-data-handoff.md) state it with a formula; in our words:
+The [README](../../README.md) and [handoff §1](../training-and-data-handoff.md) state the
+project's question with a formula; in our words:
 
 **Is there something we can measure about a clip that is distributed differently for real and
 fake speech, and does that difference come from how the fake was made, rather than from some
@@ -57,18 +52,15 @@ accident of how the dataset was collected?**
 
 Two traps hide in that sentence.
 
-1. **The shortcut trap.** Real and fake clips can differ in ways that have nothing to do with
-   synthesis: how much silence they start with, how loud they are, which microphone recorded
-   them. A detector will happily learn those differences instead. It then fails the moment
-   the accident goes away. The two observations above (lead-in silence, length) are exactly
-   this kind of accident.
-2. **The new-world trap.** A detector trained on one collection of clips may meet fakes made
-   by a generator it has never seen, recorded in conditions it has never heard. Does what it
-   learned still apply?
+1. **The shortcut trap.** Real and fake clips can differ in ways unrelated to synthesis:
+   leading silence, loudness, microphone. A detector will happily learn those instead, and fail
+   when the accident goes away. The lead-in and length above are exactly this kind of accident.
+2. **The new-world trap.** A detector may meet fakes from a generator it has never seen,
+   recorded in conditions it has never heard. Does what it learned still apply?
 
 ## What we built to answer it
 
-We built three detectors, from old-fashioned to modern.
+Three detectors, from old-fashioned to modern:
 
 | system | one-line description | status |
 |---|---|---|
@@ -76,18 +68,10 @@ We built three detectors, from old-fashioned to modern.
 | A2 | a large pre-trained speech model, kept frozen, with a small trained decision layer on top | built and measured |
 | A3 | A2 plus JEV, a classifier service: typed text or JSON (JavaScript Object Notation) in, typed probabilities out. JEV is **not** a large language model | scaffold only, no real results yet |
 
-The chapters ahead build each one only when the story needs it. Along the way we test both
-traps: chapter 3 hunts for shortcuts before any detector exists, chapter 8 removes the silence
-and re-measures, and chapter 9 takes the detectors to real-world audio. There, one of them
-does no better than a coin flip, and the other still ranks real above fake well, but its
-decision threshold no longer fits.
-
-## Where this is going
-
-- Chapter 1: what a voice is made of, and therefore what a fake must imitate.
-- Chapter 2: where our clips come from, and how to score a detector fairly when 9 of 10 clips
-  are fake.
-- Chapter 3: before building anything, can something stupid already "detect" fakes?
+We test both traps along the way: chapter 3 hunts for shortcuts before any detector exists,
+chapter 8 removes the silence and re-measures, and chapter 9 takes the detectors to real-world
+audio. There, one does no better than a coin flip; the other still ranks real above fake well,
+but its decision threshold no longer fits.
 
 > **Checkpoint**
 >
