@@ -1480,7 +1480,7 @@ evidence it rests on. "Test" names the §13 analysis that would confirm or kill 
 | A2 0.96 % in domain, small dev→eval gap | 94k h real-speech prior; frozen features are not overfit to A01–A06 | literature context [22] | seeds |
 | A2 trimmed: EER ×13.8 | time mean over 199 frames; silence frames shift every layer's mean; repeat padding amplifies; bona fide median moves 19 logits, spoof < 3 | measured shifts; mechanism hypothesis; mismatch not separated | X8 (probe silence), trimmed-train head (§12.3) |
 | A2 ITW 14.7 %, vs [8]'s 38.6 % for the same backbone | **not** the layer choice: our last-layer logistic regression gets 24.75 %, last-layer MLP 16.5 %; head type and an unidentified protocol difference | **measured (X6)**; residual unexplained | — |
-| A2 catches human-source VC with bottom layers | bottom layers = acoustic/speaker, top = content [26]; VC of a real person keeps natural content | per-layer EER **measured**; reading hypothesis | seeds per layer |
+| A2 catches human-source VC with bottom layers (A19, A18; not A17) | bottom layers = acoustic/speaker, top = content [26]; VC of a real person keeps natural content | per-layer EER **measured**; reading hypothesis | seeds per layer |
 | A2's dev threshold fails on ITW (49 % bona fide rejected) | VCTK bona fide is pushed up by its lead-in; ITW bona fide has none | hypothesis | X8 |
 
 **What we can already say with confidence.**
