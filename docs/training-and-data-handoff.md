@@ -272,9 +272,24 @@ detector can learn that metadata instead of synthesis evidence.
 - **AUC** is the probability that a randomly chosen spoof clip and a randomly chosen bona fide
   clip are ranked the right way round by this one feature. 0.5 means the feature carries no
   information about the label; 1.0 means it separates the classes perfectly.
-- **Why AUC and not accuracy.** It needs no threshold, so it measures the feature itself rather
-  than one cut-off. It is also unaffected by the 1 : 9 class imbalance, which would make a
-  useless "always spoof" rule look 90 % accurate.
+- **Why AUC and not accuracy.**
+  - **It summarises every threshold, not one.** The ROC curve plots the true positive rate
+    against the false positive rate as the threshold sweeps through every value, and AUC is the
+    area under that curve. Accuracy needs one chosen cut-off. AUC rates how well the feature
+    *ranks* clips without committing to any single threshold.
+  - **It does not depend on the class *ratio*.** The true positive rate is computed only within
+    spoof clips and the false positive rate only within bona fide clips. Changing the 1 : 9 mix
+    alone leaves both rates, the curve and the AUC unchanged. Accuracy does change with the
+    mix: a useless "always spoof" rule scores 90 % accuracy here, but AUC 0.5.
+- **What class balance still affects.**
+  - **Precision of the estimate.** Fewer clips in the minority class make the AUC noisier and
+    widen its confidence interval.
+  - **Deployment.** AUC says nothing about the operating point. At 1 : 9, even a modest false
+    positive rate can mean many false alarms relative to true detections. Precision, F1 and
+    precision-recall curves do depend on the ratio, which is why we also report F1 at a fixed
+    threshold (§9).
+  - **Composition.** AUC changes if *what* is in each class changes, for example a different
+    mix of attacks. That is a change in the data, not in the ratio.
 - **95 % CI.** The 95 % confidence interval comes from resampling the clips with replacement
   1,000 times and recomputing AUC each time. The middle 95 % of those values is the interval.
   Narrow intervals, such as [0.835, 0.840], mean the number is stable and is not luck from this
