@@ -47,3 +47,6 @@ notebooks/_executed/
 # --- research ---
 # paper PDFs are shared on Google Drive (link in research/knowledge/papers/README.md)
 research/**/*.pdf
+# paper notes and PDFs stay local; only the README with the Drive link is tracked
+research/knowledge/papers/*
+!research/knowledge/papers/README.md

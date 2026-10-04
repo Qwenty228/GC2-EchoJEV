@@ -11,7 +11,7 @@ sources:
   - https://arxiv.org/pdf/2111.02813 (Frank & Schönherr, WaveFake, NeurIPS 2021 D&B; fetched and read)
   - https://www.isca-archive.org/interspeech_2016/sriskandaraja16_interspeech.pdf (Sriskandaraja et al. 2016; fetched and read)
   - https://arxiv.org/pdf/1911.01601 (Wang et al., ASVspoof 2019 database paper, arXiv v4 = Computer Speech & Language 2020; fetched and read; Table 1, p.6)
-  - research/knowledge/papers/linear-vs-mel-cepstral-speaker-recognition.md (Zhou et al. 2011, read in full)
+  - Zhou et al. 2011, https://doi.org/10.1109/ASRU.2011.6163888 (read in full; local note linear-vs-mel-cepstral-speaker-recognition.md, not in git)
   - experiments/E-20261001-e1-a1-raw, E-20261001-e1-a1-trimmed (committed scores/metrics); experiments/E-20261001-e1-a2-raw/layer_weights.json
   - notebooks/_executed/02_spectral_eda.ipynb, 03_cepstral_eda.ipynb (committed outputs)
 confidence: medium (the maths and the code-derived numbers are high; the explanations of per-attack behaviour are hypotheses and are labelled)
