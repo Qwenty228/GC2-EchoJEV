@@ -247,57 +247,95 @@ recording chain *creates* a corpus shortcut.
 
 ## 3. Inspect: the Stage 0 leakage audit
 
-**Question:** can a trivial model predict the label from **metadata alone**? If it can, a real
-detector can learn that metadata instead of synthesis evidence.
+**In one line.** Before building any detector, we checked whether properties that have nothing
+to do with speech synthesis can tell real clips from fake ones. One can: the amount of silence
+at the start of a clip.
 
-**Method** ([src/audio_df/leakage.py](../src/audio_df/leakage.py),
-[scripts/audit_leakage.py](../scripts/audit_leakage.py), NB01 cells 14–21):
+### 3.1 The question
 
-- Features: duration, sample rate, codec, source corpus, speaker ID, root-mean-square (RMS) level (overall loudness: the square root of the mean of
-  the squared sample values, $\sqrt{\tfrac1N\sum_n x[n]^2}$), and the
-  fractions of leading, trailing and total silence.
-- Silence is measured with framed RMS energy relative to the loudest frame, with
-  `top_db = 30`, frames of 2048 and hop 512, the same convention as `librosa.effects.split`
-  ([`silence_ratio`](../src/audio_df/audio.py#L142)). An earlier per-sample threshold counted
-  zero-crossings as silence and was replaced. The docstring explains why.
-- Classifiers: logistic regression and a depth-2 tree, scored **only out of fold** with
-  5-fold stratified cross-validation (CV) ([`_cross_val_oof_scores`](../src/audio_df/leakage.py#L234)).
-  Categorical features use fold-safe target encoding, and CIs come from 1,000 bootstrap
-  resamples.
-- A feature is flagged above AUC 0.65. **That threshold is a project convention, not a
-  literature value.**
+A detector learns whatever separates the two classes in its training data. Suppose real and
+fake clips also differ in something irrelevant, such as how much silence they start with, how
+loud they are, or who is speaking. The detector can then learn that instead of synthesis
+artefacts, and it fails as soon as that difference disappears. Such a difference is called a
+**shortcut** (or **leakage**). The audit asks:
 
-**How to read the table.**
+> Given only **one** irrelevant property of a clip, can a deliberately tiny classifier predict
+> real vs fake?
 
-- **AUC** is the probability that a randomly chosen spoof clip and a randomly chosen bona fide
-  clip are ranked the right way round by this one feature. 0.5 means the feature carries no
-  information about the label; 1.0 means it separates the classes perfectly.
+If it can, that property is a shortcut risk for every detector trained on this data.
+
+### 3.2 What we measured
+
+We measured these **nuisance features** on all 121,461 ASVspoof 2019 LA clips (train, dev and
+eval together). None of them should matter for whether speech is synthetic.
+
+| nuisance feature | what the number is for one clip |
+|---|---|
+| duration_s | length in seconds |
+| sample_rate, codec, source_corpus | file format details; identical for every clip here |
+| speaker_id | which speaker the clip is from |
+| rms | overall loudness: the root-mean-square (RMS) level, $\sqrt{\tfrac1N\sum_n x[n]^2}$, the square root of the mean squared sample value |
+| silence_leading / _trailing / _total | fraction of the clip that is silent at the start, at the end, or overall |
+
+A frame (2,048 samples, hop 512) counts as **silent** if its RMS energy is more than 30 dB below
+the loudest frame in the clip, the convention of `librosa.effects.split`
+([`silence_ratio`](../src/audio_df/audio.py#L142)). An earlier version thresholded individual
+samples and wrongly counted every zero-crossing as silence; it was replaced.
+
+Spectral features such as bandwidth are **not** here. They describe the sound itself, so they
+belong to §4.
+
+### 3.3 How: probe classifiers, not detectors
+
+Code: [src/audio_df/leakage.py](../src/audio_df/leakage.py),
+[scripts/audit_leakage.py](../scripts/audit_leakage.py); notebook 01 (NB01), cells 14–21.
+
+For each feature on its own:
+
+1. **Fit two very small classifiers on that single number.** One is a logistic regression,
+   which amounts to one weighted threshold. The other is a decision tree of depth 2, at most
+   three cut-offs. These are **probes**. They only ask "is there information about the label
+   in this number?" They are not A1 or A2, and they say nothing about how our detectors
+   perform.
+2. **Score them honestly with 5-fold cross-validation (CV).** The clips are split into 5
+   parts, and each part is scored by a probe trained on the other 4. So every clip is scored by
+   a probe that never saw it during training ("out of fold"). Speaker ID is turned into numbers
+   (target encoding) inside each fold only, so a clip's own label cannot leak into its encoding.
+3. **Keep whichever of the two probes ranks the clips better,** and report its AUC and its
+   equal error rate (EER, §9).
+
+"All combined" does the same with every feature at once. A feature is **flagged** if its AUC is
+above 0.65. That threshold is a project convention, not a literature value.
+
+### 3.4 How to read the numbers
+
+- **AUC (area under the receiver operating characteristic curve).** Pick one random fake clip
+  and one random real clip. AUC is the probability that the probe ranks them the right way
+  round. 0.5 means the feature carries no information; 1.0 means it separates the classes
+  perfectly.
 - **Why AUC and not accuracy.**
   - **It summarises every threshold, not one.** The ROC curve plots the true positive rate
     against the false positive rate as the threshold sweeps through every value, and AUC is the
-    area under that curve. Accuracy needs one chosen cut-off. AUC rates how well the feature
-    *ranks* clips without committing to any single threshold.
+    area under that curve. Accuracy needs one chosen cut-off.
   - **It does not depend on the class *ratio*.** The true positive rate is computed only within
-    spoof clips and the false positive rate only within bona fide clips. Changing the 1 : 9 mix
-    alone leaves both rates, the curve and the AUC unchanged. Accuracy does change with the
-    mix: a useless "always spoof" rule scores 90 % accuracy here, but AUC 0.5.
-- **What class balance still affects.**
-  - **Precision of the estimate.** Fewer clips in the minority class make the AUC noisier and
-    widen its confidence interval.
-  - **Deployment.** AUC says nothing about the operating point. At 1 : 9, even a modest false
-    positive rate can mean many false alarms relative to true detections. Precision, F1 and
-    precision-recall curves do depend on the ratio, which is why we also report F1 at a fixed
-    threshold (§9).
-  - **Composition.** AUC changes if *what* is in each class changes, for example a different
-    mix of attacks. That is a change in the data, not in the ratio.
-- **95 % CI.** The 95 % confidence interval comes from resampling the clips with replacement
-  1,000 times and recomputing AUC each time. The middle 95 % of those values is the interval.
-  Narrow intervals, such as [0.835, 0.840], mean the number is stable and is not luck from this
-  particular set of clips.
+    fake clips and the false positive rate only within real clips, so changing the 1 : 9 mix
+    alone leaves AUC unchanged. Accuracy does change: a useless "always fake" rule scores 90 %
+    accuracy here, but AUC 0.5.
+  - **What the class balance still affects.** It affects how precise the estimate is, since a
+    smaller minority class gives a noisier AUC. It affects deployment, since at 1 : 9 even a
+    modest false positive rate can mean many false alarms; that is why §9 also reports F1. And
+    AUC changes if *what* is in each class changes, for example a different mix of attacks.
+- **95 % confidence interval (CI).** Take the out-of-fold scores of all 121,461 clips. Draw
+  121,461 clips at random *with replacement* (some twice, some not at all) and recompute AUC.
+  Repeat 1,000 times. The middle 95 % of those 1,000 values is the interval. The probes are not
+  retrained. A narrow interval, such as [0.835, 0.840], means the number is stable and not luck
+  from this particular set of clips.
 
-**Result** on all 121,461 clips ([reports/tables/leakage_audit.csv](../reports/tables/leakage_audit.csv)):
+### 3.5 Result
 
-| feature | AUC [95 % confidence interval (CI)] | EER | flagged |
+On all 121,461 clips ([reports/tables/leakage_audit.csv](../reports/tables/leakage_audit.csv)):
+
+| feature | AUC [95 % CI] | EER | flagged |
 |---|---|---|---|
 | silence_leading | **0.837** [0.835, 0.840] | 24.7 % | ⚠ yes |
 | silence_total | **0.825** [0.822, 0.827] | 25.5 % | ⚠ yes |
@@ -305,49 +343,85 @@ detector can learn that metadata instead of synthesis evidence.
 | speaker_id | 0.649 | 41.4 % | no (borderline) |
 | duration_s | 0.624 | 48.6 % | no |
 | silence_trailing | 0.611 | 43.7 % | no |
-| sample_rate / codec / source_corpus | 0.500 | — | no (constant) |
+| sample_rate / codec / source_corpus | 0.500 | — | no (identical for every clip) |
 | **all combined** | **0.876** | 22.9 % | ⚠ yes |
 
-**Reasoning.** This is a direct local replication of Müller et al. [27], *Speech is Silver, Silence is
-Golden*, the paper that first measured this shortcut in ASVspoof 2019. They found that a
-single leading-silence feature reaches 15.1 % EER on 2019 LA eval, and that RawNet2's EER rises
-from 3.61 % to 15.50 % when it is trained on trimmed audio. The cause is how the corpus was
-assembled. VCTK recordings keep their natural room-noise lead-in, and TTS/VC systems are trained
-on trimmed data, so they output speech that starts immediately. Silence is therefore a fact about
-*how the classes were sourced*, not about synthesis.
+**Reading.**
 
-**Decision.** The audit's verdict says "do not model as-is". Instead of re-cutting the corpus,
-the 2026-09-30 plan kept **raw audio as the main condition** and made **trimmed audio a
-mandatory diagnostic** on every test set
-([`preprocess(silence_mode=...)`](../src/audio_df/audio.py#L289),
-[`trim_silence`](../src/audio_df/audio.py#L228)). That makes the shortcut *measured* in every
-headline number instead of hidden. Notebook [09](../notebooks/09_a1_playground.ipynb) §5 plots
-the median leading-silence fraction per attack. A07–A16 sit between 0.00 and 0.06, while A17,
-A18 and A19 sit at 0.32, 0.30 and 0.27, against bona fide's 0.29 (recomputed on 150 clips per
-attack; [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5).
-The database paper explains the split. A17–A19 are the three voice-conversion systems that
-convert **human** source recordings, so they keep the source's lead-in. A13–A15 convert TTS
-output, which starts immediately [14, Table 1, p.6]. The silence shortcut is therefore
-*attack-specific*, and the per-attack results in §10.3 follow this split.
+- **Leading silence alone reaches AUC 0.837.** For about 84 % of random (real, fake) pairs, the
+  clip with more silence at the start is the real one. A probe that knows nothing but this one
+  number gets 24.7 % EER.
+- **All features together reach only 0.876,** barely more than silence alone. So silence
+  carries most of the shortcut.
+- **Loudness (rms) is weakly flagged** and speaker ID is borderline.
+- **Sample rate, codec and source corpus carry nothing,** because every clip has the same value.
 
-One more protection: `preprocess` **repeat-pads, never zero-pads**, short clips. Zero padding
+### 3.6 Why silence separates real from fake
+
+This is a local replication of Müller et al. [27], *Speech is Silver, Silence is Golden*, the
+paper that first measured this shortcut in ASVspoof 2019. On their data, a classifier given only
+the leading-silence length reaches 15.1 % EER on 2019 LA eval, and RawNet2's EER rises from
+3.61 % to 15.50 % when it is trained on trimmed audio.
+
+The cause is how the corpus was assembled:
+
+- **Real clips** are Voice Cloning Toolkit (VCTK) studio recordings, which keep their natural
+  room-noise lead-in.
+- **Fake clips** come from text-to-speech (TTS) and voice conversion (VC) systems trained on
+  trimmed data, so they output speech that starts immediately.
+
+Silence is therefore a fact about *how the classes were sourced*, not about synthesis.
+
+It is also **attack-specific**. Median leading-silence fraction per attack:
+
+| clips | median leading-silence fraction |
+|---|---|
+| bona fide | 0.29 |
+| A07–A16 | 0.00 to 0.06 |
+| A17, A18, A19 | 0.32, 0.30, 0.27 |
+
+These are recomputed on 150 clips per attack
+([lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5;
+notebook [09](../notebooks/09_a1_playground.ipynb) §5 plots them). The database paper explains
+the split. A17–A19 are the three VC systems that convert **human** recordings, so they keep the
+source's lead-in. A13–A15 convert TTS output, which starts immediately [14, Table 1, p.6]. The
+per-attack results in §10.3 follow this split.
+
+### 3.7 What we did about it
+
+The audit's verdict is "do not model as-is". Instead of re-cutting the corpus, the 2026-09-30
+plan:
+
+- keeps **raw audio as the main condition**;
+- makes **trimmed audio** (leading and trailing silence removed,
+  [`trim_silence`](../src/audio_df/audio.py#L228)) **a mandatory diagnostic** on every test set
+  ([`preprocess(silence_mode=...)`](../src/audio_df/audio.py#L289)).
+
+The shortcut is therefore *measured* in every headline number instead of hidden. One more
+protection: `preprocess` **repeat-pads, never zero-pads**, short clips, because zero padding
 would add the very silence we are trying to control.
 
 ---
 
 ## 4. Analyze: where do the classes differ?
 
-### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb), real data, 240-clip stratified sample)
+### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb))
 
-**What is being compared.** The two **classes** are bona fide (real human speech) and spoof
-(fake speech). A **feature** is one number measured from each clip. Notebook 02 measures 13
-features on a stratified sample of 240 clips (120 of each class):
+**In one line.** §3 tested properties that *should not* matter. §4.1 looks at the sound itself
+(how its energy is spread across frequencies) to find where real and fake audio differ, and
+checks how much of that difference is the silence shortcut again.
+
+**Data.** ASVspoof 2019 LA only: a sample of 240 clips, 40 real and 40 fake from each of train,
+dev and eval.
+
+**Features.** One number per clip. Silence and loudness are repeated from §3 as reference
+points, so the acoustic features can be compared with them on the same clips.
 
 | feature | what the number is for one clip |
 |---|---|
 | duration | length in seconds |
-| rms | overall loudness (root-mean-square level, §3) |
-| silence_leading / _trailing / _total | fraction of the clip that is quiet at the start, at the end, or overall |
+| rms | overall loudness (§3.2) |
+| silence_leading / _trailing / _total | fraction of the clip that is silent at the start, at the end, or overall |
 | centroid | the "centre of mass" of the frequencies; higher sounds brighter |
 | bandwidth | how widely the frequencies spread around that centre |
 | rolloff | the frequency below which 85 % of the energy sits |
@@ -355,48 +429,60 @@ features on a stratified sample of 240 clips (120 of each class):
 | zcr | zero-crossing rate: how often the waveform crosses zero |
 | band_low / _mid / _high_ratio | share of energy below 1 kHz, 1–4 kHz and above 4 kHz |
 
-For each feature the question is: **are the real clips' values and the fake clips' values
-different, and by how much?** For example, real clips start with about 0.3 s of room quiet
-while many fakes start speaking at once, so leading silence separates the classes well. Real
-and fake clips have about the same duration, so duration does not.
+#### How the difference is measured
 
-**Why effect sizes and not p-values.** A significance test (for example a t-test) gives a
-p-value: how likely a difference this big would be by chance if the two classes really had the
-same average. A p-value shrinks as more clips are added even when the difference stays tiny. On
-the full 121k-clip corpus, a duration difference of a few milliseconds would come out
-"significant" while being useless for detection. An **effect size** instead measures *how big*
-the difference is, and does not grow with sample size. We use two, both computed as spoof
-against bona fide ([`cohens_d`, `cliffs_delta`](../src/audio_df/stats.py#L78)):
+For each feature there are 120 numbers for real clips and 120 for fake clips. The question is:
+**how different are the two groups?** No classifier is fitted here. Three numbers answer it,
+all computed as fake against real ([`cohens_d`, `cliffs_delta`](../src/audio_df/stats.py#L78)):
 
-- **Cohen's *d*: the gap between the class means, in units of spread.**
+- **Cohen's *d*: the gap between the two averages, in units of spread.**
 
   $$
   d = \frac{\bar{x}_\text{spoof} - \bar{x}_\text{bona}}{s_\text{pooled}},\qquad
   s_\text{pooled} = \sqrt{\frac{(n_s-1)s_s^2 + (n_b-1)s_b^2}{n_s+n_b-2}}
   $$
 
-  A negative *d* means spoof is lower on average. Cohen's rough scale: 0.2 small, 0.5 medium,
-  0.8 large. Because it uses means and standard deviations, skew and outliers can distort it.
-  Leading silence is an example: many spoofs sit at exactly 0.
-- **Cliff's δ: how often one class beats the other.**
+  - $x$ is the feature's value for one clip, for example its bandwidth in Hz.
+  - $\bar{x}_\text{spoof}$ is the average over the 120 fake clips; $\bar{x}_\text{bona}$ over
+    the 120 real ones.
+  - $s_s$ and $s_b$ are each group's standard deviation; $s_\text{pooled}$ is their combined
+    spread.
+
+  $d = -1.3$ means the fake average is 1.3 "typical spreads" below the real average. Cohen's
+  rough scale: 0.2 small, 0.5 medium, 0.8 large.
+- **Cliff's δ: how often one group beats the other.** Compare every fake clip with every real
+  clip, 120 × 120 pairs:
 
   $$
   \delta = P(\text{spoof} > \text{bona}) - P(\text{spoof} < \text{bona})
   $$
 
-  It is taken over every (spoof, bona fide) pair and ranges from −1 to +1. 0 means neither class
-  tends to be higher. It uses only the order of the values, so outliers and skew do not affect
-  it. Romano et al.'s rough scale: |δ| 0.15 small, 0.33 medium, 0.47 large.
-- **Link to AUC.** Cliff's δ and AUC carry the same information: δ = 2·AUC − 1, with AUC
-  measured in the direction of δ. Bandwidth's AUC of 0.824 below therefore corresponds to
-  δ ≈ −0.65.
-- **Why both.** If *d* and δ agree, the difference is real and not driven by a few extreme
-  clips. If they disagree, look at the distribution itself.
+  It runs from −1 (every fake clip is lower) to +1 (every fake clip is higher), and 0 means no
+  tendency. Romano et al.'s rough scale: |δ| 0.15 small, 0.33 medium, 0.47 large.
+- **Single-feature AUC.** The raw feature value is used directly as a score, with no classifier,
+  and the better of the two directions is kept. It carries the same information as δ:
+  δ = 2·AUC − 1. Bandwidth's AUC of 0.824 is δ ≈ −0.65.
 
-The 95 % CI on *d* comes from 500 bootstrap resamples of the clips (notebook 02, `n_boot=500`); the
-idea is the same as the AUC intervals in §3, which use 1,000.
+What the signs and the two measures mean:
 
-| feature | Cohen's d | 95 % CI on d | Cliff's δ | single-feature AUC (best direction) |
+- **Sign = direction.** A negative *d* or δ means fake clips have *lower* values than real ones.
+  "*d* and δ have the same sign" means both agree on which class is higher. Nothing more.
+- **Why two measures.** *d* uses averages, so a few clips with extreme values (outliers) can drag
+  it. Picture 3 fake clips with 5 s of silence when the rest have none. δ only counts who wins
+  each pair, so those 3 clips barely move it. If *d* and δ agree, the result does not depend on a
+  handful of odd clips. Notebook 02 draws both, including a made-up example where they disagree.
+- **Why not p-values.** A significance test (for example a t-test) gives a p-value: how likely a
+  difference this big would be by chance if the two classes really had the same average. It
+  shrinks as more clips are added even when the difference stays tiny. On the full 121k-clip
+  corpus, a duration difference of a few milliseconds would come out "significant" while being
+  useless for detection. Effect sizes measure *how big* the difference is.
+- **95 % CI on *d*.** Draw 120 fake and 120 real clips at random with replacement from the
+  sample, recompute *d*, and repeat 500 times (`n_boot=500`). The middle 95 % of the 500 values
+  is the interval. If it excludes 0, the direction is reliable for this sample.
+
+#### Result
+
+| feature | Cohen's d | 95 % CI on d | Cliff's δ | single-feature AUC |
 |---|---|---|---|---|
 | silence_leading | −1.42 | [−1.73, −1.16] | −0.64 | 0.818 |
 | **spectral bandwidth** | **−1.32** | [−1.61, −1.08] | **−0.65** | **0.824** |
@@ -406,31 +492,43 @@ idea is the same as the AUC intervals in §3, which use 1,000.
 | zcr | +0.33 | [0.08, 0.60] | +0.21 | 0.604 |
 | duration | +0.09 | [−0.16, 0.34] | +0.05 | 0.525 |
 
-**d and δ agree** on the ranking and sign of every feature, so no result here is driven by a
-few extreme clips. The one nuance is silence: leading silence has the largest *d* (−1.42) but
-the same δ as bandwidth (−0.64 vs −0.65). About a quarter of the sampled spoofs sit at or
-near 0 s of lead-in, and that pile stretches the mean gap more than it changes the pairwise ranking.
-Notebook 02 draws both measures for these features.
+#### Reading
 
-**Reading.** Apart from silence, the strongest signals are **spectral shape across the full
-band**: spoofs have lower bandwidth and lower rolloff. That points to how energy is spread at
-high frequencies. The per-attack centroid table (cell 19) also shows **opposite directions by
-generator**. A11 has a centroid of about 1,400 Hz and A18 about 2,290 Hz, either side of bona
-fide's 1,733 Hz. So no single scalar is "the fake artifact". Each cue belongs to a generator,
-which is why per-attack EER is required.
+1. **Silence confirms §3 on this small sample.** Here its AUC is 0.818, against 0.837 in §3.
+   The numbers differ slightly because this is 240 clips and uses the raw value, whereas §3 used
+   all clips and a fitted probe.
+2. **Bandwidth and rolloff are new.** §3 never tested them, because it only looked at features
+   that should not matter. Bandwidth turns out as strong as leading silence (δ −0.65 vs −0.64):
+   fake clips have a narrower spread of frequencies and a lower rolloff.
+3. **But bandwidth may be partly silence in disguise** (**hypothesis**). A silent stretch is
+   low-level room noise spread across all frequencies, which *raises* a clip's average
+   bandwidth. Real clips have more silent frames, so part of their higher bandwidth may simply
+   be their silence. The test is to recompute *d* on clips with less than 20 % silence. Until
+   then, "spectral shape" is a candidate cue, not one proven independent of silence.
+4. ***d* and δ agree** on the sign and ranking of every feature, so no row depends on a few
+   extreme clips. One nuance: leading silence has the largest *d* (−1.42) but the same δ as
+   bandwidth. About a quarter of the sampled fakes sit at or near 0 s of lead-in, and that pile
+   stretches the gap between the averages more than it changes who wins each pair.
+5. **The direction depends on the attack.** In the per-attack centroid table (notebook 02,
+   cell 19), A11's centroid is about 1,400 Hz and A18's about 2,290 Hz, either side of real
+   speech at 1,733 Hz. No single number is "the fake artefact". Each cue belongs to particular
+   generators, which is why per-attack EER is required.
 
-**What the EDA does *not* show: a large high-band energy deficit.** The obvious version of
-"spoofs lack high frequencies" fails on our data. The committed share of energy at ≥ 4 kHz
-(`band_high_ratio`) has d = −0.13 [−0.37, 0.09] and AUC 0.53 (notebook 02, NB02, cells 9 and 12), so the
-interval includes zero. A finer check (**recomputed** on 600 clips through the exact B02
-pipeline, not committed output) does find a small *gain-free* tilt. Compared with the 1.1–4.2 kHz
-channels, the 4.9–7.6 kHz channels sit 1.5 dB lower in spoof (d = −0.33 [−0.50, −0.17], louder
-half of frames). The tilt is the same sign in train, dev and eval. But it correlates 0.57 with
-the silence fraction, and the largest per-channel difference is at the *lowest* channel
-(d = +0.94), which is what a level and silence difference looks like. Bandwidth and rolloff
-are whole-spectrum measures, and silent frames have flat, wide noise-floor spectra. Part of
-their effect is probably silence too (**hypothesis**: recompute d on clips with < 20 % silence).
-Details:
+**What the EDA does *not* show: a large high-frequency energy gap.** The obvious claim, "fakes
+lack high frequencies", fails on this data.
+
+- **Direct measure: no reliable difference.** The share of energy at or above 4 kHz
+  (`band_high_ratio`) has d = −0.13 [−0.37, 0.09] and AUC 0.53, and the interval includes 0.
+- **A finer check finds a small difference.** This was **recomputed** on 600 clips through the
+  exact A1 front end and is not committed output. With overall loudness removed, the 4.9–7.6 kHz
+  channels sit 1.5 dB lower in fake clips than the 1.1–4.2 kHz channels do (d = −0.33
+  [−0.50, −0.17], louder half of frames). It has the same sign in train, dev and eval.
+- **That small difference is also tied to silence.**
+  - It correlates 0.57 with the silence fraction.
+  - The biggest per-channel difference is at the *lowest* channel (d = +0.94), which is what a
+    loudness-and-silence difference looks like.
+
+Details are in
 [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §4.2–4.3.
 
 ### 4.2 Cepstral EDA ([notebooks/03_cepstral_eda.ipynb](../notebooks/03_cepstral_eda.ipynb), 90-clip sample)
