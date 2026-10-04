@@ -50,3 +50,9 @@ research/**/*.pdf
 # paper notes and PDFs stay local; only the README with the Drive link is tracked
 research/knowledge/papers/*
 !research/knowledge/papers/README.md
+
+# --- experiments ---
+# resume bookkeeping written while scoring; scores/ and metrics.json hold the results
+experiments/*/score_jobs/
+# per-variant score CSVs of multi-variant analyses (hundreds of MB); each variant's metrics.json is tracked
+experiments/*/variants/*/scores/
