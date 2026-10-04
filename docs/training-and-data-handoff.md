@@ -372,15 +372,21 @@ computed as spoof against bona fide ([`cohens_d`, `cliffs_delta`](../src/audio_d
 The 95 % CI on *d* comes from 500 bootstrap resamples of the clips (notebook 02, `n_boot=500`); the
 idea is the same as the AUC intervals in §3, which use 1,000.
 
-| feature | Cohen's d | 95 % CI | single-feature AUC (best direction) |
-|---|---|---|---|
-| silence_leading | −1.42 | [−1.73, −1.16] | 0.818 |
-| **spectral bandwidth** | **−1.32** | [−1.61, −1.08] | **0.824** |
-| silence_total | −1.28 | [−1.56, −0.99] | 0.802 |
-| **spectral rolloff** | **−0.93** | [−1.21, −0.69] | 0.749 |
-| rms | +0.36 | [0.11, 0.58] | 0.582 |
-| zcr | +0.33 | [0.08, 0.60] | 0.604 |
-| duration | +0.09 | [−0.16, 0.34] | 0.525 |
+| feature | Cohen's d | 95 % CI on d | Cliff's δ | single-feature AUC (best direction) |
+|---|---|---|---|---|
+| silence_leading | −1.42 | [−1.73, −1.16] | −0.64 | 0.818 |
+| **spectral bandwidth** | **−1.32** | [−1.61, −1.08] | **−0.65** | **0.824** |
+| silence_total | −1.28 | [−1.56, −0.99] | −0.60 | 0.802 |
+| **spectral rolloff** | **−0.93** | [−1.21, −0.69] | **−0.50** | 0.749 |
+| rms | +0.36 | [0.11, 0.58] | +0.17 | 0.582 |
+| zcr | +0.33 | [0.08, 0.60] | +0.21 | 0.604 |
+| duration | +0.09 | [−0.16, 0.34] | +0.05 | 0.525 |
+
+**d and δ agree** on the ranking and sign of every feature, so no result here is driven by a
+few extreme clips. The one nuance is silence: leading silence has the largest *d* (−1.42) but
+the same δ as bandwidth (−0.64 vs −0.65). About a quarter of the sampled spoofs sit at or
+near 0 s of lead-in, and that pile stretches the mean gap more than it changes the pairwise ranking.
+Notebook 02 draws both measures for these features.
 
 **Reading.** Apart from silence, the strongest signals are **spectral shape across the full
 band**: spoofs have lower bandwidth and lower rolloff. That points to how energy is spread at
