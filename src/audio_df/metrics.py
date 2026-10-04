@@ -185,11 +185,11 @@ def _compute_det_curve(
     (bonafide, once `compute_eer` has oriented the scores so higher means bonafide).
     `nontarget_scores` is the other class (spoof).
 
-    `frr[i]` (official name; in CM/anti-spoofing terms this is the false-alarm rate —
-    the fraction of *bonafide* scored at or below threshold `thresholds[i]`, i.e.
-    wrongly rejected/flagged as spoof) and `far[i]` (official name; in CM terms this
-    is the miss rate — the fraction of *spoof* scored above `thresholds[i]`, i.e.
-    wrongly accepted as bonafide) are returned exactly as the official code computes
+    `frr[i]` (official name; in the ASVspoof countermeasure convention this is the miss
+    rate P_miss — the fraction of *bonafide* scored at or below threshold `thresholds[i]`,
+    i.e. wrongly rejected as spoof) and `far[i]` (official name; the false-alarm rate
+    P_fa — the fraction of *spoof* scored above `thresholds[i]`, i.e. wrongly accepted as
+    bonafide) are returned exactly as the official code computes
     them, including the stable mergesort (tie-handling matters here) and the
     synthetic first threshold `min(all_scores) - 0.001` with `frr[0]=0`, `far[0]=1`.
     """
@@ -430,7 +430,7 @@ def min_dcf(
     scale (not sign-flipped), analogous to `compute_eer`'s second return value.
 
     Args:
-        c_miss: cost of a missed spoof detection (bonafide wrongly rejected).
+        c_miss: cost of a miss (a bonafide trial wrongly rejected as spoof).
         c_fa: cost of a false alarm (spoof wrongly accepted as bonafide).
         p_spoof: prior probability of a spoof trial (`pi_spoof` above).
         normalize: divide by the paper's fixed normaliser `C_fa * pi_spoof` when
