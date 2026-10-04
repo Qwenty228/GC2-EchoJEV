@@ -339,8 +339,38 @@ would add the very silence we are trying to control.
 
 ### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../notebooks/02_spectral_eda.ipynb), real data, 240-clip stratified sample)
 
-We report effect sizes (Cohen's *d*, spoof minus bona fide, with bootstrap 95 % CI, and Cliff's
-δ), not p-values. With samples this large, a t-test calls trivial differences "significant".
+We report **effect sizes**, not p-values. An effect size says *how far apart* the two classes
+are on one feature. A p-value only says whether *some* difference exists, and on a corpus of
+121k clips even a trivial difference comes out "significant". Two effect sizes are used, both
+computed as spoof against bona fide ([`cohens_d`, `cliffs_delta`](../src/audio_df/stats.py#L78)):
+
+- **Cohen's *d*: the gap between the class means, in units of spread.**
+
+  $$
+  d = \frac{\bar{x}_\text{spoof} - \bar{x}_\text{bona}}{s_\text{pooled}},\qquad
+  s_\text{pooled} = \sqrt{\frac{(n_s-1)s_s^2 + (n_b-1)s_b^2}{n_s+n_b-2}}
+  $$
+
+  A negative *d* means spoof is lower on average. Cohen's rough scale: 0.2 small, 0.5 medium,
+  0.8 large. Because it uses means and standard deviations, skew and outliers can distort it.
+  Leading silence is an example: many spoofs sit at exactly 0.
+- **Cliff's δ: how often one class beats the other.**
+
+  $$
+  \delta = P(\text{spoof} > \text{bona}) - P(\text{spoof} < \text{bona})
+  $$
+
+  It is taken over every (spoof, bona fide) pair and ranges from −1 to +1. 0 means neither class
+  tends to be higher. It uses only the order of the values, so outliers and skew do not affect
+  it. Romano et al.'s rough scale: |δ| 0.15 small, 0.33 medium, 0.47 large.
+- **Link to AUC.** Cliff's δ and AUC carry the same information: δ = 2·AUC − 1, with AUC
+  measured in the direction of δ. Bandwidth's AUC of 0.824 below therefore corresponds to
+  δ ≈ −0.65.
+- **Why both.** If *d* and δ agree, the difference is real and not driven by a few extreme
+  clips. If they disagree, look at the distribution itself.
+
+The 95 % CI on *d* comes from 500 bootstrap resamples of the clips (notebook 02, `n_boot=500`); the
+idea is the same as the AUC intervals in §3, which use 1,000.
 
 | feature | Cohen's d | 95 % CI | single-feature AUC (best direction) |
 |---|---|---|---|
