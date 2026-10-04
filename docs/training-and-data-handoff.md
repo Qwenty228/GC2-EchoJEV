@@ -1163,7 +1163,9 @@ config [configs/a3_jev.yaml](../configs/a3_jev.yaml), notebook
   $s_{A3} = \log\frac{p(\text{no})}{p(\text{yes})}$, oriented the same way as every other score
   file.
 - Responses are cached on disk and keyed by a hash of the configuration and clip
-  ([jev/cache.py](../src/audio_df/jev/cache.py)), and that cache is committed.
+  ([jev/cache.py](../src/audio_df/jev/cache.py)). The cache folder `data/jev_cache/` is tracked
+  so real responses can be committed once they exist; today it holds only a placeholder, because
+  no real JEV call has been made.
 - **Status:** `TypesafeJevClient.ask` raises `NotImplementedError` until the JEV API docs arrive.
   Notebook 12 runs end to end on a **dry-run client with synthetic fake A2 scores**, so nothing
   in it is a real result. `a2_experiment` in the config is still a placeholder. Set it to
