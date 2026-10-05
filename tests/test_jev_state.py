@@ -53,15 +53,49 @@ def test_deterministic(variant):
 
 
 @pytest.mark.parametrize("variant", ["numbers", "words"])
-def test_no_label_leakage(variant):
-    clip_id = "LA_D_9999999_SPEAKER_SECRET"
-    audio = _tone()
-    state = build_state(clip_id, 0.3, audio, _CFG, variant=variant)
-    encoded = json.dumps(state)
+@pytest.mark.parametrize("score", [-1.0, -0.1, 0.0, 0.1, 1.0])  # all five LEVEL_WORDS
+def test_no_label_leakage(variant, score):
+    """The state may carry A2's opinion and acoustic measurements, never the clip's identity.
 
-    assert clip_id not in encoded
-    for forbidden in ("label", "attack_id", "speaker", "path", "clip_id", "bonafide", "spoof"):
-        assert forbidden not in encoded, f"leaked forbidden token {forbidden!r} in state"
+    A2's level word ("strongly spoof", "bona fide", ...) is the detector's *opinion* and is
+    meant to be in the state, so searching the JSON for "spoof"/"bonafide" would wrongly fail
+    every fake-leaning clip. Instead, check what leakage actually means:
+    (1) the state does not depend on which clip it is: two different clip ids with the same
+        score and audio give byte-identical JSON, so no identity can be in it;
+    (2) no key anywhere names an identity or label field;
+    (3) the clip id string itself never appears.
+    """
+    audio = _tone()
+    clip_a = "LA_D_9999999_SPEAKER_SECRET"
+    clip_b = "ITW_31778_some_celebrity"
+    encoded_a = json.dumps(build_state(clip_a, score, audio, _CFG, variant=variant), sort_keys=True)
+    encoded_b = json.dumps(build_state(clip_b, score, audio, _CFG, variant=variant), sort_keys=True)
+
+    assert encoded_a == encoded_b, "state changes with clip identity"
+    assert clip_a not in encoded_a and clip_b not in encoded_b
+
+    def _keys(obj):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                yield k
+                yield from _keys(v)
+
+    forbidden_keys = {"label", "attack_id", "attack", "speaker", "speaker_id", "path", "clip_id",
+                      "utt_id", "split"}
+    leaked = forbidden_keys & set(_keys(json.loads(encoded_a)))
+    assert not leaked, f"identity/label keys in state: {leaked}"
+
+
+@pytest.mark.parametrize("variant", ["numbers", "words"])
+def test_state_keys_are_exactly_the_documented_ones(variant):
+    """A fixed key set, so a future field (e.g. a file name) cannot slip in unnoticed."""
+    state = build_state("clip-1", -1.0, _tone(), _CFG, variant=variant)
+    assert set(state) == {"variant", "detector", "acoustic"}
+    detector_keys = {"level", "confidence"} | ({"score"} if variant == "numbers" else set())
+    assert set(state["detector"]) == detector_keys
+    assert set(state["acoustic"]) == {
+        "high_band_energy", "silence_leading", "silence_trailing", "silence_total", "duration_s"
+    }
 
 
 def test_numbers_variant_has_numeric_score():
