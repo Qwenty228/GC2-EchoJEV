@@ -1172,9 +1172,10 @@ config [configs/a3_jev.yaml](../configs/a3_jev.yaml), notebook
   so real responses can be committed once they exist; today it holds only a placeholder, because
   no real JEV call has been made.
 - **Status:** `TypesafeJevClient.ask` raises `NotImplementedError` until the JEV API docs arrive.
-  Notebook 12 runs end to end on a **dry-run client with synthetic fake A2 scores**, so nothing
-  in it is a real result. `a2_experiment` in the config is still a placeholder. Set it to
-  `experiments/E-20261001-e1-a2-raw`.
+  Notebook 12 runs end to end on a **dry-run client** over real A2 scores: `a2_experiment`
+  points at `experiments/E-20261001-e1-a2-raw` (set 2026-10-05), and evidence states use A2's
+  real dev threshold (−2.425). The JEV answers are stand-ins, so nothing in it is a real A3
+  result. Notebook 12 also prints the exact inputs to try in the JEV web playground by hand.
 - [9] is a community summary. Check it against TypeSafe's official documentation before
   submission.
 

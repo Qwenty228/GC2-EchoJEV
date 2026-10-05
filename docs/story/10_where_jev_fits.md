@@ -93,8 +93,9 @@ so a rerun never pays twice.
 - **Notebook 12 runs end to end on synthetic scores and the dry-run client**
   ([notebook 12](../../notebooks/12_a3_jev.ipynb), setup in cells 3–6, dry run in cells 12–14).
   Nothing in it is a result.
-- The config still points at a placeholder A2 run (`a2_experiment:
-  experiments/E-YYYYMMDD-e1-a2-raw`); it should be set to `experiments/E-20261001-e1-a2-raw`.
+- The config now points at the real A2 run (`a2_experiment: experiments/E-20261001-e1-a2-raw`),
+  so the dry run builds its evidence from real A2 scores; only JEV's answers are stand-ins.
+  Notebook 12 also prints the exact inputs to try in the JEV web playground by hand.
 - A budget guard refuses real runs of more than 20 clips until the cost per call is known
   (run_a3.py docstring); the first real step is measuring latency and cost within that.
 
