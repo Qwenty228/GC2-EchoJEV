@@ -21,6 +21,24 @@ other.
 ![Real (green) and fake (orange) histograms of 13 one-number summaries](img/ch04_spectral_summaries.png)
 *Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 7, rendered locally (the committed notebook has no saved output); 240-clip sample.*
 
+**How to read it.** Each panel is one feature, and asks: *do real and fake clips get different
+values for this one number?*
+
+- **x-axis ("value")** is the feature's value for a clip. Its unit changes per panel: seconds for
+  `duration_s`; a 0–1 amplitude for `rms` (loudness); a fraction of the clip for the three
+  `silence_*` panels (0.3 = 30 % silent); hertz (Hz) for `centroid`, `bandwidth` and `rolloff`;
+  0 (tone-like) to 1 (noise-like) for `flatness`; zero crossings per sample for `zcr`; and a
+  share of the total energy for the three `band_*_ratio` panels (below 1 kHz, 1–4 kHz, above 4 kHz).
+- **y-axis ("density")** is how common each value is *within each class*: each outline is scaled so
+  its area is 1, so the two classes are comparable. The numbers on this axis depend on the x unit
+  (bandwidth's run around 0.003 because its x spans hundreds of Hz), so compare shapes, not heights.
+- **Green solid = real, orange dashed = fake.**
+- **Curves shifted apart** (bandwidth, rolloff, leading and total silence) mean the feature separates
+  the classes. **Curves on top of each other** (`band_high_ratio`, `centroid`, `flatness`) mean it
+  does not, on its own. A taller, narrower hill only means that class's values are more bunched
+  together: real clips usually are, because they all come from one studio, while "fake" mixes
+  many generators.
+
 We need an honest number for "how far apart are two piles?".
 
 ## Two ways to measure "how far apart"
