@@ -89,8 +89,17 @@ A bonus: δ and chapter 2's area under the curve (AUC) are the same information 
 
 ### Why not a p-value?
 
-With enough clips, even a useless difference passes a significance test. Effect sizes ask what
-we care about: *how big* is the difference.
+A significance test (for example a t-test) starts from a **null hypothesis**: "real and fake clips
+have the same average for this feature". Its **p-value** is the probability of seeing a difference
+at least this large *if that were true*; a small p (say below 0.05) means "probably not chance".
+
+That answers *"is there any difference?"*, not *"how big is it?"*, and it shrinks as clips are
+added. On 240 clips a 2-millisecond gap in average duration would not be "significant"; on the
+full 121,000 clips it would be, while still being useless for telling real from fake. So a
+p-value cannot rank features by how well they separate the classes. Effect sizes (*d* and δ above)
+measure the size of the gap itself and do not drift with sample size. The testing idea survives
+in one place: the 95 % confidence interval on *d* asks whether the true gap could be zero. For
+duration it can ([−0.16, 0.34]), so we do not even claim a direction.
 
 ## The result
 
