@@ -1,9 +1,8 @@
 # A3: frozen A2 + the JEV API, on a stratified dev subset (E5, A2-vs-A3).
 #
-# `a2_experiment` must point at a real, `done` A2 dev-scoring run once one exists
+# `a2_experiment` points at the A2 dev-scoring run whose scores and dev EER threshold A3 uses
 # (`experiments/<a2 exp id>/scores/dev.csv`, columns clip_id,label,score,attack_id).
-# PLACEHOLDER below — fill in once A2 has produced a dev run.
-a2_experiment: experiments/E-YYYYMMDD-e1-a2-raw   # PLACEHOLDER — set to a real A2 exp dir
+a2_experiment: experiments/E-20261001-e1-a2-raw   # frozen WavLM Base+ head, E1 (2026-10-01)
 
 sample_rate: 16000
 
