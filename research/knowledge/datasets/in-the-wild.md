@@ -86,7 +86,7 @@ N/A — this is a corpus-construction note, not a formula-derivation note.
   least one generator" for an unseen-generator test cannot be built from In-the-Wild itself —
   that experiment has to come from our own custom-generated TTS set (or from MLAAD, which
   does carry a `model_name`/`architecture` field). In-the-Wild's role can only be
-  **cross-dataset/cross-domain generalization**, exactly RQ3 in `docs/handoff.md`'s numbering
+  **cross-dataset/cross-domain generalization**, exactly RQ3 in the original project brief's numbering
   — never per-generator EER, and any table that reports a per-generator breakdown "on
   In-the-Wild" is fabricating a label the dataset does not provide.
 - **There is no official split.** Any train/dev/eval partition of In-the-Wild is ours to
@@ -97,7 +97,7 @@ N/A — this is a corpus-construction note, not a formula-derivation note.
   channel-based shortcut the leakage audit exists to catch. The safest and best-evidenced use
   remains what the paper itself designed it for: **frozen, no-training, pure external
   evaluation** of a model trained elsewhere (ASVspoof or our own TTS set).
-- **The 4.3 s average clip length is compatible with our 4 s crop/pad policy** (`docs/handoff.md`
+- **The 4.3 s average clip length is compatible with our 4 s crop/pad policy** (the original project brief
   Stage 0 preprocessing), which is a mild point in favor of low-friction integration — but note
   the source paper's own Table 2 finding that fixed 4 s crops *hurt* EER relative to full-length
   input (19.89% → 9.85% average EER improvement from using full-length audio on ASVspoof19).

@@ -6,7 +6,7 @@ Here is a detector you can write in one line: **always answer "fake"**.
 
 On our development set it is right 89.7 % of the time. That set has 2,548 real clips and
 22,296 fake ones, and 22,296 ÷ 24,844 = 89.7 % (counts from
-[metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json), `testsets.dev`). It has
+`metrics.json` of run `E-20261001-e1-a2-raw`, `testsets.dev`). It has
 learned nothing; we need to know what is in the data, and a score this detector cannot fool.
 
 ## Where the clips come from
@@ -25,14 +25,14 @@ speech) and "fake" means **spoof**.
   (from paper [14, §3, p.8]).
 
 ![Clips per split and attack: train, dev, eval and In-the-Wild](img/ch02_clips_per_split.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cells 5–6, from the local
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cells 5–6, from the local
 manifests checked against committed checksums.*
 
 **Train** (2,580 real, 22,800 fake, attacks A01–A06) fits the detectors; **dev**, the
 development split (2,548 real, 22,296 fake, same attacks), chooses settings and the threshold;
 **eval**, the evaluation split (7,355 real, 63,882 fake, A07–A19), is the final test.
 
-The counts come from our manifests (the lists of clips), checked against the committed
+The counts come from our manifests (the lists of clips), checked against the tracked
 checksums in `data/manifests/SHA256SUMS` and the dev and eval totals in `metrics.json`. They
 agree with the database paper (from paper [14, Fig. 2, p.4]).
 
@@ -59,7 +59,7 @@ The right-hand panel is In-the-Wild (ITW), built by Müller et al.: real clips o
 and politicians from podcasts and speeches, and fakes cut from online videos that advertise
 themselves as deepfakes (from paper [13, §3, p.2]). It has **31,779 clips: 19,963 real and 11,816
 fake** (our manifest, cross-checked against
-[A2 In-the-Wild metrics.json](../../experiments/E-20261001-e3-a2-raw/metrics.json)), so mostly
+`metrics.json` of run `E-20261001-e3-a2-raw`), so mostly
 real, and **no attack labels**, so we cannot break results down by generator. The paper reports 58 speakers (from paper [13, §3, p.2]); the
 dataset's own list names 54. We have not resolved this.
 
@@ -83,9 +83,8 @@ caught at once with a 100 % miss rate.
 ## Sliding the threshold
 
 ![A2 dev scores: two score piles, miss and false-alarm curves, and where they cross](img/ch02_threshold_sweep.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cells 8–9, recomputed for the
-story from the committed A2 dev scores
-([scores/dev.csv](../../experiments/E-20261001-e1-a2-raw/scores/dev.csv)).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cells 8–9, from the A2 dev scores
+(`scores/dev.csv` of run `E-20261001-e1-a2-raw`).*
 
 The scores are **measured**; only the curves are drawn.
 
@@ -106,7 +105,7 @@ In words: slide the threshold until the share of real clips rejected equals the 
 accepted, and read off that share. Lower is better; 50 % is a coin flip.
 
 For A2 on dev, the EER is **0.39 %** at threshold **−2.43**
-([metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json), `testsets.dev.eer` and
+(`metrics.json` of run `E-20261001-e1-a2-raw`, `testsets.dev.eer` and
 `eer_threshold`; cell 8 checks both).
 
 With real data the curves move in steps and rarely meet exactly. We use the official rule:
@@ -127,8 +126,8 @@ AUC is also computed within classes, so it ignores the 1 : 9 ratio; the "always 
 clip the same score and gets 0.5.
 
 On dev, A2's AUC is 0.99995 and A1's is 0.9958
-([A2 metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json),
-[A1 metrics.json](../../experiments/E-20261001-e1-a1-raw/metrics.json), `roc_auc`; the
+(`metrics.json` of run `E-20261001-e1-a2-raw`,
+`metrics.json` of run `E-20261001-e1-a1-raw`, `roc_auc`; the
 function is [`roc_auc`](../../src/audio_df/metrics.py#L302)).
 
 ## Where the threshold comes from
@@ -138,7 +137,7 @@ detectors *separate* real from fake, but a deployed detector must commit in adva
 fix the EER threshold **on the dev set** and reuse it unchanged on
 eval and on In-the-Wild ([`_dev_threshold`](../../src/audio_df/scoring.py#L139)). For A2 that
 is −2.43 (the `threshold_source` field in
-[A2 In-the-Wild metrics.json](../../experiments/E-20261001-e3-a2-raw/metrics.json) shows In-the-Wild
+`metrics.json` of run `E-20261001-e3-a2-raw` shows In-the-Wild
 reuses it). Two questions, two kinds of number:
 
 - **Can the detector tell real from fake here at all?** EER and AUC answer this.
@@ -155,15 +154,15 @@ generator the detector gets badly wrong.
 >
 > - Our main data is ASVspoof 2019 LA: real clips are VCTK studio recordings, fakes come from TTS
 >   and VC systems, about 9 fakes per real clip in every split
->   ([notebook 20](../../notebooks/20_story_figures.ipynb), cell 6; from paper [14, Fig. 2, p.4]).
+>   ([notebook 20](../../notebooks/20_report_figures.ipynb), cell 6; from paper [14, Fig. 2, p.4]).
 > - Eval uses attacks A07–A19, never seen in training; 11 are new generators and 2 (A16, A19)
 >   reuse training algorithms (from paper [14, Table 1 caption and §3, p.6]).
 > - In-the-Wild adds 31,779 real-world clips, mostly real, with no attack labels
->   ([In-the-Wild metrics.json](../../experiments/E-20261001-e3-a2-raw/metrics.json); from paper [13, §3, p.2]).
+>   (`metrics.json` of run `E-20261001-e3-a2-raw`; from paper [13, §3, p.2]).
 > - Accuracy is useless at 1 : 9 ("always fake" scores 89.7 %); within-class miss and
 >   false-alarm rates are not. EER is where they are equal: 0.39 % for A2 on dev
->   ([notebook 20](../../notebooks/20_story_figures.ipynb), cells 8–9;
->   [metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json)).
+>   ([notebook 20](../../notebooks/20_report_figures.ipynb), cells 8–9;
+>   `metrics.json` of run `E-20261001-e1-a2-raw`).
 > - AUC measures ranking over all thresholds; a fixed dev threshold tests whether a decision rule
 >   transfers ([`_dev_threshold`](../../src/audio_df/scoring.py#L139)).
 >

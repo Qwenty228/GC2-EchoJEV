@@ -15,12 +15,10 @@ Here it is for all 121,461 clips of ASVspoof 2019 LA (the Automatic Speaker Veri
 Spoofing and Countermeasures Challenge, logical access part):
 
 ![Leading-silence fraction by class (left) and median per attack (right)](img/ch03_leading_silence.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 11, from the committed
-per-clip output of `leakage.extract_nuisance_features`,
-[`data/metadata/nuisance_features.csv`](../../data/metadata/nuisance_features.csv) (no committed
-script writes it; nothing is recomputed from audio).
-[Notebook 01](../../notebooks/01_dataset_audit.ipynb), cell 18 draws the same quantity from raw
-audio; its saved copy has no picture.*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 11, from the per-clip output of `leakage.extract_nuisance_features`,
+[`data/metadata/nuisance_features.csv`](../../data/metadata/nuisance_features.csv); nothing is
+recomputed from audio. [Notebook 01](../../notebooks/01_dataset_audit.ipynb), cell 18 draws the
+same quantity from raw audio.*
 
 In the left panel, 29.5 % of fakes have less than 1 % leading silence, against only 0.2 % of
 real clips; the medians are 0.31 for real and 0.04 for fake (printed in cell 11). You could almost
@@ -58,11 +56,11 @@ barely move on another sample.
 ## The result
 
 The audit ran every **nuisance feature** (a property unrelated to how the voice was made:
-length, loudness, silence, speaker, file format) this way. The numbers below come from its committed output table
+length, loudness, silence, speaker, file format) this way. The numbers below come from its output table
 [`reports/tables/leakage_audit.csv`](../../reports/tables/leakage_audit.csv), written by
 [`scripts/audit_leakage.py`](../../scripts/audit_leakage.py). They match
-[notebook 01](../../notebooks/01_dataset_audit.ipynb), cell 15 (a local run) and
-[handoff §3.5](../training-and-data-handoff.md).
+[notebook 01](../../notebooks/01_dataset_audit.ipynb), cell 15 and
+[technical reference §3.5](../technical-reference.md).
 
 | one number per clip | AUC [95 % CI] | EER |
 |---|---|---|
@@ -111,9 +109,7 @@ A second view, from the audio of a 650-clip eval sample, shows the same split: A
 line, A10–A13 (and A15) at zero.
 
 ![Median leading-silence fraction per eval attack, 650-clip sample](img/ch03_nb09_silence_per_attack.png)
-*Source: [notebook 09](../../notebooks/09_a1_playground.ipynb), cell 16, rendered locally (the
-committed notebook has no saved output; it needs the raw audio to run). This older notebook uses
-default colours; the dashed line is the bona fide median.*
+*Source: [notebook 09](../../notebooks/09_a1_playground.ipynb), cell 16 (needs the raw audio). Default notebook colours; the dashed line is the bona fide median.*
 
 One bar does not fit: **A02**, a text-to-speech attack, also has a long lead-in (median
 0.285). The database paper gives no hint why; we don't know.
@@ -142,7 +138,7 @@ done.
 > **Checkpoint**
 >
 > - Fake clips start much sooner than real ones: median leading-silence fraction 0.04 against
->   0.31 over all 121,461 clips ([notebook 20](../../notebooks/20_story_figures.ipynb), cell 11;
+>   0.31 over all 121,461 clips ([notebook 20](../../notebooks/20_report_figures.ipynb), cell 11;
 >   [nuisance_features.csv](../../data/metadata/nuisance_features.csv)).
 > - A one-number probe on leading silence ranks real above fake with AUC 0.837 [0.835, 0.840]
 >   and 24.7 % EER, under 5-fold cross-validation and a 1,000-resample bootstrap
@@ -152,7 +148,7 @@ done.
 >   (same table).
 > - The cause is how the dataset was built: TTS output has no lead-in (from paper [27, §2, p.2]),
 >   while the five attacks that convert human recordings keep it
->   ([notebook 20](../../notebooks/20_story_figures.ipynb), cell 11; from paper [14, Table 1, p.6]).
+>   ([notebook 20](../../notebooks/20_report_figures.ipynb), cell 11; from paper [14, Table 1, p.6]).
 > - We report every result on raw and trimmed audio; separating "uses silence" from "train/test
 >   mismatch" needs a trimmed-training run we have not done.
 >

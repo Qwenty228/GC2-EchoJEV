@@ -1,51 +1,66 @@
 # Audio Deepfake Detection — GC2
 
-A reproducible benchmark of three spoofed-speech detectors on standardized ASVspoof
-protocols, with generalisation, robustness and silence-shortcut checks built in.
+A reproducible benchmark of spoofed-speech detectors on standardised ASVspoof protocols, with
+generalisation, robustness and silence-shortcut checks built in.
 
 **Research question.** Given an utterance *x* and label *y* ∈ {bonafide, spoof}, can we learn
 a detector that captures **synthesis-related evidence** rather than dataset or generator
 shortcuts? The working assumption is that for some observable representation *Z*,
-`P(Z | real) ≠ P(Z | fake)`. This project investigates **where** that difference is visible
-and **whether it survives unseen attacks and domains** — not a hunt for one magic artifact.
+`P(Z | real) ≠ P(Z | fake)`. The project investigates **where** that difference is visible
+and **whether it survives unseen attacks and domains**.
 
----
+## Read this first
 
-## The plan (changed 2026-09-30)
+- **[The report](docs/report/README.md)**: the main document. It covers the question, the data,
+  the three detectors and every result, as one argument in twelve short chapters.
+- **[Technical reference](docs/technical-reference.md)**: full method, maths, implementation
+  pointers and result tables.
+- **[Research notes](research/README.md)**: page-referenced notes on papers and methods,
+  fact-checks and architecture decision records (ADRs).
 
-1. **Data:** ASVspoof 2019 LA, official train/dev/eval; 16 kHz; 4 s crop/pad (A1 uses whole utterances, as B02 does).
-2. **A1:** LFCC + GMM, the official ASVspoof 2019 B02 recipe (60-dim LFCC, two 512-component GMMs, LLR score).
-3. **A2:** frozen SSL (WavLM Base+, then XLS-R 300M) → learned layer weights → mean pool → MLP; only the head trains.
-4. **A3:** frozen A2 + the JEV API, asked typed questions over a JSON evidence state per clip.
-5. **E1** method benchmark (2019 LA eval) · **E2** ablation (later) · **E3** generalisation (In-the-Wild + unseen attacks A07–A19).
-6. **E4** robustness (MP3 32k, Opus 16k, noise 10 dB, 8 kHz resample) on a ~10k stratified eval subset.
-7. **E5** JEV (A2 vs A3) on a stratified subset · **E6** efficiency on 1,000 eval clips.
-8. **Silence:** raw is the main mode; trimmed is a diagnostic for A1/A2 on clean eval and In-the-Wild.
-9. **Protocol:** thresholds fixed on dev; metrics only from committed score files; every run logged in [`experiments/REGISTRY.md`](experiments/REGISTRY.md).
-10. **Machine:** a fanless MacBook Air M4 (16 GB), so resource limits and resumable jobs are built in.
+## Results
 
-Parked work (and why) is in [`docs/backlog.md`](docs/backlog.md). The original brief,
-[`docs/handoff.md`](docs/handoff.md), is kept for history but superseded.
+| equal error rate (EER), lower is better | 2019 LA eval, raw | 2019 LA eval, silence trimmed | In-the-Wild, raw |
+|---|---|---|---|
+| **A1** LFCC + GMM (official B02 recipe) | 9.56 % | 19.84 % | 58.04 % |
+| **A2** frozen WavLM Base+, layer-weighted head | **0.96 %** | 13.27 % | **14.70 %** |
 
----
+Tables: [`reports/tables/`](reports/tables/) · run log: [`experiments/REGISTRY.md`](experiments/REGISTRY.md).
+In short: leading silence alone predicts the label with an area under the curve (AUC) of 0.837,
+and trimming it costs both detectors heavily. Both detectors also detect genuine vocoder
+artefacts. On real-world audio, A2's ranking holds but its decision threshold does not, and A1
+falls to chance. The [report](docs/report/README.md) gives the full argument.
 
-## Build status
+## The systems and experiments
 
-**✅ works today and is tested; 🔜 is specified but not yet implemented.**
+1. **Data:** ASVspoof 2019 logical access (LA), official train/dev/eval splits; 16 kHz audio.
+   In-the-Wild is the cross-domain test set and is never used for training.
+2. **A1:** linear-frequency cepstral coefficients (LFCC) with Gaussian mixture models (GMM), the
+   official ASVspoof 2019 B02 recipe: 60-dimensional LFCC, two 512-component GMMs, a
+   log-likelihood-ratio score, whole utterances.
+3. **A2:** a frozen self-supervised (SSL) model (WavLM Base+; XLS-R 300M is configured) →
+   learned layer weights → mean pooling → a small multilayer perceptron (MLP). Only the head
+   trains, on a 4 s centre crop.
+4. **A3:** A2 plus JEV, a typed classifier service (not a large language model), asked typed
+   questions over a label-free evidence state per clip. Scaffold with a dry-run client.
+5. **Experiments:** E1 benchmark (2019 LA eval) · E2 ablation (analyses X4 and X6 done) · E3
+   generalisation (In-the-Wild and unseen attacks A07–A19) · E4 robustness (MP3 32k, Opus 16k,
+   noise at 10 dB, 8 kHz resample on a 10k stratified eval subset) · E5 A2 against A3 · E6
+   efficiency.
+6. **Silence:** raw audio is the main condition; trimmed audio is a diagnostic on every test set.
+7. **Protocol:** thresholds are fixed on dev, and metrics are computed only from score files.
+8. **Machine:** a fanless MacBook Air M4 (16 GB), so resource limits and resumable jobs are built in.
 
-| Area | What | Status |
-|---|---|---|
-| Foundation | Environment, device resolution, seeding, resource limits and memory-pressure guard | ✅ |
-| Data | Manifests + checksums, In-the-Wild loader, stratified subsets, **leakage audit** | ✅ |
-| Preprocessing | Crop/pad, `trim_silence`, `preprocess(silence_mode=raw\|trimmed)` | ✅ |
-| Features / EDA | Hand-crafted grid `feat_a`…`feat_f`, effect sizes, notebooks 01–03 | ✅ |
-| Experiments | `experiments/<id>/`, `REGISTRY.md`, shared scoring (EER, minDCF, ROC-AUC, F1), E1–E6 tables | ✅ |
-| A1 | LFCC-B02 + chunked-EM GMM (`run_a1`, notebook 10) | ✅ code · 🔜 not yet run |
-| A2 | SSL pooled cache + layer-weighted head (`run_a2`, notebook 11) | ✅ code · 🔜 not yet run |
-| A3 | JEV interface, cache, state builder, dry-run (`run_a3`, notebook 12) | ✅ scaffold · 🔜 awaiting JEV docs |
-| E4 | Degradations on a 10k stratified eval subset (`make_degraded.py`, notebook 13) | ✅ code · 🔜 not yet run |
-
-519 tests pass with **no dataset present** — synthetic fixtures throughout.
+| Area | Status |
+|---|---|
+| Data manifests, checksums, In-the-Wild loader, stratified subsets, leakage audit | done |
+| Exploratory analysis (notebooks 01–03) | done |
+| A1 (`run_a1`, notebooks 09–10) | run: E1, E3, raw and trimmed; X4 with 3 seeds per arm |
+| A2 with WavLM Base+ (`run_a2`, notebook 11) | run: E1, E3, raw and trimmed; X6 layer analysis |
+| A2 with XLS-R 300M | configured, not run |
+| A3 (`run_a3`, notebook 12) | scaffold with a dry-run client; waiting for the JEV API documentation |
+| E4 degradations (`make_degraded.py`, notebook 13) | generator ready, not scored |
+| E6 efficiency | not built |
 
 ---
 
@@ -56,7 +71,7 @@ venv activation.
 
 ```bash
 uv sync                 # locked env: Python 3.11, torch 2.14, ~1.3 GB
-uv run pytest           # 519 tests, no dataset needed
+uv run pytest           # no dataset needed
 uv run ruff check src tests
 ```
 
@@ -101,19 +116,14 @@ This layout is *verified*, not assumed — checked against the official AASIST a
 loaders ([`research/knowledge/datasets/asvspoof-2019-la.md`](research/knowledge/datasets/asvspoof-2019-la.md)).
 `data/raw/` is gitignored, so none of it can reach the repo.
 
-**Other datasets** — later, and only in this order. The handoff is explicit that a
-cross-dataset generalisation claim is meaningless until the in-domain pipeline is stable.
+**In-the-Wild** (the cross-domain test set, never used for training) is the Hugging Face
+dataset `mueller91/In-The-Wild` (an 8.16 GB zip), extracted to `data/raw/InTheWild`. See
+[`research/knowledge/datasets/in-the-wild.md`](research/knowledge/datasets/in-the-wild.md).
 
-| Dataset | Source | When |
-|---|---|---|
-| ASVspoof 2021 LA / DF | Zenodo `4837263` / `4835108`, keys via [`asvspoof-challenge/2021`](https://github.com/asvspoof-challenge/2021) | eval-only; DF is the deepfake track |
-| ASVspoof 5 | https://www.asvspoof.org/ | newest, larger, explicitly deepfake-oriented |
-| In-the-wild | Müller et al. release | cross-dataset test, last |
+## 3. Build manifests and run the leakage audit
 
-## 3. Build manifests and run the Stage 0 audit ✅
-
-**Do this before any modelling.** It is the gate that decides whether the project is
-measuring synthesis artifacts or dataset bookkeeping.
+Run this before any modelling. It checks whether the labels can be predicted from properties
+that have nothing to do with synthesis.
 
 ```bash
 uv run python scripts/prepare_data.py --config configs/data.yaml
@@ -140,58 +150,39 @@ If it fires, stop and read the table before training anything. A detector that l
 > The 0.65 threshold is a **project-local convention with no literature source** — the audit
 > says so in its own warning text rather than implying a citation it does not have.
 
-## 4. Read the knowledge base ✅
+## 4. Run the systems
 
-[`research/`](research/README.md) is a first-class part of this project. A dedicated
-researcher agent owns it, and it has already caught real errors — including two in the task
-specs themselves.
-
-```text
-research/knowledge/     notes written from primary sources (cite or delete)
-research/fact-checks/   verdicts on specific implementation claims
-research/decisions/     ADRs: what we chose, the evidence, the reversal condition
-```
-
-Start with [`knowledge/index.md`](research/knowledge/index.md). Worth reading before you
-trust any number this repo produces:
-
-- [`methods/eer-and-metrics.md`](research/knowledge/methods/eer-and-metrics.md) — the official
-  ASVspoof EER does **not** interpolate, and higher score means **bonafide**, not spoof.
-  Both of those contradicted the original task spec.
-- [`methods/lfcc-mfcc-dct.md`](research/knowledge/methods/lfcc-mfcc-dct.md) — the handoff's
-  DCT formula is not orthonormal as written; it needs `√(1/J)` at q=0 and `√(2/J)` above.
-- [`fact-checks/`](research/fact-checks/) — four verdicts so far, three `contradicted`.
-
-**The rule:** every implementation task ends with a *claim block* of falsifiable statements.
-The researcher checks them against sources and the code. A task is not done until its verdict
-is `confirmed`. Unsourced statements do not go in, and literature EERs are never compared
-directly with our own runs.
-
-## 5. Explore — notebooks ✅
-
-```text
-notebooks/01_dataset_audit.ipynb        manifest summary, leakage verdict
-notebooks/02_spectral_eda.ipynb         waveform/spectral distributions, per-bin effect sizes
-notebooks/03_cepstral_eda.ipynb         the feat_a…feat_f grid in feature space
-notebooks/09_a1_playground.ipynb        START HERE for A1: the B02 pipeline by hand + a mini GMM to play with
-```
-
-They run end-to-end on a synthetic mini-manifest when no dataset is present. Open them in
-VS Code with the project's `.venv` kernel.
-
-**Notebook rule:** notebooks hold questions, plots and interpretation. If a function is used
-twice it moves to `src/audio_df/`.
-
-## 6. Run the benchmark 🔜
-
-Each system gets a runner script and a notebook, each starting with a 200-clip timing run.
-Every run creates `experiments/<id>/` and a row in `experiments/REGISTRY.md`; metrics come
-only from the shared scorer:
+Each runner starts with a 200-clip timing run, applies the limits in
+[`configs/resources.yaml`](configs/resources.yaml), and writes `experiments/<run id>/` plus a
+row in [`experiments/REGISTRY.md`](experiments/REGISTRY.md). Metrics come only from the shared
+scorer:
 
 ```bash
+uv run python -m audio_df.experiments.run_a1 train --exp e1
 uv run python scripts/score_experiment.py experiments/E-20261001-e1-a1-raw
 uv run python scripts/make_tables.py          # regenerates reports/tables/E1…E6
 ```
+
+The [technical reference §14](docs/technical-reference.md#14-where-each-step-lives) lists the
+command, code and notebook for every step. Run outputs under `experiments/<run id>/` stay
+local and are not tracked in git; the registry and the tables are.
+
+## 5. Notebooks
+
+```text
+notebooks/01_dataset_audit.ipynb      manifest summary and the leakage audit
+notebooks/02_spectral_eda.ipynb       spectral summaries and effect sizes, real against fake
+notebooks/03_cepstral_eda.ipynb       the feat_a…feat_f feature grid
+notebooks/09_a1_playground.ipynb      A1 by hand: the B02 pipeline and a small GMM
+notebooks/10_a1_lfcc_gmm.ipynb        A1 runs and scores
+notebooks/11_a2_ssl_head.ipynb        A2 extraction, training and scores
+notebooks/12_a3_jev.ipynb             A3 evidence state and dry run
+notebooks/13_e4_degradations.ipynb    E4 subset and degradations
+notebooks/20_report_figures.ipynb      every figure in the report
+```
+
+Notebooks hold questions, plots and interpretation; any function used twice lives in
+`src/audio_df/`. Open them in VS Code with the project's `.venv` kernel.
 
 ---
 
@@ -201,6 +192,8 @@ These are enforced in code and in review, not just documented:
 
 - Thresholds are chosen on dev, **never** on eval.
 - Unseen-attack tests hold out **whole generator families**, never random utterances.
+- Every result is reported on raw audio and, as a diagnostic, with leading and trailing silence
+  trimmed.
 - Per-attack EER is reported alongside pooled EER — a pooled number can hide a generator that
   reverses. (On a synthetic easy/hard pair: A02=0.004, A03=0.456, pooled=0.304.)
 - EER matches the official ASVspoof algorithm exactly, verified bit-for-bit against the
@@ -212,27 +205,19 @@ These are enforced in code and in review, not just documented:
 ## Repository layout
 
 ```text
-configs/      data · features · resources · scoring · machine (+ old-plan configs)
-data/         raw/ (gitignored) · manifests/ (CSVs gitignored, SHA256SUMS tracked) · cache/
-experiments/  REGISTRY.md · <exp_id>/{config.yaml, env.json, notes.md, scores/, metrics.json}
-notebooks/    01 dataset audit · 02 spectral EDA · 03 cepstral EDA
-src/audio_df/ audio · features · stats · metrics · leakage · cache · data · visualization ·
-              device · resources · seeding · exp_io · scoring · models/ · experiments/
+configs/      data · features · resources · scoring · machine · one per system and experiment
+data/         raw/ (gitignored) · manifests/ (CSVs gitignored, SHA256SUMS tracked) · metadata/
+docs/         report/ (main document) · technical-reference.md
+experiments/  REGISTRY.md (tracked) · <run id>/ (local only: config, scores, metrics.json, notes)
+notebooks/    exploration, one notebook per system, report figures
+reports/      tables/ (regenerated by make_tables.py)
+research/     knowledge notes, fact-checks, ADRs
+scripts/      prepare_data · audit_leakage · score_experiment · make_tables · make_degraded · get_musan
+src/audio_df/ audio · features · lfcc_b02 · stats · metrics · scoring · leakage · data · models/ ·
+              experiments/ · jev/ · xai/ · resources · exp_io · device · seeding
 tests/        run without any dataset
-reports/      tables/ (regenerated by make_tables.py) · figures/
-scripts/      prepare_data.py · audit_leakage.py · score_experiment.py · make_tables.py
-research/     knowledge base, fact-checks, decisions  (see section 4)
-tasks/        CONVENTIONS.md (binding) · TASKS.md, BACKLOG.md (superseded)
-docs/         backlog.md · handoff.md (superseded) · assets/
+tasks/        CONVENTIONS.md (binding coding conventions)
 ```
 
-## Contributing / continuing the build
-
-[`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding: uv-only, tests without data,
-dev-only thresholds, module boundaries, no silent stubs. Work is split into tasks with
-**disjoint file ownership**, with the researcher fact-checking between waves.
-
-## Results
-
-_Not yet run — [`experiments/REGISTRY.md`](experiments/REGISTRY.md) has no runs yet. This
-section stays empty until A1 lands, rather than being filled with placeholders._
+[`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding: uv only, tests without data,
+dev-only thresholds, module boundaries, no silent stubs.

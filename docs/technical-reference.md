@@ -1,59 +1,18 @@
-# GC2 handoff: data, training, and what the results mean
+# Technical reference: data, methods and results
 
-*Written 2026-10-03. Covers every run up to commit `00e12d8`, which includes the E3 and trimmed
-registry rows. Every number below comes from a committed file in `experiments/` or
-`reports/tables/`, or is labelled **literature** with a reference number from §15. Literature
-numbers are context only. They were produced under other protocols and are never a
-like-for-like comparison with our runs.*
+The engineering companion to the [report](report/README.md). The report explains the project as
+one argument, chapter by chapter; this document gives the full method, the maths, the
+implementation pointers and every result table in one place.
 
-*Revised 2026-10-04 against the papers themselves. Each paper has a note with page-referenced quotes,
-kept locally in `research/knowledge/papers/` (not in git; named in §15 as "local note"). The
-PDFs are on the team Google Drive linked from that folder's README. Every reference in §15 links
-to the public paper. Literature citations below give
-`[key, page/table]` so they can be checked. New in this revision: §5.1 now explains *what* linear-frequency cepstral coefficients (LFCC)
-measure and why they might beat mel-frequency cepstral coefficients (MFCC), with the maths. §10.6 brings together why each result came
-out the way it did, and §13 lists the explainability analyses that would test those reasons.
-Claims are tagged by strength. **Measured** means a committed number from our runs.
-**Literature** means another paper's number under another protocol. **Hypothesis** means our
-reading, not yet tested.*
-
-<details>
-<summary><b>Glossary of abbreviations and names</b> (each is also spelled out where it first appears)</summary>
-
-| term | meaning |
-|---|---|
-| A1, A2, A3 | our three systems: LFCC + GMM baseline; frozen WavLM + small head; A2 + JEV |
-| E1–E6 | our experiments: benchmark, ablation, generalisation, robustness, JEV, efficiency |
-| X1–X8 | proposed explainability analyses (§13) |
-| AASIST | Audio Anti-Spoofing using Integrated Spectro-Temporal graph attention networks: a strong neural spoof detector, an official ASVspoof baseline |
-| ASVspoof | Automatic Speaker Verification Spoofing and Countermeasures Challenge; its 2019 logical access (LA) set is our main data. LA19 = 2019 LA, DF21 = 2021 deepfake (DF) track |
-| AUC | area under the receiver operating characteristic (ROC) curve; 1.0 is perfect ranking, 0.5 is chance |
-| B02 | the official ASVspoof 2019 baseline number 2, LFCC + GMM, which A1 reproduces |
-| CI | confidence interval: the range a number would plausibly fall in if the data were resampled; we use 95 % bootstrap intervals |
-| CMVN | cepstral mean and variance normalisation: subtracting each recording's average feature, which removes the channel |
-| DCT | discrete cosine transform: turns log band energies into cepstral coefficients |
-| EER | equal error rate: the error at the threshold where missed bona fide equals accepted spoof; lower is better |
-| ECE | expected calibration error: how far predicted probabilities are from observed frequencies |
-| EM | expectation-maximisation, the algorithm that fits a GMM |
-| GMM | Gaussian mixture model: a weighted sum of Gaussian bell curves used as a probability density |
-| In-the-Wild (ITW) | 31,779 real-world clips of celebrities and politicians, real and deepfake; our zero-training test set |
-| JEV | a generalised classifier API (typed text or JSON in, typed probabilities out); not a large language model |
-| LFCC / MFCC | linear- / mel-frequency cepstral coefficients: hand-made audio features that differ only in where the frequency filters sit (§5.1) |
-| LLR | log-likelihood ratio: log p(x given bona fide) − log p(x given spoof) |
-| minDCF | minimum detection cost function: a weighted miss and false-accept cost, ASVspoof 5 definition |
-| MPS | Metal Performance Shaders: Apple's GPU backend for PyTorch |
-| MUSAN | Music, Speech and Noise corpus; we use its noise clips for E4 |
-| RawBoost | a raw-waveform data-augmentation method (adds filtered noise and distortions) |
-| RawNet2, RawGAT-ST | neural detectors that read the raw waveform; RawGAT-ST adds graph attention over spectral and temporal features |
-| RMS | root-mean-square: the square root of the mean squared sample value, i.e. overall loudness |
-| RSS | resident set size: how much memory a process is actually using |
-| SSL | self-supervised learning: models pre-trained on unlabelled audio |
-| TTS / VC | text-to-speech / voice conversion: the two ways spoofs are made |
-| VCTK | Voice Cloning Toolkit corpus: the studio recordings of 107 English speakers that all ASVspoof 2019 bona fide speech comes from |
-| wav2vec 2.0, XLS-R, WavLM | self-supervised speech models. XLS-R (cross-lingual speech representations) is a multilingual wav2vec 2.0; WavLM (Microsoft) adds denoising during pre-training |
-| WORLD, STRAIGHT, WaveNet, WaveRNN, Griffin-Lim, Vocaine | waveform generators (vocoders) used to build the ASVspoof attacks (§10.2) |
-
-</details>
+**How numbers are labelled.** **Measured** means an output of one of this project's runs, named
+by its run ID (for example `E-20261001-e1-a2-raw`). Run outputs live in `experiments/<run id>/`,
+which is local and not tracked in git; the headline tables are tracked in
+[`reports/tables/`](../reports/tables/) and every run is logged in
+[`experiments/REGISTRY.md`](../experiments/REGISTRY.md). **Literature** means another paper's
+number under another protocol: context only, never a like-for-like comparison. **Hypothesis**
+means our reading, not yet tested. Citations `[n]` refer to the
+[reference list](report/references.md); abbreviations are in the
+[glossary](report/glossary.md).
 
 ---
 
@@ -73,7 +32,7 @@ against the silence shortcut, a known flaw in this dataset.
 | *literature:* frozen wav2vec 2.0 + mixture of experts (MoE) fusion + Audio Anti-Spoofing using Integrated Spectro-Temporal graph attention networks (AASIST), RawBoost [22, Table II] | *0.74 %* | — | *12.48 %* | — |
 | *literature:* frozen WavLM Base+, last layer + logistic regression [8, Table 3] | — | — | *38.6 %* | — |
 
-The six findings, in order of importance:
+The main findings, in order of importance:
 
 1. **We reproduced the official baseline.** A1 gets 9.56 % against the published B02's 8.09 %
    [15], using the exact B02 recipe read from the official MATLAB code.
@@ -82,8 +41,8 @@ The six findings, in order of importance:
    [13]: models trained on ASVspoof fall apart on real-world deepfakes. That frozen SSL survives
    is less expected than it sounds. Under [8]'s protocol (last layer only, logistic regression),
    the *same* frozen WavLM Base+ gets 38.6 % [8, Table 3]. A frozen wav2vec 2.0 with a large
-   fusion head gets 12.48 % [22, Table II]. Our layer-weighted head may explain part of that gap
-   (**hypothesis**, test X6 in §13).
+   fusion head gets 12.48 % [22, Table II]. The layer analysis X6 shows that layer choice does
+   not explain the gap (§7.5).
 3. **Both models lean heavily on silence.** Our leakage audit shows leading silence alone
    predicts the label with area under the receiver operating characteristic curve (AUC) 0.84. Trimming silence at test time doubles A1's EER and raises
    A2's EER 14-fold. A2's median bona fide score falls from +14.9 to −4.2 while spoof scores
@@ -197,8 +156,7 @@ Two properties drive the design:
    an *unseen-generator* test, at no extra cost
    (architecture decision record [ADR-001](../research/decisions/ADR-001-generalization-data-strategy.md), option C). A gap
    between dev and eval is expected. It is not a sign of ordinary overfitting.
-   - **Resolved 2026-10-04: only 11 of the 13 eval attacks are unseen.** The database paper says
-     so directly: "Note that A04 and A16 use same waveform concatenation TTS algorithm, and A06
+   - **Only 11 of the 13 eval attacks are unseen.** The database paper says so directly: "Note that A04 and A16 use same waveform concatenation TTS algorithm, and A06
      and A19 use same VC algorithm" [14, Table 1 caption, p.6]. It also says "A07 to A19 (apart
      from A16 and A19) are the eleven unknown spoofing systems" [14, §3, p.6]. So A16 and A19 are
      *known algorithms on new speakers*. Every per-attack table marks them with \*.
@@ -214,7 +172,7 @@ Integrity checks that pass:
 ### 2.2 In-the-Wild: zero-training external test [13]
 
 - Hugging Face `mueller91/In-The-Wild`, an 8.16 GB zip extracted to `data/raw/InTheWild`.
-- **31,779 clips: 19,963 bona fide and 11,816 spoof**, confirmed locally on 2026-10-01. Bona fide
+- **31,779 clips: 19,963 bona fide and 11,816 spoof** in our manifest. Bona fide
   is the *majority* here, the reverse of ASVspoof.
 - The audio is real celebrity and politician speech from podcasts and speeches. The fakes are
   segments of videos found online that advertise themselves as deepfakes. Everything is
@@ -227,7 +185,7 @@ Integrity checks that pass:
   [8, Table 1, p.2] describes the set as about 20k real and 12k fake clips, which matches our
   19,963 / 11,816.
 - The licence is in conflict: the Hugging Face (HF) card says Creative Commons Attribution-ShareAlike (CC-BY-SA) 4.0 and the authors' page says
-  Apache-2.0. Flag this in the report. See
+  Apache-2.0. See
   [research/knowledge/datasets/in-the-wild.md](../research/knowledge/datasets/in-the-wild.md).
 - Loaded by [`build_itw_manifest`](../src/audio_df/data.py#L347).
 
@@ -254,10 +212,11 @@ Integrity checks that pass:
 - MUSAN (Open Speech and Language Resources, OpenSLR, corpus 17) is fetched by [scripts/get_musan.py](../scripts/get_musan.py), which keeps
   only `noise/`, about 929 files.
 
-### 2.4 Considered but parked
+### 2.4 Considered but not used
 
-These are listed in [docs/backlog.md](backlog.md): ASVspoof 2021 LA/DF, ASVspoof 5, Multi-Language Audio Anti-Spoofing Dataset (MLAAD)
-held-out architectures (ADR-001 option B), and a self-generated TTS set. ADR-001 explains why
+ASVspoof 2021 LA/DF, ASVspoof 5, Multi-Language Audio Anti-Spoofing Dataset (MLAAD)
+held-out architectures (ADR-001 option B), and a self-generated TTS set (§13 lists them with the
+other parked work). ADR-001 explains why
 generating our own fakes is dangerous. Pairing them with bona fide audio from another
 recording chain *creates* a corpus shortcut.
 
@@ -297,8 +256,8 @@ eval together). None of them should matter for whether speech is synthetic.
 
 A frame (2,048 samples, hop 512) counts as **silent** if its RMS energy is more than 30 dB below
 the loudest frame in the clip, the convention of `librosa.effects.split`
-([`silence_ratio`](../src/audio_df/audio.py#L142)). An earlier version thresholded individual
-samples and wrongly counted every zero-crossing as silence; it was replaced.
+([`silence_ratio`](../src/audio_df/audio.py#L142)). Silence is decided per frame, not per
+sample, so zero-crossings inside speech never count as silence.
 
 Spectral features such as bandwidth are **not** here. They describe the sound itself, so they
 belong to §4.
@@ -376,7 +335,7 @@ On all 121,461 clips ([reports/tables/leakage_audit.csv](../reports/tables/leaka
 
 ### 3.6 Why silence separates real from fake
 
-This is a local replication of Müller et al. [27], *Speech is Silver, Silence is Golden*, the
+This replicates Müller et al. [27], *Speech is Silver, Silence is Golden*, the
 paper that first measured this shortcut in ASVspoof 2019. On their data, a classifier given only
 the leading-silence length reaches 15.1 % EER on 2019 LA eval, and RawNet2's EER rises from
 3.61 % to 15.50 % when it is trained on trimmed audio.
@@ -407,8 +366,7 @@ per-attack results in §10.3 follow this split.
 
 ### 3.7 What we did about it
 
-The audit's verdict is "do not model as-is". Instead of re-cutting the corpus, the 2026-09-30
-plan:
+The audit's verdict is "do not model as-is". Instead of re-cutting the corpus, the project:
 
 - keeps **raw audio as the main condition**;
 - makes **trimmed audio** (leading and trailing silence removed,
@@ -541,7 +499,7 @@ lack high frequencies", fails on this data.
 - **Direct measure: no reliable difference.** The share of energy at or above 4 kHz
   (`band_high_ratio`) has d = −0.13 [−0.37, 0.09] and AUC 0.53, and the interval includes 0.
 - **A finer check finds a small difference.** This was **recomputed** on 600 clips through the
-  exact A1 front end and is not committed output. With overall loudness removed, the 4.9–7.6 kHz
+  exact A1 front end and is not a run output. With overall loudness removed, the 4.9–7.6 kHz
   channels sit 1.5 dB lower in fake clips than the 1.1–4.2 kHz channels do (d = −0.33
   [−0.50, −0.17], louder half of frames). It has the same sign in train, dev and eval.
 - **That small difference is also tied to silence.**
@@ -580,8 +538,8 @@ log-filterbanks (§6.3).
 
 ### 5.1 Why LFCC and not MFCC
 
-**Status up front.** We use LFCC because it is the official B02 recipe, and A1 exists to
-reproduce B02. On 2026-10-04 we also **measured** LFCC against MFCC (X4, §5.1.5): identical
+We use LFCC because it is the official B02 recipe, and A1 exists to
+reproduce B02. We also **measured** LFCC against MFCC (X4, §5.1.5): identical
 pipeline, only the filter spacing changed, 3 seeds each. In domain LFCC wins, as the literature
 predicts; on In-the-Wild MFCC wins by a wide margin. §5.1.1–5.1.4 give the maths and the
 literature; §5.1.5 gives our measurement and what it means. The full derivation, with a per-filter table, is in
@@ -769,8 +727,7 @@ project, and it qualifies the literature in §5.1.3, which only tested in domain
 | **no CMVN** | the official code has none. This keeps channel information, which helps in domain and hurts across domains (§10.4) |
 | whole utterance, no crop | B02 scores the full file. This is the one place we depart from the project's 4 s crop |
 
-The 0 Hz lower edge is not the 30 Hz some summaries quote. Our research note corrected that by
-reading the code itself.
+The lower filter edge is 0 Hz, as in the official code, not the 30 Hz some summaries quote.
 
 ### 5.2 Why a GMM
 
@@ -809,7 +766,7 @@ classes.
     (RawBoost on every run). Fine-tuning instead reached 9.17 % on In-the-Wild, so fine-tuning
     beat freezing there.
 - **Why frozen.** Fine-tuning a 94–300M-parameter model on a fanless 16 GB machine is not
-  practical (the A2-alt variant, which needs a graphics processing unit (GPU), is parked in [backlog.md](backlog.md)). Freezing
+  practical (the fine-tuned variant A2-alt needs a graphics processing unit (GPU) and is parked, §13). Freezing
   also means **one** forward pass per clip, cached, after which head training takes seconds:
   16.9 s for the whole run. The literature puts this on the "cheaper, probably not best" side.
   Stourbe et al. got 6.78 % with a frozen encoder against 6.41 % fine-tuned. Only the fine-tuned
@@ -934,7 +891,7 @@ would allocate a full $N\times K$ responsibility matrix: 7.8M spoof frames × 51
 sufficient statistics $(N_k, \sum\gamma x, \sum\gamma x^2)$ in float64, and peaked at **3.8 GB**
 RSS. The extraction stage is resumable through `ChunkedJob`.
 
-**Run facts** ([experiments/E-20261001-e1-a1-raw/notes.md](../experiments/E-20261001-e1-a1-raw/notes.md)):
+**Run facts** (run `E-20261001-e1-a1-raw`, `notes.md`):
 873,016 bona fide frames and 7,809,362 spoof frames, 60 dimensions each. Final mean per-frame
 log-likelihood: −31.81 for the bona fide GMM and −29.12 for the spoof GMM. Total parameters:
 2 × 512 × (60 + 60 + 1) = **123,904**.
@@ -1054,8 +1011,7 @@ $$
 w_p = \frac{N_\text{spoof}}{N_\text{bona}} = \frac{22{,}800}{2{,}580} = 8.837.
 $$
 
-That equals the recorded `pos_weight` in
-[training_curve.json](../experiments/E-20261001-e1-a2-raw/training_curve.json). Weighting the
+That equals the recorded `pos_weight` in the run's `training_curve.json`. Weighting the
 *minority* class this way makes the two classes contribute equally to the expected gradient. If
 the target were "is spoof", the same weight would land on the majority class and make the
 imbalance worse; the module docstring explains this.
@@ -1064,12 +1020,12 @@ imbalance worse; the module docstring explains this.
 chosen by dev loss, not dev EER.** Dev contains only A01–A06, so dev EER saturates almost at once
 and cannot tell good checkpoints apart.
 
-### 7.4 What training did ([training_curve.json](../experiments/E-20261001-e1-a2-raw/training_curve.json))
+### 7.4 What training did (run `E-20261001-e1-a2-raw`, `training_curve.json`)
 
 - Train loss falls steadily, from 0.244 to 1.6 × 10⁻⁴. Dev loss is noisy (0.026–0.14) and is
   lowest at **epoch 8 (0.0259, 0-indexed)**. Early stopping ended the run after 17 epochs. The head can
   memorise the training set, so selecting on dev matters.
-- **Learned layer weights** ([layer_weights.json](../experiments/E-20261001-e1-a2-raw/layer_weights.json)):
+- **Learned layer weights** (`layer_weights.json`):
   they stay close to uniform (1/13 ≈ 0.077) but tilt clearly toward **lower layers**. Index 0
   (the CNN embedding) gets 0.094 and layers 1–3 get 0.081–0.099, while layers 7–12 get
   0.061–0.069. The highest weight is on layer 3; max/min = 1.63. The WavLM paper finds the same
@@ -1078,21 +1034,17 @@ and cannot tell good checkpoints apart.
   fits "spoof evidence is acoustic rather than linguistic".
 - **These weights are not importances.** They multiply layer states of different scale that are
   highly correlated. LayerNorm after the sum partly renormalises scale, and the checkpoint
-  comes from epoch 8 of a uniform start, which does not move softmax logits far. The test is X6 (§13): 13 single-layer heads and
-  leave-one-layer-out, seconds each. If layer 3 is not near the best single layer, the weights
-  are not tracking usefulness.
+  comes from epoch 8 of a uniform start, which does not move softmax logits far. X6 (§7.5) asks
+  the layers directly.
 - **Why this may matter beyond A2.** [8] reports 38.6 % In-the-Wild dataset (ITW) EER for the same frozen WavLM Base+
   using the **last layer only**. A2 gets 14.70 % with a mixture tilted toward the bottom layers.
-  The training data also differ (theirs is train+dev), so the comparison is not clean. But if a
-  layer-12-only head on our cache lands near [8]'s figure, then layer choice is a large part of
-  why A2 generalises. That would be a finding of this project (**hypothesis**, X6). §7.5 has the
-  answer: it does not.
+  The training data also differ (theirs is train+dev), so the comparison is not clean. §7.5 tests
+  whether layer choice explains the gap; it does not.
 
 ### 7.5 What each layer does (X6, measured)
 
 **Set-up.** Everything below comes from the existing WavLM Base+ cache, with no new
-extraction: [experiments/E-20261004-e2-a2-raw-layers](../experiments/E-20261004-e2-a2-raw-layers/summary.md),
-31 variants, 2 minutes on CPU.
+extraction: run `E-20261004-e2-a2-raw-layers` (`summary.md`), 31 variants, 2 minutes on CPU.
 
 - **Full head, 3 seeds:** the standard A2 head, retrained three times.
 - **13 single-layer heads:** the same head fed one layer only.
@@ -1168,16 +1120,14 @@ config [configs/a3_jev.yaml](../configs/a3_jev.yaml), notebook
   $s_{A3} = \log\frac{p(\text{no})}{p(\text{yes})}$, oriented the same way as every other score
   file.
 - Responses are cached on disk and keyed by a hash of the configuration and clip
-  ([jev/cache.py](../src/audio_df/jev/cache.py)). The cache folder `data/jev_cache/` is tracked
-  so real responses can be committed once they exist; today it holds only a placeholder, because
-  no real JEV call has been made.
+  ([jev/cache.py](../src/audio_df/jev/cache.py)), so a rerun never pays for the same call
+  twice. The cache folder `data/jev_cache/` holds only a placeholder until real calls are made.
 - **Status:** `TypesafeJevClient.ask` raises `NotImplementedError` until the JEV API docs arrive.
   Notebook 12 runs end to end on a **dry-run client** over real A2 scores: `a2_experiment`
-  points at `experiments/E-20261001-e1-a2-raw` (set 2026-10-05), and evidence states use A2's
-  real dev threshold (−2.425). The JEV answers are stand-ins, so nothing in it is a real A3
+  points at `experiments/E-20261001-e1-a2-raw`, and evidence states use A2's real dev threshold
+  (−2.425). The JEV answers are stand-ins, so nothing in it is a real A3
   result. Notebook 12 also prints the exact inputs to try in the JEV web playground by hand.
-- [9] is a community summary. Check it against TypeSafe's official documentation before
-  submission.
+- [9] is a community summary, to be checked against TypeSafe's official documentation.
 
 ---
 
@@ -1230,7 +1180,7 @@ in §10.4 measure **calibration transfer**.
 
 Source: [reports/tables/E1.md](../reports/tables/E1.md),
 [E3_itw.md](../reports/tables/E3_itw.md), [E3_per_attack.md](../reports/tables/E3_per_attack.md),
-and the `metrics.json` in each run folder. Every run is listed in
+and the `metrics.json` of each run. Every run is listed in
 [experiments/REGISTRY.md](../experiments/REGISTRY.md).
 
 ### 10.1 E1: in-domain benchmark (2019 LA, raw)
@@ -1319,13 +1269,13 @@ Waveform generators per [14, Table 1, p.6]:
 | A1 | 9.56 % → **19.84 %** (×2.1) | 58.0 % → 61.4 % |
 | A2 | 0.96 % → **13.27 %** (×13.8) | 14.7 % → **13.9 %** (slightly better) |
 
-The per-attack view tells the story. For A2:
+The per-attack view shows where the loss comes from. For A2:
 
 - **Attacks that trim their own silence collapse once bona fide is trimmed too:** A10 2.0 → 39.5 %,
   A15 0.5 → 17.9 %, A14 0.4 → 17.8 %, A07 0.2 → 13.5 %.
 - **A17**, whose silence already looks like bona fide, barely moves (0.9 → 1.8 %), and neither
   does **A13** (0.0 → 0.7 %).
-- Score medians from the score comma-separated values (CSV) files (a read-only check run for this document):
+- Score medians from the runs' score comma-separated values (CSV) files:
 
 | A2, eval | median bona fide score | median spoof score | bona fide rejected at the raw dev threshold |
 |---|---|---|---|
@@ -1344,7 +1294,7 @@ Note that `trim_silence` removes only **leading and trailing** frames more than 
 loudest frame. Pauses inside the clip stay.
 
 **A1 per attack: three mechanisms explain most of the pattern.** Median A1 scores are
-**measured**, from the committed score CSVs joined on clip ID. Silence depth is **recomputed**
+**measured**, from the runs' score CSVs joined on clip ID. Silence depth is **recomputed**
 (100–150 clips per attack). The *why* in each row is a **hypothesis**.
 
 | attack | lead. silence | quietest-10 % c0 | EER raw → trimmed | median score shift | mechanism |
@@ -1426,14 +1376,14 @@ rather than a cue. This is our interpretation and has not been tested.
   28 configurations each, and 43 of 56 configurations reach 50 % or worse [13, Tables 1–2,
   pp.3–4] (literature). **A1 shows the same collapse with the official baseline.** Retraining
   RawNet2 with the 2019 eval split added still gives 33.1 % on In-the-Wild [13, §5.3]. The
-  authors blame all ASVspoof splits being VCTK-based, which is the same "VCTK channel" story.
+  authors blame all ASVspoof splits being VCTK-based, which is the same "VCTK channel" explanation.
 - **A2 generalises, better than the comparable literature predicts.** 14.7 % beats every model
   in [13]. The lowest In-the-Wild EER there is RawNet2 4 s at 33.94 %. RawGAT-ST, the best
   in-domain model, gets 37.15 % [13, Table 1]. It also sits between the two frozen-wav2vec 2.0
   heads in [22] (12.48 % and 23.22 %, RawBoost-augmented). The surprise is [8]: frozen WavLM
   Base+, last layer, logistic regression, 38.6 % [8, Table 3]. A2 uses the same backbone with a
-  layer-weighted head and different training data, and gets less than half that EER. Explaining
-  this needs X6. It is **not** state of the art: fine-tuned XLS-R with SLS reports 7.46 % ITW EER
+  layer-weighted head and different training data, and gets less than half that EER; X6 shows the
+  layer choice does not explain it (§7.5). It is **not** state of the art: fine-tuned XLS-R with SLS reports 7.46 % ITW EER
   in its repository [29] (literature, different training protocol). We freeze the backbone and train
   about 231k parameters on a laptop.
 - **Ranking survives; calibration does not.** AUC is 0.93, but the raw dev threshold rejects
@@ -1531,8 +1481,8 @@ Each has a cheap test in §13.
 3. **Shortcut or mismatch?** Training one extra A2 head on a *trimmed* train cache would separate
    the two, at the cost of extracting trimmed train and dev (about 50k clips, roughly 45 min at
    53 ms/clip) and a training run of seconds. The current plan rules out trimmed training, so
-   this needs a team decision. Without it, phrase §10.3 as "removing silence at test time
-   costs…", not "the model relies on silence for X %".
+   this is an open decision. Until it is run, §10.3 is phrased as "removing silence at test
+   time costs…", not "the model relies on silence for X %".
 4. **Seeds.** A1 now has 3 EM seeds per arm and the A2 head 3 seeds (X4, X6). In domain, the
    spread is small: about 0.4 EER points for A1 and 0.2 for A2. A1 on In-the-Wild swings by
    13 points between seeds (46–59 %), so a single-seed A1 In-the-Wild number should not be
@@ -1557,11 +1507,9 @@ Each has a cheap test in §13.
    §4.1; non-standard false acceptance and false rejection rates (FAR/FRR) in Eq. 13–14), so we use it only as a pointer to methods. [18] is a
    preprint with AI-assisted writing disclosed. [6]'s baseline (ASVspoof 2021 DF, DF21: 5.29 %, ITW 14.03 %) is
    numerically identical to the Tak et al. row of its own Table 2, and its provenance is unstated. It is not stated whether [6]'s XLS-R is frozen.
-9. **WavLM's revision is not pinned** (`revision: null`). The cached commit is noted in the
-   config. Pin it.
+9. **WavLM's revision is not pinned** (`revision: null`); the cached commit is noted in the
+   config.
 10. **Licences:** WavLM is CC-BY-SA-3.0 (repo level); ITW's HF card and author page disagree.
-11. **Housekeeping:** `experiments/*/score_jobs/` is resume bookkeeping and probably belongs in
-   `.gitignore`. The edit to notebook 01 is uncommitted.
 
 ## 13. What is left
 
@@ -1570,16 +1518,15 @@ Each has a cheap test in §13.
 | A2 with XLS-R 300M | config ready | `run_a2 --config configs/a2_xlsr_300m.yaml timing`, then a resumable overnight `extract --testsets train,dev,eval,itw` |
 | E4 robustness | generator ready | `scripts/get_musan.py` → `scripts/make_degraded.py timing/generate` → score A1 and A2 on the four sets |
 | A3 / E5 | scaffold, dry run | needs JEV API docs; then measure latency and cost on ≤20 clips before choosing the subset size |
-| A3 margins (**to-do, deferred by the user**) | placeholder values `[0.05, 0.2]` in `configs/a3_jev.yaml` | A2 scores span about −40 to +30, so only 0.10 % of dev clips fall in the "unsure" band and A3 would almost never consult JEV. Rescale the margins (for example from dev score percentiles) before E5, and decide whether E5 should include In-the-Wild clips, since an ASVspoof-dev-only E5 cannot test the calibration problem (story ch 10) |
-| E2 ablation | "later" | needs a team decision. X4 (LFCC vs MFCC) and X6 (layers) are done and could be reported as E2. If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
+| A3 margins (open) | placeholder values `[0.05, 0.2]` in `configs/a3_jev.yaml` | A2 scores span about −40 to +30, so only 0.10 % of dev clips fall in the "unsure" band and A3 would almost never consult JEV. Rescale the margins (for example from dev score percentiles) before E5, and decide whether E5 should include In-the-Wild clips, since an ASVspoof-dev-only E5 cannot test the calibration problem ([report chapter 10](report/10_where_jev_fits.md)) |
+| E2 ablation | later | open decision. X4 (LFCC vs MFCC) and X6 (layers) are done and could be reported as E2. If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
 | E6 efficiency | not built | code to measure parameters, ms/clip and real-time factor (RTF) on 1,000 eval clips |
 
-**Explainability analyses.** X4 and X6 were run on 2026-10-04 (§5.1.5, §7.5); the rest are
-proposed and need team approval. Each uses existing
-models or caches. Expectations are written down *before* running, so surprises stay visible.
+**Explainability analyses.** X4 and X6 are done (§5.1.5, §7.5); the rest are proposed. Each
+uses existing models or caches. Expectations are written down *before* running, so surprises stay visible.
 The full specs are in
 [lfcc-vs-mfcc-explained.md](../research/knowledge/methods/lfcc-vs-mfcc-explained.md) §6 and the
-Cheng note ([paper](https://doi.org/10.3389/fnins.2025.1692122) · local note `cheng-2025-xai-forensic-speech-authentication.md`). [21]
+Cheng et al. [21]. [21]
 shows why controls matter: its saliency maps are single examples with no faithfulness test, so
 each analysis here has a control.
 
@@ -1596,6 +1543,20 @@ each analysis here has a control.
 
 To check the explanations themselves: a deletion test against random removals, and a
 randomised-weights sanity check (our addition; no paper here supplies one).
+
+**Parked.** Out of scope for the three-system benchmark; the code that exists is kept.
+
+| item | why parked |
+|---|---|
+| A2-alt (fine-tuned backbone) | needs a GPU; the project machine is a fanless 16 GB MacBook Air M4 |
+| RawNet2, AASIST comparisons | outside the three-system benchmark |
+| XLS-R layer-wise probes | superseded by A2's learned layer weights and X6 |
+| MLAAD held-out architectures, controlled MLAAD subset | ADR-001 option B; not needed for E1–E6 |
+| VoxENES 2026 (modern-generator benchmark) | after A1–A3 run end to end |
+| self-generated voice-cloning set | pairing it with bona fide audio from another recording chain would create a corpus shortcut (ADR-001) |
+| two-branch fusion and multi-task model (`configs/fusion_multitask.yaml`) and its ablation grid | replaced by A1/A2/A3 |
+| baselines over the feature grid `feat_a`…`feat_f` | superseded; the feature code is kept for the EDA |
+| frame-level A2 heads (Transformer, CNN, ECAPA) | need the frame cache: 1 × 768 per frame, about 37 GB in fp16 for 121,461 clips |
 
 ---
 
@@ -1624,57 +1585,4 @@ resumable chunks, and a 200-clip timing run first. Every run writes `config.yaml
 
 ## 15. References
 
-Every citation in this document is a number in square brackets, optionally followed by where in
-the paper: `[n]`, `[n, Table 2, p.4]`, `[n, §3]`, `[n, Fig. 2, p.7]`. Authors are named in prose
-as "Author et al. [n]". Each entry below reads: authors. *Title.* Venue, year. Identifier. What
-we use it for. Link to the paper, and the name of the local note where one exists (notes are not
-in git; see `research/knowledge/papers/README.md`).
-
-**Reading list provided with the project**
-
-- [1] Delgado et al. *On Deepfake Voice Detection – It's All in the Presentation.* ICASSP 2026. arXiv:2509.26471. Used for: E4 motivation, playback vs phone injection. [paper](https://arxiv.org/abs/2509.26471) · local note `delgado-2025-deepfake-voice-presentation.md`
-- [2] Wang et al. *ASVspoof 5: Evaluation of Spoofing, Deepfake, and Adversarial Attack Detection Using Crowdsourced Speech.* 2026. arXiv:2601.03944. Used for: minDCF definition (Eq. 1, β = 1.90). [paper](https://arxiv.org/abs/2601.03944)
-- [3] Stourbe et al. *Exploring WavLM Back-ends for Speech Spoofing and Deepfake Detection.* ASVspoof 2024 Workshop, pp. 72–78. DOI 10.21437/ASVspoof.2024-11. Used for: WavLM Base (not Base+) fine-tuned on ASVspoof 5; layer-weighted back end. [paper](https://arxiv.org/abs/2409.05032) · local note `stourbe-2024-wavlm-backends.md`
-- [4] Rimon et al. *Unmasking Deepfakes: Leveraging Augmentations and Features Variability for Deepfake Speech Detection.* arXiv preprint, 2025 (no venue stated). arXiv:2501.05545. Used for: augmentation with end-to-end fine-tuning on ASVspoof 5; no frozen or ITW experiment. [paper](https://arxiv.org/abs/2501.05545) · local note `rimon-2025-unmasking-deepfakes.md`
-- [5] Wang et al. *ASVspoof 5: Design, Collection and Validation of Resources for Spoofing, Deepfake, and Adversarial Attack Detection Using Crowdsourced Speech.* 2025. arXiv:2502.08857. Used for: codec conditions in the next-generation benchmark. [paper](https://arxiv.org/abs/2502.08857)
-- [6] El Kheir et al. *Two Views, One Truth: Spectral and Self-Supervised Features Fusion for Robust Speech Deepfake Detection.* WASPAA 2025. arXiv:2507.20417. Used for: spectral + SSL fusion (helps out of domain, not on LA19). [paper](https://arxiv.org/abs/2507.20417) · local note `el-kheir-2025-two-views-spectral-ssl-fusion.md`
-- [7] Tak et al. *Automatic Speaker Verification Spoofing and Deepfake Detection Using wav2vec 2.0 and Data Augmentation.* Odyssey 2022. arXiv:2202.12233. Used for: fine-tuned XLS-R + AASIST, last layer only, tested on 2021 LA/DF. [paper](https://arxiv.org/abs/2202.12233) · local note `tak-2022-wav2vec2-data-augmentation.md`
-- [8] Pascu et al. *Towards Generalisable and Calibrated Audio Deepfake Detection with Self-Supervised Representations.* Interspeech 2024. arXiv:2309.05384. Used for: frozen last layer + logistic regression; ECE. [paper](https://arxiv.org/abs/2309.05384) · local note `pascu-2024-generalisable-calibrated-ssl.md`
-- [9] TypeSafe. *Jev — Project Knowledge Resource.* Community summary, 16 Sep 2026. Used for: JEV interface. **Check against official docs.**
-- [10] *JEV-as-a-Judge: Accept When Confident, Escalate When Unsure.* Used for: A3 decision rule.
-- [11] Jev AI. *Model page.* Used for: Jev is text-only.
-- [12] Jev AI. *About Jev AI* and evaluation and quality use cases. Used for: JEV scope.
-- [13] Müller et al. *Does Audio Deepfake Detection Generalize?* Interspeech 2022. arXiv:2203.16263. Used for: In-the-Wild dataset and the collapse of ASVspoof-trained models. [paper](https://arxiv.org/abs/2203.16263) · local note `muller-2022-does-audio-deepfake-detection-generalize.md`
-- [14] Wang et al. *ASVspoof 2019: A Large-Scale Public Database of Synthesized, Converted and Replayed Speech.* Computer Speech & Language 64, 2020. arXiv:1911.01601. Used for: attack generators (Table 1, p.6); A16 = A04, A19 = A06. [paper](https://arxiv.org/abs/1911.01601)
-- [15] Todisco et al. *ASVspoof 2019: Future Horizons in Spoofed and Fake Audio Detection.* Interspeech 2019. arXiv:1904.05441. Used for: B02 8.09 % EER / t-DCF 0.2116, B01 9.57 % (Table 1). [paper](https://arxiv.org/abs/1904.05441)
-- [16] Chen F. et al. *Deepfake Speech Detection Method Based on Wav2Vec2.0 Feature Merging and Joint Loss.* Journal of Signal Processing 41(9):1547–1557, 2025. DOI 10.12466/xhcl.2025.09.008. Used for: merging multiple SSL layers.
-
-**Further sources (read for this document)**
-
-- [17] Mo and Wang. *Multi-task Learning Improves Synthetic Speech Detection.* ICASSP 2022, pp. 6392–6396. DOI 10.1109/ICASSP43922.2022.9746059. Used for: LFCC ResNet on LA19 eval; auxiliary tasks. [paper](https://doi.org/10.1109/ICASSP43922.2022.9746059) · local note `mo-2022-multi-task-learning-synthetic-speech-detection.md`
-- [18] Sutharya and Sasi. *Half-Truth Audio Detection and Localisation: A Lightweight Cross-Attentive Architecture and a Cross-Corpus Diagnostic Study.* arXiv preprint, 2026 (AI-assisted writing disclosed). arXiv:2605.29531. Used for: cross-corpus collapse of a handcrafted-feature model. [paper](https://arxiv.org/abs/2605.29531) · local note `sutharya-2026-half-truth-cafnet-cross-corpus.md`
-- [19] Stan et al. *TADA: Training-free Attribution and Out-of-Domain Detection of Audio Deepfakes.* Interspeech 2025. DOI 10.21437/Interspeech.2025-472. Used for: generator attribution from time-averaged frozen SSL states (fake clips only). [paper](https://arxiv.org/abs/2506.05802) · local note `stan-2025-tada-attribution-ood.md`
-- [20] Zhu et al. *Source Tracing: Detecting Voice Spoofing.* APSIPA ASC 2022. arXiv:2212.08601. Used for: attack attribute table; attribute heads as an auxiliary technique. [paper](https://arxiv.org/abs/2212.08601) · local note `zhu-2022-source-tracing-voice-spoofing.md`
-- [21] Cheng et al. *Explainable AI for Forensic Speech Authentication within Cognitive and Computational Neuroscience.* Frontiers in Neuroscience 19:1692122, 2025. DOI 10.3389/fnins.2025.1692122. Used for: pointer to XAI methods only (**low confidence**). [paper](https://doi.org/10.3389/fnins.2025.1692122) · local note `cheng-2025-xai-forensic-speech-authentication.md`
-- [22] Wang Z. et al. *Mixture of Experts Fusion for Fake Audio Detection Using Frozen wav2vec 2.0.* arXiv preprint, 2024 (submitted to ICASSP 2025). arXiv:2409.11909. Used for: the closest protocol to ours (frozen SSL, train 2019 LA, test LA19 eval and ITW). [paper](https://arxiv.org/abs/2409.11909) · local note `wang-2024-moe-fusion-frozen-wav2vec2.md`
-- [23] Zhou et al. *Linear versus Mel Frequency Cepstral Coefficients for Speaker Recognition.* IEEE ASRU 2011, pp. 559–564. DOI 10.1109/ASRU.2011.6163888. Used for: filter-count geometry only (speaker recognition, not spoofing). [paper](https://doi.org/10.1109/ASRU.2011.6163888) · local note `linear-vs-mel-cepstral-speaker-recognition.md`
-- [24] Frank and Schönherr. *WaveFake: A Data Set to Facilitate Audio Deepfake Detection.* NeurIPS 2021 Datasets and Benchmarks. arXiv:2111.02813. Used for: LFCC vs MFCC with the same GMM (Tables 2 and 6). [paper](https://arxiv.org/abs/2111.02813) · read in `research/knowledge/methods/lfcc-vs-mfcc-explained.md`
-- [25] Sriskandaraja et al. *Investigation of Sub-Band Discriminative Information Between Spoofed and Genuine Speech.* Interspeech 2016. Used for: counter-evidence, mel beat linear on SAS (Table 1). [paper](https://www.isca-archive.org/interspeech_2016/sriskandaraja16_interspeech.pdf) · read in `research/knowledge/methods/lfcc-vs-mfcc-explained.md`
-- [26] Chen S. et al. *WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing.* IEEE Journal of Selected Topics in Signal Processing 16(6), 2022. arXiv:2110.13900. Used for: 94k h pre-training data (p.5); layer roles (Fig. 2, p.7). [paper](https://arxiv.org/abs/2110.13900)
-- [27] Müller, Dieckmann, Czempin, Canals, Böttinger and Williams. *Speech is Silver, Silence is Golden: What do ASVspoof-trained Models Really Learn?* ASVspoof 2021 Workshop. arXiv:2106.12914. Used for: the silence shortcut (silence-only classifier 15.12 % EER; RawNet2 3.61 → 15.50 % when trained on trimmed audio). [paper](https://arxiv.org/abs/2106.12914) · read in `research/knowledge/methods/leakage-audit.md`
-- [28] Sahidullah, Kinnunen and Hanilçi. *A Comparison of Features for Synthetic Speech Detection.* Interspeech 2015. Used for: the LFCC recipe B02 follows; LFCC vs MFCC vs IMFCC with the same GMM (Tables 3–4). [paper](https://www.isca-archive.org/interspeech_2015/sahidullah15_interspeech.pdf)
-- [29] Zhang, Wen and Hu. *Audio Deepfake Detection with Self-Supervised XLS-R and SLS Classifier.* ACM Multimedia 2024. DOI 10.1145/3664647.3681345. Used for: the 7.46 % ITW EER from its official repository README (paper text not reachable). [paper](https://dl.acm.org/doi/10.1145/3664647.3681345) · read in `research/knowledge/methods/multi-layer-ssl-aggregation.md`
-- [30] Meng et al. *MSLA-XLS-R: Enhancing Hierarchical SSL Representations for Audio Deepfake Detection.* Computer Speech & Language, 2026 (in press). DOI 10.1016/j.csl.2026.102044. Used for: existence of richer layer aggregation only (paper text not reachable). [paper](https://doi.org/10.1016/j.csl.2026.102044)
-
-**Code**
-
-- Official ASVspoof 2019 baseline code, `ASVspoof_2019_baseline_CM_v1.zip`, read line by line for A1 (`research/knowledge/methods/b02-lfcc-gmm.md`).
-
-**How confident each claim is.** Every number from our runs comes from committed files, and the
-A1 per-attack score shifts in §10.3 were re-derived from the score CSVs for this revision.
-Numbers marked *recomputed* come from light re-analysis described in the methods note's appendix
-and are not committed outputs. On 2026-10-04 the descriptions of [1], [3], [4], [6]–[8], [13],
-[14] and [17]–[26] were checked against the papers, and the headline numbers were spot-checked
-against the PDF text by the integrating author. Each paper note quotes the page it relies on.
-[27] and [28] were re-read on 2026-10-04 (PDF text). Still **not** re-read: [2], [5], [9]–[12], [16], and the full texts of [29] and [30], which were not reachable. [9]–[12] are JEV sources to confirm against
-official docs.
+See the [reference list](report/references.md).

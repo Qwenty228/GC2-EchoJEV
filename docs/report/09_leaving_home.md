@@ -13,14 +13,13 @@ We ask chapter 2's two questions: **ranking** (equal error rate, EER, and area u
 AUC) and **calibration** (does the dev threshold still work?). Away from home they differ.
 
 ![In-the-Wild score histograms for A1 and A2, with each system's dev threshold and its VCTK eval real scores for reference](img/ch09_itw_scores_threshold.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 39, recomputed for the story
-from the committed In-the-Wild scores (`E-20261001-e3-a1-raw`, `E-20261001-e3-a2-raw`), each
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 39, from the In-the-Wild scores (`E-20261001-e3-a1-raw`, `E-20261001-e3-a2-raw`), each
 system's dev threshold, and its eval scores for the grey reference outline.*
 
 ## A2: the ranking survives, the threshold does not
 
 Bottom panel. The piles are still well apart: **EER 14.70 %, AUC 0.934**
-([E3 A2 metrics.json](../../experiments/E-20261001-e3-a2-raw/metrics.json)) for the original run
+(`metrics.json` of run `E-20261001-e3-a2-raw`) for the original run
 (its E1 head, scored in E3); the three X6 retrains (chapter 7) get 14.0 ± 0.5 %.
 
 But VCTK real clips (grey outline) scored around +14.90; In-the-Wild real clips score around
@@ -34,7 +33,7 @@ Why did the real pile move? **Our guess:** VCTK real clips carry a studio lead-i
 pushes A2's score up, and In-the-Wild real clips, cut from longer recordings, do not. Trimming VCTK eval moved its real median
 to −4.18; In-the-Wild real sits at −2.19; and trimming made A2 slightly *better* on In-the-Wild
 (14.70 → 13.89 %, chapter 8,
-[E3 A2 trimmed metrics.json](../../experiments/E-20261001-e3-a2-trimmed/metrics.json)). The numbers
+`metrics.json` of run `E-20261001-e3-a2-trimmed`). The numbers
 are measured; the link is not. Predicting silence from each layer (analysis X8) would test it.
 
 For orientation only (other models and training data): the best
@@ -42,7 +41,7 @@ ASVspoof-trained model in [13] reaches 33.94 % on In-the-Wild (from paper [13, T
 wav2vec 2.0 systems reach 12.48 % with a large fusion head and 23.22 % with a simple one (from paper
 [22, Table II, p.3]). The sharpest comparison is Pascu et al., who froze the same WavLM Base+, fitted a logistic
 regression on its top layer and report 38.6 % EER on In-the-Wild (from paper [8, Table 3, p.4];
-different training data and protocol). X6 ([summary.md](../../experiments/E-20261004-e2-a2-raw-layers/summary.md))
+different training data and protocol). X6 (`summary.md` of run `E-20261004-e2-a2-raw-layers`)
 gives our versions: a logistic regression on our cached **top layer** gets 24.75 %, our small
 network on that layer 16.5 %, the full head 14.0 ± 0.5 %. So layer choice does not explain the
 gap; the head matters, and an unidentified difference in set-up accounts for the rest.
@@ -54,12 +53,12 @@ Calibration is a known problem there too: [8]'s best model has an expected calib
 
 Top panel. The real and fake piles lie on top of each other, fakes slightly to the "more real"
 side: **EER 58.04 %, AUC 0.398**
-([E3 A1 metrics.json](../../experiments/E-20261001-e3-a1-raw/metrics.json)); medians real +0.44,
+(`metrics.json` of run `E-20261001-e3-a1-raw`); medians real +0.44,
 fake +0.69; at the home threshold, 71.8 % of real clips rejected and 50.0 % of fakes accepted.
 
 Is the ranking *backwards* (AUC below 0.5)? That depends on the seed. The three
 linear-frequency cepstral coefficient (LFCC) models of chapter 6 (X4) get AUC 0.40, 0.56 and 0.38
-(EER 58.0 %, 46.0 % and 58.6 %; committed metrics.json, printed in cell 41): within a point on eval
+(EER 58.0 %, 46.0 % and 58.6 %; metrics.json, printed in cell 41): within a point on eval
 (8.7–9.6 %), spread over 13 points here. So: **A1 is at chance on In-the-Wild**, and a single-seed
 number should not be quoted alone.
 
@@ -82,8 +81,8 @@ Chapter 6 found that LFCC beat mel-frequency cepstral coefficients (MFCC) on the
 same six models on In-the-Wild:
 
 ![Eval EER and In-the-Wild EER for each of the six X4 models, LFCC (blue) and MFCC (magenta)](img/ch09_x4_home_vs_away.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 41, from the six committed
-X4 metrics.json files (the seed-1337 LFCC model's In-the-Wild score is in `E-20261001-e3-a1-raw`).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 41, from the six X4 runs'
+metrics.json files (the seed-1337 LFCC model's In-the-Wild score is in `E-20261001-e3-a1-raw`).*
 
 | mean ± standard deviation over 3 seeds | LFCC (linear) | MFCC (mel) |
 |---|---|---|
@@ -93,7 +92,7 @@ X4 metrics.json files (the seed-1337 LFCC model's In-the-Wild score is in `E-202
 
 (Printed in cell 41.) The ranking **flips**: at home LFCC wins by 1.5 points; away, MFCC wins by
 more than 20, its seeds agreeing (30.7–33.7 %) while LFCC's scatter around chance. This is
-**measured**, and unexpected: we had expected both near chance (handoff §5.1.4).
+**measured**, and unexpected: we had expected both near chance ([technical reference §5.1.4](../technical-reference.md)).
 
 Why? LFCC spends 10 of its 20 filters above 4 kHz, mel 5 (chapter 5), and that band is where
 recording chains differ most (studio audio downsampled from 96 kHz against often-compressed
@@ -112,8 +111,8 @@ or normalise each recording's average coefficients, and see whether the gap clos
 >   14.0 ± 0.5 % over the 3 X6 retrains), but its home threshold rejects 48.9 % of real clips:
 >   ranking survives, calibration does not. Layer choice does not explain why it beats [8]'s
 >   frozen WavLM Base+ (their 38.6 %; our top-layer logistic regression 24.75 %)
->   ([E3 A2 metrics.json](../../experiments/E-20261001-e3-a2-raw/metrics.json); X6 summary;
->   [notebook 20](../../notebooks/20_story_figures.ipynb), cell 39; from paper [8, Table 3]).
+>   (`metrics.json` of run `E-20261001-e3-a2-raw`; X6 summary;
+>   [notebook 20](../../notebooks/20_report_figures.ipynb), cell 39; from paper [8, Table 3]).
 > - A1 is at chance on In-the-Wild (EER 58.04 %, AUC 0.398 for seed 1337; AUC 0.56 and 0.38 for the
 >   other two seeds), the same kind of collapse [13] reports for its models (from paper [13,
 >   Tables 1–2]).

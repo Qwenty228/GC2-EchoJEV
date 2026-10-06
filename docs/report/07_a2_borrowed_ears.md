@@ -38,8 +38,8 @@ needs all 13 × 199 × 768 numbers per clip on
 disk: about 4 MB (megabytes) per clip at 2 bytes per number, roughly 0.1 TB (terabytes) for the
 25,380 training clips alone (our arithmetic). For the larger XLS-R (25 × 199 × 1,024 per clip,
 not yet run) over all 121,461 clips of ASVspoof (the Automatic Speaker Verification Spoofing and
-Countermeasures Challenge 2019 dataset, chapter 2), the handoff puts it at about 1.24 TB
-(handoff §7.2). So A2 averages each layer over time once, stores just 13 × 768 numbers per
+Countermeasures Challenge 2019 dataset, chapter 2), it would be about 1.24 TB
+([technical reference §7.2](../technical-reference.md)). So A2 averages each layer over time once, stores just 13 × 768 numbers per
 clip, and mixes those averages. Same answer? Mixing with fixed weights and averaging over time both only add and scale, so
 their order does not matter, just as weighing coins then averaging equals averaging then weighing.
 
@@ -50,7 +50,7 @@ each vector by its own spread) *before* averaging, and they disagree. That is wh
 LayerNorm only *after* pooling; `tests/test_ssl_head.py` checks the same identity.
 
 ![Pool-then-mix against mix-then-pool (on the diagonal) and the same with LayerNorm per frame (off the diagonal)](img/ch07_pool_then_mix.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 27 (random numbers, A2's real head code).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 27 (random numbers, A2's real head code).*
 
 So the time-averaged cache is **exact**. The price: the head only sees the *average* frame, so a
 momentary click or glitch is diluted.
@@ -63,9 +63,9 @@ projection from 768 to 256, a small two-layer network down to 128, and one outpu
 means more real).
 
 That is about **231,000 trainable numbers**, against 94 million frozen ones in WavLM
-(handoff §5). The loss weights real clips 8.837 times more, because fakes outnumber them 22,800
+([technical reference §5](../technical-reference.md)). The loss weights real clips 8.837 times more, because fakes outnumber them 22,800
 to 2,580 in training
-([training_curve.json](../../experiments/E-20261001-e1-a2-raw/training_curve.json), `pos_weight`).
+(`training_curve.json` of run `E-20261001-e1-a2-raw`, `pos_weight`).
 The lowest dev loss came at epoch 8 (counting from 0); training and scoring took **16.9 seconds**
 ([REGISTRY.md](../../experiments/REGISTRY.md), row `E-20261001-e1-a2-raw`).
 
@@ -74,7 +74,7 @@ The lowest dev loss came at epoch 8 (counting from 0); training and scoring took
 **Equal error rate (EER, chapter 2): 0.39 % on dev, 0.96 % on eval**, against A1's 2.62 % and
 9.56 %; area under the curve (AUC) on eval 0.9995; hardest eval attacks A10 (2.0 %) and A19
 (1.9 %), against A1's 22.4 % and 12.7 %
-([metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json)). About ten times fewer
+(`metrics.json` of run `E-20261001-e1-a2-raw`). About ten times fewer
 errors than A1 on attacks neither saw in training. For orientation only
 (other backbone, head and augmentation): frozen wav2vec 2.0 models with heads
 trained on the same 2019 training data report 0.74 % and 1.93 % on the same eval set (from paper
@@ -82,16 +82,16 @@ trained on the same 2019 training data report 0.74 % and 1.93 % on the same eval
 
 Caveat: one run. Three retrains on an ordinary processor (CPU) for the analysis below gave
 1.32 ± 0.23 %, with scores correlating at 0.99 with the original
-([summary.md](../../experiments/E-20261004-e2-a2-raw-layers/summary.md),
-[reproduction_check.json](../../experiments/E-20261004-e2-a2-raw-layers/reproduction_check.json)).
+(`summary.md` of run `E-20261004-e2-a2-raw-layers`,
+`reproduction_check.json` of run `E-20261004-e2-a2-raw-layers`).
 
 ## What do the layer weights say?
 
 Left panel below: the 13 learned weights
-([layer_weights.json](../../experiments/E-20261001-e1-a2-raw/layer_weights.json)).
+(`layer_weights.json` of run `E-20261001-e1-a2-raw`).
 
 ![A2's 13 learned layer weights, and EER of each single-layer head on eval, trimmed eval and In-the-Wild](img/ch07_layer_weights_x6.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 29, from the committed layer_weights.json and X6 summary.csv.*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 29, from the layer_weights.json and X6 summary.csv.*
 
 They barely move from the even 1/13 ≈ 0.077 (dotted line), tilting toward the bottom: layer 3
 gets the most (0.099), layers 7–12 get 0.061–0.069 (largest over smallest: 1.63). But a weight
@@ -104,7 +104,7 @@ Analysis "X6" reused the cached averages. It trained the head on **one layer at 
 heads), removed one layer at a time from the trained head (13 more), retrained the full head with
 3 seeds, and fitted two logistic-regression probes (layers 0 and 12): 31 variants in about 2
 minutes on a CPU, each with its own dev threshold
-([experiments/E-20261004-e2-a2-raw-layers](../../experiments/E-20261004-e2-a2-raw-layers/summary.md)).
+(`summary.md` of run `E-20261004-e2-a2-raw-layers`).
 Each single-layer head is one seed, so small differences between neighbours mean little.
 
 **No layer is essential:** removing any one leaves eval EER between 0.91 % and 1.22 % (rows
@@ -119,7 +119,7 @@ darker is better). Look at A17–A19, which convert a real person's recording (c
 A10, a text-to-speech attack:
 
 ![Per-attack EER for the full head and each single-layer head, raw eval (left) and trimmed eval (right)](img/ch07_x6_heatmap.png)
-*Source: `experiments/E-20261004-e2-a2-raw-layers/per_attack_heatmap.png`, committed by the X6 run, shown unchanged ([notebook 20](../../notebooks/20_story_figures.ipynb), cell 31).*
+*Source: `per_attack_heatmap.png` of run `E-20261004-e2-a2-raw-layers`, drawn by the X6 run and shown unchanged ([notebook 20](../../notebooks/20_report_figures.ipynb), cell 31).*
 
 | attack | layer 1 | layer 7 | layer 12 |
 |---|---|---|---|
@@ -128,7 +128,7 @@ A10, a text-to-speech attack:
 | A17 (converts a real recording) | 4.5 % | **2.5 %** | 6.7 % |
 | A10 (text-to-speech, WaveRNN) | 4.8 % | **1.2 %** | 2.1 % |
 
-([per_attack_eval.csv](../../experiments/E-20261004-e2-a2-raw-layers/per_attack_eval.csv);
+(`per_attack_eval.csv` of run `E-20261004-e2-a2-raw-layers`;
 measured.)
 
 The lower transformer layers (1–5) catch A19 and A18; the top layers miss much of them. A17 is
@@ -156,9 +156,9 @@ was that they read a different layer; X6 ruled that out. Chapter 9 shows the num
 > - A2 freezes WavLM Base+, pre-trained on 94,000 hours of real speech (from paper [26, p.5]), and
 >   trains only a ~231,000-number head on time-averaged layer outputs, which is exact because
 >   pooling and mixing only add and scale ([`SSLHead`](../../src/audio_df/models/ssl_head.py#L62);
->   [notebook 20](../../notebooks/20_story_figures.ipynb), cell 27; `tests/test_ssl_head.py`).
+>   [notebook 20](../../notebooks/20_report_figures.ipynb), cell 27; `tests/test_ssl_head.py`).
 > - A2 gets 0.39 % EER on dev and 0.96 % on eval, against A1's 9.56 %
->   ([metrics.json](../../experiments/E-20261001-e1-a2-raw/metrics.json)); 1.32 ± 0.23 % over 3 CPU
+>   (`metrics.json` of run `E-20261001-e1-a2-raw`); 1.32 ± 0.23 % over 3 CPU
 >   retrains (X6 summary).
 > - The learned layer weights are near-even; no single layer is essential (leave-one-out eval EER
 >   0.91–1.22 %) (notebook 20, cell 29; X6 summary).

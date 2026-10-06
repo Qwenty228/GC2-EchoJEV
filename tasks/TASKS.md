@@ -1,4 +1,4 @@
-> **Superseded 2026-09-30.** The project direction changed to the A1/A2/A3 benchmark (see README.md and docs/backlog.md). Kept for history; do not execute tasks from this file.
+> **Superseded 2026-09-30.** The project direction changed to the A1/A2/A3 benchmark (see README.md and docs/technical-reference.md §13). Kept for history; do not execute tasks from this file.
 
 # TASKS — orchestration plan
 

@@ -1,14 +1,11 @@
 # Chapter 0 · The problem: what would a detector even look for?
 
-*Notebook cell numbers in this series count the first cell of a notebook as cell 0.*
-
 ## Start with two pictures
 
 Here are two clips from our main dataset, side by side, as **spectrograms**.
 
 ![Spectrogram of a real clip (left) and a fake clip from attack A03 (right)](img/ch00_spectrogram_pair.png)
-*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 27, rendered locally (the
-committed notebook has no saved output).*
+*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 27.*
 
 A spectrogram is a picture of sound:
 
@@ -43,7 +40,7 @@ that does.
 
 ## The question, in plain words
 
-The [README](../../README.md) and [handoff §1](../training-and-data-handoff.md) state the
+The [README](../../README.md) and [technical reference §1](../technical-reference.md) state the
 project's question with a formula; in our words:
 
 **Is there something we can measure about a clip that is distributed differently for real and
@@ -83,7 +80,7 @@ but its decision threshold no longer fits.
 >   sound natural to listeners (from paper [14, §3, p.8], describing attack A10).
 > - The project's question is whether some measurable property differs between real and fake
 >   *because of synthesis*, and whether that survives new generators and new recording
->   conditions ([handoff §1](../training-and-data-handoff.md)).
+>   conditions ([technical reference §1](../technical-reference.md)).
 >
 > **The question this leaves us with:** if a fake must sound like a voice, what exactly is a
 > voice made of, and which parts does a generator have to rebuild?

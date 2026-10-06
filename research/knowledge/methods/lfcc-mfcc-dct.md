@@ -2,7 +2,7 @@
 id: lfcc-mfcc-dct
 type: method
 sources:
-  - docs/handoff.md (§"Stage 2 - LFCC, MFCC, and DCT as controlled feature engineering", this repo)
+  - the original project brief (§"Stage 2 - LFCC, MFCC, and DCT as controlled feature engineering")
   - https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.dct.html (DCT-II definition and norm="ortho" scaling, fetched directly)
 confidence: high
 last_verified: 2026-09-20

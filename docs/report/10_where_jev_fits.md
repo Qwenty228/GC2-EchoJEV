@@ -1,6 +1,6 @@
 # Chapter 10 · Where does JEV fit?
 
-**Status up front: this chapter describes a design and a scaffold. A3 has produced no results.**
+**Status: this chapter describes a design and a scaffold. A3 has produced no results.**
 
 ## The idea: a second opinion for the hard cases
 
@@ -22,8 +22,8 @@ for example p(yes) and p(no) ([client.py](../../src/audio_df/jev/client.py) modu
 [9]–[12]). It is **text only**, never hearing the audio ([11]), and it is **not a large language
 model** doing open-ended reasoning.
 
-**Our sources on JEV, [9]–[12], have not been re-read for this write-up**; [9] is a community
-summary still to be checked against official documentation. Treat this section as provisional.
+**This description rests on sources [9]–[12], which have not yet been checked against official
+API documentation**; [9] is a community summary. Treat this section as provisional.
 
 ## What A3 sends: a label-free evidence state
 
@@ -40,7 +40,7 @@ a lot"), with cut-offs in [configs/a3_jev.yaml](../../configs/a3_jev.yaml), neve
 
 Deliberately **not** in the state: label, attack, speaker, file path, clip id
 ([`tests/test_jev_state.py`](../../tests/test_jev_state.py), `test_no_label_leakage`). Two more
-rules (handoff §5.4):
+rules ([technical reference §5.4](../technical-reference.md)):
 
 - no generator or attack attributes, because attributing fakes to generators does not transfer
   well across datasets (from paper [19, Table 5]; local note);
@@ -71,7 +71,7 @@ flowchart LR
   P --> A3["A3 score = log(p(no) / p(yes))"]
 ```
 
-*The intended flow (our sketch of handoff §5.4). The current runner sends every clip of the
+*The intended flow (our sketch of [technical reference §5.4](../technical-reference.md)). The current runner sends every clip of the
 subset; the accept/escalate split is applied at analysis.*
 
 ## The experiment it is built for (E5)
@@ -93,7 +93,7 @@ so a rerun never pays twice.
 - **Notebook 12 runs end to end on synthetic scores and the dry-run client**
   ([notebook 12](../../notebooks/12_a3_jev.ipynb), setup in cells 3–6, dry run in cells 12–14).
   Nothing in it is a result.
-- The config now points at the real A2 run (`a2_experiment: experiments/E-20261001-e1-a2-raw`),
+- The configuration points at the A2 run (`a2_experiment: experiments/E-20261001-e1-a2-raw`),
   so the dry run builds its evidence from real A2 scores; only JEV's answers are stand-ins.
   Notebook 12 also prints the exact inputs to try in the JEV web playground by hand.
 - A budget guard refuses real runs of more than 20 clips until the cost per call is known
@@ -106,8 +106,8 @@ so a rerun never pays twice.
 1. **The "uncertain middle" is almost empty.** The level words come from fixed margins of 0.05 and
    0.2 around A2's dev threshold ([configs/a3_jev.yaml](../../configs/a3_jev.yaml),
    `thresholds.detector.margins`), in A2's score units. But A2's scores span roughly −40 to +30
-   (chapter 2). Recomputed for the story from the committed A2 scores
-   ([notebook 20](../../notebooks/20_story_figures.ipynb), cell 43, which also shows that only 0.02 %
+   (chapter 2). Recomputed from the A2 scores
+   ([notebook 20](../../notebooks/20_report_figures.ipynb), cell 43, which also shows that only 0.02 %
    fall within ±0.05): only **0.1 % of dev clips**
    fall within ±0.2 of the threshold, so almost every clip gets a "strong" level; and on
    In-the-Wild, **47.9 % of real clips** would be labelled "strongly spoof". The margins are
@@ -118,7 +118,7 @@ so a rerun never pays twice.
    `data/manifests/dev.csv`, so it can only test whether a second opinion helps in domain.
 
 So the margins would need setting on A2's actual scale (or replacing by an uncertainty rule), and
-an In-the-Wild subset adding. Those are team decisions; we have not changed the configuration.
+an In-the-Wild subset adding. Both are open decisions; the configuration is unchanged.
 Beyond that, we don't know whether a text-only classifier over a few summaries can add anything
 A2's own score does not already contain.
 
@@ -126,7 +126,7 @@ A2's own score does not already contain.
 >
 > - A3 = A2 plus a second opinion on uncertain clips (idea of [10]). JEV is a typed classifier
 >   API (text or JSON in, typed probabilities out), text only, not a large language model
->   ([client.py](../../src/audio_df/jev/client.py); sources [9]–[12] not re-read).
+>   ([client.py](../../src/audio_df/jev/client.py); sources [9]–[12] still to be checked).
 > - A3 sends a label-free evidence state (A2's level and confidence plus acoustic summaries) and
 >   asks three fixed questions; its score is log(p(no) / p(yes))
 >   ([state.py](../../src/audio_df/jev/state.py#L114), [questions.py](../../src/audio_df/jev/questions.py#L90)).
@@ -141,7 +141,7 @@ A2's own score does not already contain.
 
 ## References used in this chapter
 
-None of [9]–[12] was re-read for this document.
+[9]–[12] are still to be checked against official documentation.
 
 - [9] TypeSafe. *Jev — Project Knowledge Resource.* Community summary, 16 Sep 2026. To be checked
   against official documentation.

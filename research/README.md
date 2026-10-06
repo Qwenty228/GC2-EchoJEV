@@ -16,7 +16,7 @@ It has three jobs:
   commit. No claim from memory.
 - **Literature numbers are context, never comparison.** Any EER copied from a paper is tagged
   `source: literature` and may never appear in the same column as our own runs without that tag.
-  Datasets, protocols and training data differ; see `handoff` §"Reporting and experiment discipline".
+  Datasets, protocols and training data differ; see the original project brief, §"Reporting and experiment discipline".
 - **Separate observation from interpretation.** Notes have a `Findings` section (what the
   source says) and an `Implications for us` section (our reading). Never blend them.
 - **Uncertainty is recorded, not resolved by confidence.** Use `confidence: high|medium|low`

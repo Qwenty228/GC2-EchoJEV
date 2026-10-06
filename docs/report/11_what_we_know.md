@@ -47,7 +47,7 @@ Each is a reading that fits our numbers, with the test that would settle it. Non
 
 - **How much of the trimming loss is the shortcut, and how much is train/test mismatch?** Both
   detectors were trained on raw audio. *Test:* train one A2 head on trimmed audio and test on
-  trimmed eval (about 45 minutes of extraction, seconds of training; needs a team decision)
+  trimmed eval (about 45 minutes of extraction, seconds of training; an open decision)
   ([chapter 8](08_trim_the_silence.md)).
 - **Why does MFCC travel better than LFCC?** Our guess: LFCC's extra high-frequency filters model the
   recording chain of VCTK (the Voice Cloning Toolkit corpus behind every real benchmark clip). *Test (X7):* low-pass both arms at 4 kilohertz (kHz), or normalise each recording's
@@ -79,12 +79,12 @@ Each is a reading that fits our numbers, with the test that would settle it. Non
   and narrowband resampling on a fixed 10,000-clip eval subset; generator ready, nothing scored.
 - **Efficiency (experiment E6)**: measuring parameters and milliseconds per clip; not built.
 - **Fine-tuning the backbone (A2-alt)**: parked; it needs a graphics card we do not have.
-- **The ablation experiment E2** as a formal experiment: needs a team decision; the X4 and X6 analyses
+- **The ablation experiment E2** as a formal experiment: an open decision; the X4 and X6 analyses
   could be reported under it.
 - **Single seeds remain** for the single-layer heads, A2's original In-the-Wild run and the
   trimmed runs; small differences there are not effects.
 
-(Status from handoff §5.3 and §13.)
+(Status and next steps: [technical reference §13](../technical-reference.md#13-what-is-left).)
 
 ## The short version
 
@@ -109,7 +109,7 @@ on the models and caches we already have.
 >
 > **The question this leaves us with:** chapter 0's answer is "yes, partly", and we know which
 > accidents of the dataset get in the way. Which test do we run first, so the next version of this
-> story can say how much of each detector's skill is synthesis and how much is the recording?
+> report can say how much of each detector's skill is synthesis and how much is the recording?
 
 ## References used in this chapter
 

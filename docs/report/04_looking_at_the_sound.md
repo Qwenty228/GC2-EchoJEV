@@ -19,7 +19,7 @@ In **band_high_ratio** (the share of energy above 4 kHz, kilohertz) the piles li
 other.
 
 ![Real (green) and fake (orange) histograms of 13 one-number summaries](img/ch04_spectral_summaries.png)
-*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 7, rendered locally (the committed notebook has no saved output); 240-clip sample.*
+*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 7; 240-clip sample.*
 
 **How to read it.** Each panel is one feature, and asks: *do real and fake clips get different
 values for this one number?*
@@ -78,7 +78,7 @@ deviation long) and δ (bottom: every pair, orange where the fake wins, green wh
    (−0.07). They disagree even on the sign.
 
 ![Cohen's d (top) and Cliff's delta (bottom) drawn for bandwidth, leading silence and a made-up example](img/ch04_d_and_delta_drawn.png)
-*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 13, rendered locally (the committed notebook has no saved output).*
+*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 13.*
 
 The rule of thumb: **if *d* and δ agree, the difference is not the work of a few
 odd clips. If they disagree, look at the distribution.**
@@ -104,7 +104,7 @@ duration it can ([−0.16, 0.34]), so we do not even claim a direction.
 ## The result
 
 Notebook 02, cell 10 computes both measures for every summary, with a 95 % confidence interval
-(CI) on *d* from 500 bootstrap resamples (chapter 3). Printed output of a local run.
+(CI) on *d* from 500 bootstrap resamples (chapter 3).
 
 | feature (fake against real) | Cohen's *d* [95 % CI] | Cliff's δ |
 |---|---|---|
@@ -120,7 +120,7 @@ mid- and high-band shares, and the low-band share and duration (we have not show
 feature sits far off the trend, so no result is the work of a few extreme clips.
 
 ![Cohen's d against Cliff's delta, one dot per feature](img/ch04_d_vs_delta.png)
-*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 15, rendered locally (the committed notebook has no saved output).*
+*Source: [notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 15.*
 
 So: **silence shows up again** as strong as anything acoustic (chapter 3); **bandwidth and
 rolloff are new and large** (fakes spread their energy less widely, and lower); and **"fakes lack
@@ -138,7 +138,7 @@ then it is a **candidate** (our guess).
 ## No single "fake" direction
 
 [Notebook 02](../../notebooks/02_spectral_eda.ipynb), cell 24 prints the mean spectral centroid
-per attack (a local run). Treat it as a **hint**, not a finding: the 120 fakes in the sample are spread unevenly over the attacks, about
+per attack. Treat it as a **hint**, not a finding: the 120 fakes in the sample are spread unevenly over the attacks, about
 9–19 clips each for the training attacks A01–A06 but only 1–8 for each eval attack, and A09 has
 none (counts from rebuilding notebook 02's sample with its own seed).
 
@@ -156,7 +156,7 @@ per-attack sample would turn this hint into a measurement.
 >   (notebook 02, cells 13 and 15; [`stats.py`](../../src/audio_df/stats.py#L78)).
 > - Bandwidth separates strongly (d = −1.32, δ = −0.65), as does rolloff (d = −0.93, δ = −0.50);
 >   the share above 4 kHz does not (d = −0.13, interval includes zero)
->   ([notebook 02](../../notebooks/02_spectral_eda.ipynb), cells 7 and 10; a local run).
+>   ([notebook 02](../../notebooks/02_spectral_eda.ipynb), cells 7 and 10).
 > - Whether bandwidth is just silence is untested; a low-silence recomputation would settle it.
 > - Hint: attacks may move the same summary in opposite directions: A11's centroid about
 >   1,400 Hz, A18's about 2,292 Hz, real speech about 1,733 Hz; 14 of 18 attacks sit below real

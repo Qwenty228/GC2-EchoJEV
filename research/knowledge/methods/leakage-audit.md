@@ -2,7 +2,7 @@
 id: leakage-audit
 type: method
 sources:
-  - docs/handoff.md (§"Stage 0 - Dataset and leakage audit", this repo)
+  - the original project brief (§"Stage 0 - Dataset and leakage audit")
   - https://arxiv.org/abs/2308.14970 (Yi et al., "Audio Deepfake Detection: A Survey" — general generalization/interpretability framing; abstract fetched, full text not reachable as text this pass)
   - https://arxiv.org/pdf/2106.12914 (Müller et al., "Speech is Silver, Silence is Golden: What do ASVspoof-trained Models Really Learn?", fetched and read directly — the concrete, quantitative silence-shortcut evidence this note leans on)
 confidence: high

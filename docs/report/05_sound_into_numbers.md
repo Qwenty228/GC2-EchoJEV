@@ -14,7 +14,7 @@ cepstral coefficients (LFCC)**.
 real clip and checks it is "identical to the library: True"; cell 10 draws it.
 
 ![The B02 pipeline on one real clip: pre-emphasis, 20 linear filters, power spectrogram, 20 static LFCCs](img/ch05_lfcc_pipeline_nb09.png)
-*Source: [notebook 09](../../notebooks/09_a1_playground.ipynb), cell 10, rendered locally (the committed notebook has no saved output). Default colours in this older notebook.*
+*Source: [notebook 09](../../notebooks/09_a1_playground.ipynb), cell 10. Default notebook colours.*
 
 ## Step 1: cut the sound into short frames
 
@@ -37,7 +37,7 @@ this is the short-time Fourier transform (STFT); stacked, it is chapter 0's spec
 overlapping triangular **filters**, each giving the energy in its band.
 
 ![Twenty triangular filters with linear spacing (top) and mel spacing (bottom)](img/ch05_filter_placement.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 13 (geometry from our filterbank code, no data).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 13 (geometry from our filterbank code, no data).*
 
 The B02 recipe spaces the filters **evenly in Hz** from 0 to 8,000 Hz: the "linear" in LFCC.
 The top row shows twenty identical triangles, each 762 Hz wide at the base, half of them above
@@ -59,7 +59,7 @@ two different bands is 0.85 (left panel below, redrawn from
 [notebook 03](../../notebooks/03_cepstral_eda.ipynb), cell 11).
 
 ![Correlation matrices before and after the discrete cosine transform (DCT)](img/ch05_dct_decorrelation.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 17, recomputed for the story on notebook 03's exact 45-clip sample (it reproduces notebook 03 cell 11's printed 0.851 and 0.166).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 17, recomputed on notebook 03's exact 45-clip sample (it reproduces notebook 03 cell 11's printed 0.851 and 0.166).*
 
 So describe their **shape** instead:
 
@@ -74,7 +74,7 @@ Panel 1 below draws those weights: flat for c0, a slope from +0.32 to −0.32 fo
 c2 and c4.
 
 ![DCT weights for c0, c1, c2, c4; c0 along one clip before and after a 10 decibel (dB) gain drop; average change per coefficient](img/ch05_lfcc_coefficients_gain.png)
-*Source: [notebook 20](../../notebooks/20_story_figures.ipynb), cell 15. Panel 1 has no data; panels 2–3 are recomputed for the story on one real eval clip (LA_E_5849185).*
+*Source: [notebook 20](../../notebooks/20_report_figures.ipynb), cell 15. Panel 1 has no data; panels 2–3 are recomputed on one real eval clip (LA_E_5849185).*
 
 These weighted sums are the **discrete cosine transform (DCT)**. With *L*[r] the log energy of
 band *r* and *J* = 20 bands:
@@ -91,7 +91,7 @@ Two good things happen:
 1. **The outputs are much less correlated:** 0.85 falls to 0.17 (right panel of the correlation
    figure). Chapter 6 needs this.
 2. **Each number has a meaning.** With bands 381 Hz apart, c<sub>q</sub> is ripple with a period
-   of about 15,238/*q* Hz at every frequency: c4 about 3.8 kHz, c10 about 1.5 kHz (handoff §5.1.2).
+   of about 15,238/*q* Hz at every frequency: c4 about 3.8 kHz, c10 about 1.5 kHz ([technical reference §5.1.2](../technical-reference.md)).
 
 ### The level test
 
@@ -99,7 +99,7 @@ The payoff of the logarithm: turn a clip down by 10 decibels (dB) and all 20 log
 by exactly 1 (a factor of 10 in power is 1 in log10). A constant shift has no tilt or wiggle, so only c0 moves: by 20 × (−1) × √(1/20) =
 −√20 ≈ −4.47.
 
-Panels 2 and 3 check this on a real eval clip, **recomputed for the story**: c0 shifts by
+Panels 2 and 3 check this on a real eval clip, **recomputed in notebook 20**: c0 shifts by
 −4.472 in every frame; no other coefficient changes by more than about 0.00001.
 
 So **loudness, recording gain and silence all live in c0** (a silent frame is a very low c0).
@@ -163,7 +163,7 @@ asks again on real-world audio.
 > - The recipe: frames of 20 ms → FFT power → 20 filters → log → DCT → add Δ and ΔΔ = 60 numbers
 >   per frame ([notebook 09](../../notebooks/09_a1_playground.ipynb), cells 9–10;
 >   [`extract_lfcc_b02`](../../src/audio_df/lfcc_b02.py#L239)).
-> - The DCT cuts the average absolute correlation from 0.85 to 0.17 ([notebook 20](../../notebooks/20_story_figures.ipynb),
+> - The DCT cuts the average absolute correlation from 0.85 to 0.17 ([notebook 20](../../notebooks/20_report_figures.ipynb),
 >   cell 17, redrawing notebook 03, cell 11).
 > - c0 is level, c1 is tilt, higher c<sub>q</sub> are ripple; a 10 dB gain change moves only c0, by
 >   −4.47 (notebook 20, cell 15, recomputed on one clip). A1 keeps c0 and has no CMVN, so it sees

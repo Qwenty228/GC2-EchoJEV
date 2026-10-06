@@ -87,7 +87,7 @@ differences, which a change of filter spacing would not obviously remove [recomp
 8. **Committed EDA, notebook 03** [proj, H]. Mean absolute off-diagonal correlation on bona fide mean-pooled vectors: linear
    log-filterbank 0.851, LFCC 0.166 (cell 11). The per-coefficient effect-size plots were not saved in the executed notebook
    (figures only), so per-coefficient numbers are recomputed in item 10.
-9. **A1 results** [proj, H]. Eval EER 9.56 % raw, 19.84 % trimmed; In-the-Wild 58.04 % raw, 61.36 % trimmed (handoff §10).
+9. **A1 results** [proj, H]. Eval EER 9.56 % raw, 19.84 % trimmed; In-the-Wild 58.04 % raw, 61.36 % trimmed (technical reference §10).
    Per-attack raw/trimmed in §5.
 10. **Recomputed channel and coefficient effects** [recomp, M]. See Appendix R2. 600 clips (100 per split-by-label cell), B02 pipeline
     (pre-emphasis, Hamming 20 ms, log10, orthonormal DCT), whole-utterance means over frames, Cohen's d spoof minus bona fide,
@@ -115,7 +115,7 @@ Notation: sampling rate f_s = 16000 Hz, frame length N = 320 (20 ms), hop H = 16
    | dB | -30.5 | -8.3 | -2.4 | +2.9 | +5.2 | +5.9 |
 
    The slope is about +6 dB per octave from 1 to 2 kHz (+5.8 dB) and 2 to 4 kHz (+5.3 dB), then flattens (+3.0 dB from 4 to 8 kHz).
-   So handoff §5.1's "+6 dB/octave tilt" is right below about 4 kHz and an overstatement above it. In total the 4-8 kHz band
+   So technical reference §5.1's "+6 dB/octave tilt" is right below about 4 kHz and an overstatement above it. In total the 4-8 kHz band
    sits 33-36 dB above DC after this filter, and 11-14 dB above 1 kHz.
 2. **Framing and window** (L250-252, `_frame_signal`, `np.hamming`). Frame m starts at sample mH; the last incomplete frame is
    zero-padded; T = 1 + ceil(max(0, n - 320)/160). w[n] = 0.54 - 0.46 cos(2πn/(N-1)) (symmetric Hamming).
@@ -197,9 +197,9 @@ main lobe, so they probably add little independent information beyond the 6-7 bi
 the summed power of a linear filter (peak-1 triangles), a constant offset per channel that the GMM absorbs.
 
 ### §3 (d) How the GMM uses the 60-dimensional frame
-Each class has a 512-component diagonal-covariance mixture (`src/audio_df/models/gmm.py`; handoff §6.2). For a frame x_t in R^60,
+Each class has a 512-component diagonal-covariance mixture (`src/audio_df/models/gmm.py`; technical reference §6.2). For a frame x_t in R^60,
 log p(x|c) = logsumexp_k [ log π_k + Σ_d ℓ_kd(x_d) ], ℓ_kd = -½[log 2πσ²_kd + (x_d - μ_kd)²/σ²_kd ].
-The clip score is s(X) = (1/T) Σ_t [ log p(x_t|bona) - log p(x_t|spoof) ] (handoff §6.4; B02: `llk_genuine - llk_spoof`, `b02-lfcc-gmm`).
+The clip score is s(X) = (1/T) Σ_t [ log p(x_t|bona) - log p(x_t|spoof) ] (technical reference §6.4; B02: `llk_genuine - llk_spoof`, `b02-lfcc-gmm`).
 
 - **Why diagonal is acceptable** [proj, H]: DCT cuts mean |off-diagonal correlation| from 0.851 to 0.166 (item 8). The diagonal is per component;
   the 512-component mixture can still represent correlation between components.
@@ -227,7 +227,7 @@ The clip score is s(X) = (1/T) Σ_t [ log p(x_t|bona) - log p(x_t|spoof) ] (hand
   has Δ+Δ² alone beating static features for LFCC (0.12 vs 2.46). [lit, H on numbers]
 - *Phase and aperiodicity.* Table 1 of the 2019 database paper names **WORLD** (A02, A03, A05, A07) and lists band-aperiodicity (BAP/AP) and MCC/F0 as the
   parametric outputs, and **Griffin-Lim** (A11) for waveform generation. That these choices leave a *high-band or phase* artefact is **[hyp]**: the paper states the
-  architecture, not the artefact. LFCC discards phase, so a pure phase artefact is invisible to it (handoff §6.1 makes the same point).
+  architecture, not the artefact. LFCC discards phase, so a pure phase artefact is invisible to it (technical reference §6.1 makes the same point).
 - *Band limits.* 2019 LA bona fide speech is VCTK downsampled from 96 kHz to 16 kHz (Wang et al., §2). Whether individual spoof systems were trained or run at a lower
   bandwidth, leaving the 4-8 kHz region empty or interpolated, is **[hyp]**; it was not checked in the database paper's text, and the "band-limiting above about 4 kHz" idea has **no source in this note**.
 
@@ -256,7 +256,7 @@ for reproduction, not a finding of this project.
 ### §5 (e) Explaining A1's per-attack pattern under silence trimming (F3)
 Evidence assembled here:
 - Per-attack leading-silence fraction, median [recomp, Appendix R3, 150 clips per attack]: bona fide **0.29**; A07-A16 between 0.00 and 0.06; A17 **0.32**, A18 **0.30**, A19 **0.27**.
-  This matches handoff §3's summary and Müller et al.'s mechanism (`leakage-audit`: TTS/VC systems built from trimmed data start speech immediately). By Table 1 of the database paper, A17-A19 are
+  This matches technical reference §3's summary and Müller et al.'s mechanism (`leakage-audit`: TTS/VC systems built from trimmed data start speech immediately). By Table 1 of the database paper, A17-A19 are
   the three VC systems with **human** source speech, which explains why their silence resembles bona fide; A13-A15 are VC from TTS output.
 - Median A1 score per attack, raw and trimmed, from the committed score CSVs [proj, H] (higher = more bona fide). Bona fide: **+1.50 -> +1.19 (shift -0.31)**.
 - Frame-level silence depth, from the B02 c0 [recomp, Appendix R3]: median c0 of the quietest 10 % of frames, and the fraction of frames that are exactly digital zero.
@@ -282,7 +282,7 @@ Evidence assembled here:
 For comparison, the training spoofs [recomp, 100 clips each]: quietest-10 % c0 is -19.8 (A01), -22.2 (A02), **-25.8 (A03)**, **-30.2 (A04)**, -20.9 (A05), -17.8 (A06) vs bona fide -20.3.
 
 **Three mechanisms consistent with the table** (each [hyp] at the level of "why", but the shifts themselves are [proj]):
-- **M1 - the shared bona fide pool moves.** Trimming lowers the bona fide median by 0.31 (the silence frames carry a positive LLR, handoff §6.4). Per-attack EER uses the *same* bona fide pool
+- **M1 - the shared bona fide pool moves.** Trimming lowers the bona fide median by 0.31 (the silence frames carry a positive LLR, technical reference §6.4). Per-attack EER uses the *same* bona fide pool
   (`eer-and-metrics`), so every attack whose own scores do not move loses separation. A07, A10, A13 have the smallest raw gaps (0.78, 0.57, 0.96) and their EER roughly doubles
   (15.4 -> 27.3, 22.4 -> 36.7, 12.8 -> 24.9). A08, A14, A15 have wide gaps (3.1, 2.1, 1.5) and stay low in absolute terms. This explains A07, A10, A13 with no change in the spoof scores.
 - **M2 - some spoofs carry unnaturally quiet frames that A1 reads as spoof evidence; trimming removes them.** The largest changes in EER (A12 +28.4 points, A16 +23.7) come with the
@@ -313,7 +313,7 @@ All use existing models and caches. Expectations are written **before** any resu
   the neighbouring channels; recompute DCT, Δ, Δ², score with the trained E1 GMMs. Report ΔEER (eval raw, eval trimmed) and the median LLR shift per attack.
 - *Expectation.* Occluding channels 1-4 hurts most (largest EER in-domain, since item 10 puts the largest effect there). Occluding the top group hurts less than an equal-sized mid group on pooled eval, but A12/A16/A09 are unaffected (their cue is c0).
   If the occluded top group shifts A07, A10, A13 more than others, that supports a high-band story for the no-silence attacks.
-- *Caveat.* Replacement makes off-distribution inputs; variant (b) reduces but does not remove this. The clean version is **retraining without the group** (5 trainings at about 20.6 min each, handoff §10.1).
+- *Caveat.* Replacement makes off-distribution inputs; variant (b) reduces but does not remove this. The clean version is **retraining without the group** (5 trainings at about 20.6 min each, technical reference §10.1).
 
 ### X2 Per-coefficient LLR contribution (scoring only)
 - *Method.* The exact decomposition in §3: compute s_d(x_t) and the remainder for every frame of a stratified clip sample, average per clip, and group by static / Δ / Δ² and by coefficient index. Compare bona fide vs each attack,
@@ -332,7 +332,7 @@ All use existing models and caches. Expectations are written **before** any resu
   Run 3 EM seeds per arm; report eval EER raw/trimmed, E3 In-the-Wild, per-attack EER, with bootstrap CIs over clips. Optional third arm: inverted-mel (Sahidullah's IMFCC) to test the monotone high-band-resolution claim.
 - *Expectation (written now).* Pooled eval EER differs by under 4 points; probability about 65 % that LFCC is better. In-the-Wild: both near chance. Under trimming both arms degrade by a similar factor on A09, A12, A16, because their cue is c0, not spacing.
   If MFCC is *better* on A07/A10/A13, that echoes Sriskandaraja's SAS result.
-- *Cost.* About 20.6 min per training run (E1 A1, handoff §10.1), so about 2 h for 6 runs.
+- *Cost.* About 20.6 min per training run (E1 A1, technical reference §10.1), so about 2 h for 6 runs.
 
 ### X5 Δ ablation and pre-emphasis ablation (A1)
 - *Method.* Drop Δ/Δ² (60 -> 20 dimensions), and separately turn off pre-emphasis; the playground already exposes `use_deltas` (notebook 09, cell 19).
@@ -340,12 +340,12 @@ All use existing models and caches. Expectations are written **before** any resu
 
 ### X6 A2 layer-weight interpretation (head-only, seconds each)
 - *Fact.* `experiments/E-20261001-e1-a2-raw/layer_weights.json` [proj, H]: index 0 (embedding output) 0.094, then 0.081 0.095 0.099 0.080 0.081 0.074 0.066 0.061 0.066 0.068 0.067 0.069 for layers 1-12. Uniform would be 1/13 = 0.077. Max/min = 1.63.
-- *Warning.* These are not importances: they multiply layer states of different scale and are highly correlated; the head used 10 epochs from a uniform start (handoff §7.4), and LayerNorm after the sum partly renormalises scale.
+- *Warning.* These are not importances: they multiply layer states of different scale and are highly correlated; the head used 10 epochs from a uniform start (technical reference §7.4), and LayerNorm after the sum partly renormalises scale.
 - *Methods.* (i) 13 single-layer heads from the existing pooled cache; (ii) leave-one-layer-out (weight 0, renormalise) at scoring; (iii) per-attack per-layer EER heatmap raw and trimmed; (iv) a probe from each layer to the clip's leading-silence fraction, to see which layers encode silence.
 - *Expectation.* Single-layer EER lowest at layers 1-4 and worst at 8-12; the layers that encode silence best are also the ones the head already weights most; trimmed EER is worst for the layer set that predicts silence best. If layer 3 is not near the best single layer, the weights are not reflecting usefulness.
 
 ## Open questions / what would change this
-- X4 would turn §4.4 from literature into measurement. Until then, handoff §5.1 should say LFCC was **adopted from B02** and that comparative evidence is literature (Sahidullah 2015 Table 3, WaveFake Tables 2 and 6), with the SAS counter-result.
+- X4 would turn §4.4 from literature into measurement. Until then, technical reference §5.1 should say LFCC was **adopted from B02** and that comparative evidence is literature (Sahidullah 2015 Table 3, WaveFake Tables 2 and 6), with the SAS counter-result.
 - Where exact-zero and deep-quiet frames sit in each attack (ends or interior) decides whether M2 is the mechanism; X3 settles it.
 - The Δ/Δ² pooled-tilt results are from one 600-clip sample, pooled over splits and attacks, with no multiple-comparison control; treat as descriptive. A per-attack version is needed before saying which generators carry the high-band deficit.
 - The 2019 database paper was read for generator descriptions only; its text does not say anything about spoof-system bandwidth, so the band-limit idea has no source here.

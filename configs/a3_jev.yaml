@@ -34,7 +34,7 @@ thresholds:
     eer_threshold: null
     # TODO (user, deferred 2026-10-04): these margins are placeholders. A2 scores span about
     # -40 to +30 logits, so only 0.10 % of dev clips fall within +-0.2 of the threshold and the
-    # five levels collapse to two (docs/story/10_where_jev_fits.md, notebook 20 cell 43).
+    # five levels collapse to two (docs/report/10_where_jev_fits.md, notebook 20 cell 43).
     # Rescale (e.g. from dev score percentiles) before E5. E5 on ASVspoof dev also cannot test
     # the In-the-Wild calibration problem.
     margins: [0.05, 0.2]   # (m1, m2); see audio_df.jev.state._level_word

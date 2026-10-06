@@ -1,4 +1,4 @@
-> Superseded 2026-09-30. The live backlog is docs/backlog.md.
+> Superseded by the A1/A2/A3 plan. Parked work is listed in docs/technical-reference.md §13.
 
 # Backlog — Stages 5–10, deliberately unscheduled
 
