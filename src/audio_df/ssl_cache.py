@@ -56,7 +56,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -198,18 +198,18 @@ class WaveformDataset(Dataset):
         ids: list[str],
         paths: list[str],
         sample_rate: int,
-        silence_mode: str,
+        silence_mode: Literal["raw", "trimmed"],
         crop_seconds: float,
-        crop_mode: str = "center",
+        crop_mode: Literal["random", "center"] = "center",
     ) -> None:
         if len(ids) != len(paths):
             raise ValueError(f"ids and paths must have equal length ({len(ids)} != {len(paths)})")
         self.ids = list(ids)
         self.paths = list(paths)
         self.sample_rate = sample_rate
-        self.silence_mode = silence_mode
+        self.silence_mode: Literal["raw", "trimmed"] = silence_mode
         self.crop_seconds = crop_seconds
-        self.crop_mode = crop_mode
+        self.crop_mode: Literal["random", "center"] = crop_mode
 
     def __len__(self) -> int:
         return len(self.ids)
@@ -236,9 +236,9 @@ def run_extraction(
     job_config: dict[str, Any],
     device: torch.device,
     sample_rate: int,
-    silence_mode: str,
+    silence_mode: Literal["raw", "trimmed"],
     crop_seconds: float,
-    crop_mode: str,
+    crop_mode: Literal["random", "center"],
     batch_size: int,
     num_workers: int = 0,
     chunk_size: int = 512,

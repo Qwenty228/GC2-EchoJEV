@@ -83,7 +83,7 @@ pooled EER (all spoof attacks combined vs. the shared bonafide pool) for referen
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 
 import numpy as np
 from sklearn.metrics import average_precision_score, roc_auc_score
@@ -103,7 +103,7 @@ _BONAFIDE_STRINGS = {"bonafide", "bona-fide", "genuine", "real"}
 _SPOOF_STRINGS = {"spoof", "fake", "synthetic"}
 
 
-def _normalize_labels(labels: Sequence) -> np.ndarray:
+def _normalize_labels(labels: Iterable) -> np.ndarray:
     """Map heterogeneous labels to a boolean `is_spoof` array.
 
     Accepts, per element:
@@ -149,7 +149,7 @@ def _normalize_labels(labels: Sequence) -> np.ndarray:
 
 
 def _validate_scores_and_labels(
-    scores: Sequence, labels: Sequence
+    scores: Iterable, labels: Iterable
 ) -> tuple[np.ndarray, np.ndarray]:
     """Normalise labels, coerce scores to float array, and enforce two-class input."""
     scores_arr = np.asarray(list(scores), dtype=float)
@@ -214,7 +214,7 @@ def _compute_det_curve(
     return frr, far, thresholds
 
 
-def compute_eer(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> tuple[float, float]:
+def compute_eer(scores: Iterable, labels: Iterable, higher_is_spoof: bool) -> tuple[float, float]:
     """Equal error rate and its operating threshold, matching official ASVspoof scoring.
 
     Returns `(eer, threshold)` using the **official, non-interpolated** algorithm: the
@@ -250,7 +250,7 @@ def compute_eer(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> tu
 
 
 def compute_eer_interpolated(
-    scores: Sequence, labels: Sequence, higher_is_spoof: bool
+    scores: Iterable, labels: Iterable, higher_is_spoof: bool
 ) -> tuple[float, float]:
     """Interpolated EER — analysis only, NOT comparable to official ASVspoof numbers.
 
@@ -299,7 +299,7 @@ def compute_eer_interpolated(
     return float((far[idx] + frr[idx]) / 2.0), float(thresholds[idx])
 
 
-def roc_auc(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> float:
+def roc_auc(scores: Iterable, labels: Iterable, higher_is_spoof: bool) -> float:
     """ROC-AUC of the scores treating spoof as the positive class.
 
     Delegates to `sklearn.metrics.roc_auc_score`. When `higher_is_spoof` is False,
@@ -311,7 +311,7 @@ def roc_auc(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> float:
     return float(roc_auc_score(is_spoof.astype(int), oriented))
 
 
-def pr_auc(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> float:
+def pr_auc(scores: Iterable, labels: Iterable, higher_is_spoof: bool) -> float:
     """Precision-recall AUC (average precision) with spoof as the positive class."""
     scores_arr, is_spoof = _validate_scores_and_labels(scores, labels)
     oriented = scores_arr if higher_is_spoof else -scores_arr
@@ -319,7 +319,7 @@ def pr_auc(scores: Sequence, labels: Sequence, higher_is_spoof: bool) -> float:
 
 
 def prf1_at_threshold(
-    scores: Sequence, labels: Sequence, thr: float, higher_is_spoof: bool
+    scores: Iterable, labels: Iterable, thr: float, higher_is_spoof: bool
 ) -> dict:
     """Precision/recall/F1 for spoof-as-positive at a caller-supplied threshold.
 
@@ -355,7 +355,7 @@ def prf1_at_threshold(
     }
 
 
-def brier_score(probs: Sequence, labels: Sequence) -> float:
+def brier_score(probs: Iterable, labels: Iterable) -> float:
     """Mean squared error between predicted spoof-probability and the binary label.
 
     `brier = mean((p - y)^2)` where `y = 1` for spoof, `0` for bonafide. `probs` are
@@ -379,8 +379,8 @@ def brier_score(probs: Sequence, labels: Sequence) -> float:
 
 
 def min_dcf(
-    scores: Sequence,
-    labels: Sequence,
+    scores: Iterable,
+    labels: Iterable,
     higher_is_spoof: bool,
     c_miss: float = 1.0,
     c_fa: float = 10.0,
@@ -458,7 +458,7 @@ def min_dcf(
 
 
 def per_attack_eer(
-    scores: Sequence, labels: Sequence, attack_ids: Sequence, higher_is_spoof: bool
+    scores: Iterable, labels: Iterable, attack_ids: Iterable, higher_is_spoof: bool
 ) -> dict:
     """EER per spoof attack/generator, each scored against the shared bonafide pool.
 

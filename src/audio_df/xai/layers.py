@@ -156,7 +156,8 @@ def per_attack_table(metrics_by_variant: dict[str, dict], testset: str) -> pd.Da
 def to_markdown(df: pd.DataFrame, *, pct: bool = False, index_name: str = "") -> str:
     """Plain markdown table; `pct` renders fractions as percent with 2 decimals."""
     cols = list(df.columns)
-    head = "| " + (index_name or (df.index.name or "")) + " | " + " | ".join(map(str, cols)) + " |"
+    label = index_name or str(df.index.name or "")
+    head = "| " + label + " | " + " | ".join(map(str, cols)) + " |"
     lines = [head, "|" + "---|" * (len(cols) + 1)]
     for idx, row in df.iterrows():
         cells = []

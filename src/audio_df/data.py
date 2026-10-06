@@ -188,7 +188,7 @@ def build_manifest(cfg: dict) -> pd.DataFrame:
 
         records = []
         for row in proto_df.itertuples(index=False):
-            audio_path = _resolve_audio_path(split_audio_dir, row.utt_id, split=split)
+            audio_path = _resolve_audio_path(split_audio_dir, str(row.utt_id), split=split)
             info = sf.info(str(audio_path))
             records.append(
                 {

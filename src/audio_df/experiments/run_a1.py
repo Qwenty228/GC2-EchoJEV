@@ -162,7 +162,7 @@ def build_train_frame_job(
     memory_guard: MemoryGuard | None = None,
 ) -> ChunkedJob:
     """Run (or resume) the per-utterance frame-extraction `ChunkedJob` for one class."""
-    id_to_row = {row.utt_id: row for row in df.itertuples(index=False)}
+    id_to_row = {str(row.utt_id): row for row in df.itertuples(index=False)}
     item_ids = sorted(id_to_row)
     job = ChunkedJob(
         out_dir=cache_dir / label,
@@ -250,7 +250,7 @@ def score_manifest(
     """Score every row of `df` (test-set audio recomputed on the fly, never cached)
     through a resumable `ChunkedJob`, then merge scores back onto `clip_id`/`label`
     (and `attack_id`, if present)."""
-    id_to_row = {row.utt_id: row for row in df.itertuples(index=False)}
+    id_to_row = {str(row.utt_id): row for row in df.itertuples(index=False)}
     item_ids = sorted(id_to_row)
     job = ChunkedJob(
         out_dir=job_dir,

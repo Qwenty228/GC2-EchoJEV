@@ -125,15 +125,9 @@ class _CountingClient(JevClient):
 
     def __init__(self, inner: JevClient) -> None:
         self._inner = inner
+        self.route = inner.route
+        self.model_version = inner.model_version
         self.calls = 0
-
-    @property
-    def route(self) -> str:
-        return self._inner.route
-
-    @property
-    def model_version(self) -> str:
-        return self._inner.model_version
 
     def ask(self, request: JevRequest) -> JevResponse:
         self.calls += 1
@@ -183,7 +177,7 @@ def run_a3(
             f"question_set must be one of {sorted(QUESTION_SETS)}, got {question_set!r}"
         )
 
-    client_kind = client_kind or cfg["client"]["kind"]
+    client_kind = str(client_kind or cfg["client"]["kind"])
     n_eff = n if n is not None else int(cfg["subset"].get("n", 500))
 
     if client_kind == "typesafe" and n_eff > _TYPESAFE_FIRST_RUN_MAX_N:
@@ -315,6 +309,7 @@ def _run_a3_body(
     costs: list[float] = []
     running_cost = 0.0
 
+    row: Any  # itertuples() rows are untyped namedtuples
     for row in merged.itertuples(index=False):
         clip_id = str(row.utt_id)
         audio, _sr = load_audio(row.path, target_sr=sample_rate)

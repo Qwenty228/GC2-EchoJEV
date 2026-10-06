@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from audio_df.jev.client import JevRequest
+from audio_df.jev.client import JevRequest, QuestionType
 
 __all__ = [
     "QUESTION_TEXT_VERSION",
@@ -38,7 +38,7 @@ class JevQuestionSpec:
     """One versioned question, independent of any particular clip's state."""
 
     id: str
-    question_type: str  # "noul" | "choice" | "score"
+    question_type: QuestionType
     text: str
     version: str = QUESTION_TEXT_VERSION
     options: tuple[str, ...] | None = None

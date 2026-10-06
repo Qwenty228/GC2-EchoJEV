@@ -1,6 +1,6 @@
 """Stage-2 feature extraction: STFT power -> filterbank -> log -> DCT, six ablation variants.
 
-This module implements the controlled decomposition from `docs/handoff.md` "Stage 2":
+This module implements the controlled decomposition from the original project brief, "Stage 2":
 
     x[n] -> STFT X[m,k] -> power P[m,k] -> filterbank E[m,r] -> log L[m,r] -> DCT c[m,q]
     E[m,r] = sum_k P[m,k] * Psi_r[k]
@@ -207,7 +207,7 @@ def dct_coeffs(L: np.ndarray, n_coeff: int | None = None, orthonormal: bool = Tr
     finer-grained shape of the already-smoothed log-filterbank spectrum.
     """
     norm = "ortho" if orthonormal else None
-    c_full = dct(L, type=2, axis=-1, norm=norm)
+    c_full = np.asarray(dct(L, type=2, axis=-1, norm=norm))
     if n_coeff is not None:
         c_full = c_full[..., :n_coeff]
     return c_full

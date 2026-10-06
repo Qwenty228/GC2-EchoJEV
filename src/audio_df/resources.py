@@ -412,8 +412,7 @@ class MemoryGuard:
         if level is not None and level >= self.pause_level:
             return "pause"
 
-        swap_grew = swap is not None and (swap - self.baseline_swap_gb) > self.swap_growth_limit_gb
-        if swap_grew:
+        if swap is not None and (swap - self.baseline_swap_gb) > self.swap_growth_limit_gb:
             stable = previous_swap is not None and swap - previous_swap <= _SWAP_STABLE_GB
             if self.paused_on_swap and stable:
                 self.baseline_swap_gb = swap
@@ -684,7 +683,7 @@ class ChunkedJob:
         """
         tmp_path = self._tmp_path(chunk_idx)
         final_path = self._chunk_path(chunk_idx)
-        payload = dict(arrays)
+        payload: dict[str, Any] = dict(arrays)
         payload["ids"] = np.asarray(ids)
         np.savez(tmp_path, **payload)
         os.replace(tmp_path, final_path)

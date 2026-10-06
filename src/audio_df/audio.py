@@ -221,7 +221,8 @@ def trim_silence(
     top_db: int = 30,
     frame_length: int = 2048,
     hop_length: int = 512,
-    return_offsets: Literal[True] = ...,
+    *,
+    return_offsets: Literal[True],
 ) -> tuple[np.ndarray, tuple[int, int]]: ...
 
 

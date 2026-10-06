@@ -3,8 +3,8 @@
 Every function takes an `ax=None` and returns the `Axes` it drew on, so a notebook can
 compose several of these into one figure instead of getting one figure per call.
 
-Scientific discipline this module encodes (see `docs/handoff.md` Stage 1 / "EDA in feature
-space"):
+Scientific discipline this module encodes (from the original project brief, Stage 1 / "EDA in
+feature space"):
 
 - **Aggregate views by default.** The handoff is explicit that the analysis must not
   cherry-pick one impressive real/fake pair; distributions must be aggregated. Nothing here
@@ -201,7 +201,8 @@ def plot_mean_spectrum_with_ci(
             markevery=max(len(freqs) // 12, 1),
             label=label,
         )
-        ax.fill_between(freqs, lo, hi, color=color, alpha=0.25, linewidth=0)
+        # Pylance's bundled matplotlib stub types y1/y2 as scalars; arrays are the documented use.
+        ax.fill_between(freqs, lo, hi, color=color, alpha=0.25, linewidth=0)  # pyright: ignore[reportArgumentType]
     ax.set_xlabel("frequency (Hz)")
     ax.set_ylabel("magnitude")
     ax.legend()
@@ -236,7 +237,7 @@ def plot_class_distributions(
     ax = _ensure_ax(ax)
     all_vals = np.concatenate([np.asarray(v).ravel() for v in values_by_class.values()])
     finite = all_vals[np.isfinite(all_vals)]
-    bins = np.histogram_bin_edges(finite, bins="auto") if finite.size else 10
+    bins = np.histogram_bin_edges(finite, bins="auto").tolist() if finite.size else 10
     for label, values in values_by_class.items():
         color, linestyle, _marker = _style_for(label)
         ax.hist(
@@ -348,5 +349,5 @@ def save_figure(fig: Figure, name: str, out_dir: str = "reports/figures") -> Pat
     out_path.mkdir(parents=True, exist_ok=True)
     filename = name if name.endswith(".png") else f"{name}.png"
     path = out_path / filename
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    fig.savefig(str(path), dpi=150, bbox_inches="tight")
     return path

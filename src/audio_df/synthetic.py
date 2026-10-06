@@ -82,7 +82,7 @@ def _synth_utt(
     x = (harmonics * 0.05 + noise) * env
     if gain_db is not None and gain_db != 0.0:
         sos = butter(4, 3000, btype="highpass", fs=sr, output="sos")
-        high = sosfilt(sos, x)
+        high = np.asarray(sosfilt(sos, x))
         x = x + high * (10 ** (gain_db / 20.0) - 1.0)
     pad = int(0.05 * sr)  # small, class-independent leading/trailing silence
     x = np.concatenate([np.zeros(pad, dtype=x.dtype), x, np.zeros(pad, dtype=x.dtype)])

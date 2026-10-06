@@ -265,7 +265,7 @@ def extract_lfcc_b02(
 
     # 1. Pre-emphasis over the whole signal: y[n] = x[n] - preemph*x[n-1], y[0] = x[0].
     #    No dithering (commented out in the released baseline).
-    y = lfilter([1.0, -preemph], [1.0], x)
+    y = np.asarray(lfilter([1.0, -preemph], [1.0], x))
 
     # 2. Framing: symmetric Hamming window (np.hamming, NOT scipy's periodic default),
     #    buffer(...,'nodelay') semantics.
@@ -293,7 +293,7 @@ def extract_lfcc_b02(
     log_energy = np.log10(energy + _LOG10_EPS)
 
     # 6. Orthonormal DCT-II, all n_filters outputs (0th + (n_filters-1) more).
-    static = dct(log_energy, type=2, axis=-1, norm="ortho")
+    static = np.asarray(dct(log_energy, type=2, axis=-1, norm="ortho"))
 
     # 7-8. Delta, delta-delta (official_deltas, no normalisation), concatenate.
     delta = official_deltas(static, w=full_cfg["delta_window"])

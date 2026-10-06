@@ -1,6 +1,6 @@
 """Stage 0 leakage audit: can a trivial model predict the label from nuisance metadata alone?
 
-Per `docs/handoff.md` ("Stage 0 - Dataset and leakage audit", "Leakage tests"): before any
+Per the original project brief ("Stage 0 - Dataset and leakage audit", "Leakage tests"): before any
 modelling, fit tiny classifiers on metadata-only features (duration, sample rate, codec,
 RMS/loudness, leading/trailing/total silence, source corpus, speaker identity) and check
 whether any of them predicts the bonafide/spoof label "suspiciously well". If one does, that
@@ -158,11 +158,11 @@ def _extract_silence(key: str) -> Callable[[pd.Series, Any], float]:
 # (rms, silence_*) load the waveform via `audio.py` (owned by another agent, used read-only
 # here) and are only computable when the audio file actually exists on disk.
 NUISANCE_FEATURES: dict[str, Callable[[pd.Series, Any], Any]] = {
-    "duration_s": lambda row, audio_root=None: row["duration_s"],
-    "sample_rate": lambda row, audio_root=None: row["sample_rate"],
-    "codec": lambda row, audio_root=None: row["codec"],
-    "source_corpus": lambda row, audio_root=None: row["source_corpus"],
-    "speaker_id": lambda row, audio_root=None: row["speaker_id"],
+    "duration_s": lambda row, audio_root: row["duration_s"],
+    "sample_rate": lambda row, audio_root: row["sample_rate"],
+    "codec": lambda row, audio_root: row["codec"],
+    "source_corpus": lambda row, audio_root: row["source_corpus"],
+    "speaker_id": lambda row, audio_root: row["speaker_id"],
     "rms": _extract_rms,
     "silence_leading": _extract_silence("leading"),
     "silence_trailing": _extract_silence("trailing"),
@@ -222,11 +222,11 @@ def _fit_and_score(
 
     logreg = LogisticRegression(max_iter=1000)
     logreg.fit(X_train, y_train)
-    out["logreg"] = logreg.predict_proba(X_val)[:, 1]
+    out["logreg"] = np.asarray(logreg.predict_proba(X_val))[:, 1]
 
     tree = DecisionTreeClassifier(max_depth=2, random_state=seed)
     tree.fit(X_train, y_train)
-    out["tree"] = tree.predict_proba(X_val)[:, 1]
+    out["tree"] = np.asarray(tree.predict_proba(X_val))[:, 1]
 
     return out
 

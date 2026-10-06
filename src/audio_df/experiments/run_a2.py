@@ -67,7 +67,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -164,8 +164,10 @@ def assert_backbone_matches(model: nn.Module, cfg: dict[str, Any]) -> None:
     A silent mismatch here would poison the entire cache with the wrong `n_layers`/
     `hidden_dim`, discovered only much later when a head refuses to load.
     """
-    n_layers = model.config.num_hidden_layers + 1
-    hidden_dim = model.config.hidden_size
+    # `nn.Module` has no `config`; the Hugging Face backbone does, with untyped fields.
+    config: Any = model.config
+    n_layers = config.num_hidden_layers + 1
+    hidden_dim = config.hidden_size
     expected_layers = cfg["model"]["n_layers"]
     expected_hidden = cfg["model"]["hidden_dim"]
     if n_layers != expected_layers or hidden_dim != expected_hidden:
@@ -197,9 +199,12 @@ def align_cache_with_manifest(
 # ---------------------------------------------------------------------------
 
 
+HeadT = TypeVar("HeadT", bound=nn.Module)
+
+
 @dataclass
-class TrainResult:
-    head: nn.Module
+class TrainResult(Generic[HeadT]):
+    head: HeadT
     best_epoch: int
     train_losses: list[float] = field(default_factory=list)
     dev_losses: list[float] = field(default_factory=list)
@@ -207,7 +212,7 @@ class TrainResult:
 
 
 def train_head(
-    head: nn.Module,
+    head: HeadT,
     x_train: torch.Tensor,
     y_bonafide_train: torch.Tensor,
     x_dev: torch.Tensor,
@@ -220,7 +225,7 @@ def train_head(
     pos_weight: float | None = None,
     device: torch.device | None = None,
     generator: torch.Generator | None = None,
-) -> TrainResult:
+) -> TrainResult[HeadT]:
     """Train `head` with BCE, checkpoint-select by DEV LOSS (not dev EER — see module doc).
 
     `y_bonafide_*` must be 1.0 for bonafide, 0.0 for spoof (matching `SSLHead`'s
