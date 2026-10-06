@@ -7,7 +7,7 @@ hash to prove two runs used the same split, whole-attack-family holdout for unse
 evaluation, and a speaker-overlap guard.
 
 This module never trains anything and never computes audio features (see
-`tasks/CONVENTIONS.md`'s module table). It only reads file metadata, so it uses
+`CONVENTIONS.md`'s module table). It only reads file metadata, so it uses
 `soundfile.info()` directly for sample rate/duration rather than importing `audio.py`, which
 is being written concurrently by another agent in this repo; once that module lands, probing
 here should probably delegate to it (noted as a future refactor, not done in this task).

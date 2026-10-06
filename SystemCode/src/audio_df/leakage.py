@@ -7,7 +7,7 @@ whether any of them predicts the bonafide/spoof label "suspiciously well". If on
 is a shortcut a real model would learn instead of solving the intended detection problem
 (the handoff's own example: "microphone noise -> real" or "clean WAV -> fake").
 
-This module never trains anything for the actual detection task (see `tasks/CONVENTIONS.md`'s
+This module never trains anything for the actual detection task (see `CONVENTIONS.md`'s
 module table) — its classifiers exist only to answer "is a shortcut trivially available",
 never to be used downstream.
 
@@ -237,7 +237,7 @@ def _cross_val_oof_scores(
     """Out-of-fold spoof-probability predictions for logreg and tree, via stratified K-fold.
 
     Evaluating on held-out folds (never on training rows) is required per
-    `tasks/CONVENTIONS.md`/the task spec: "a tiny model scoring 1.0 AUC on its own training
+    `CONVENTIONS.md`/the task spec: "a tiny model scoring 1.0 AUC on its own training
     rows proves nothing." `n_splits` shrinks automatically for tiny/imbalanced inputs so this
     also works on the small synthetic manifests the tests use.
     """

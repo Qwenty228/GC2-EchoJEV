@@ -25,7 +25,7 @@ feature space"):
 
 This module computes nothing statistical itself (no effect sizes, no CIs, no AUCs) — it only
 plots arrays the caller already computed (in `stats.py` / `features.py`), consistent with the
-module boundary in `tasks/CONVENTIONS.md` ("visualization.py: figures, must not: compute
+module boundary in `CONVENTIONS.md` ("visualization.py: figures, must not: compute
 statistics").
 """
 

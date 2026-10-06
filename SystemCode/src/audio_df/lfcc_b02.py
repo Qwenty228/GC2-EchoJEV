@@ -246,7 +246,7 @@ def extract_lfcc_b02(
     training data). `cfg` overrides `DEFAULT_LFCC_B02_CONFIG` entries; unset keys fall back
     to the default. No cropping, no CMVN, no caching (A1's train-frame cache is a separate,
     on-disk mechanism built by `experiments/run_a1.py`, not here — see that module's and
-    `tasks/CONVENTIONS.md`'s module boundaries: this module only ever touches arrays).
+    `CONVENTIONS.md`'s module boundaries: this module only ever touches arrays).
     """
     full_cfg = {**DEFAULT_LFCC_B02_CONFIG, **(cfg or {})}
     if sr != full_cfg["sample_rate"]:

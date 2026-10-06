@@ -1554,7 +1554,7 @@ randomised-weights sanity check (our addition; no paper here supplies one).
 | MLAAD held-out architectures, controlled MLAAD subset | ADR-001 option B; not needed for E1–E6 |
 | VoxENES 2026 (modern-generator benchmark) | after A1–A3 run end to end |
 | self-generated voice-cloning set | pairing it with bona fide audio from another recording chain would create a corpus shortcut (ADR-001) |
-| two-branch fusion and multi-task model (`configs/fusion_multitask.yaml`) and its ablation grid | replaced by A1/A2/A3 |
+| two-branch fusion and multi-task model and its ablation grid | replaced by A1/A2/A3 (the main model is a new cross-attention design) |
 | baselines over the feature grid `feat_a`…`feat_f` | superseded; the feature code is kept for the EDA |
 | frame-level A2 heads (Transformer, CNN, ECAPA) | need the frame cache: 1 × 768 per frame, about 37 GB in fp16 for 121,461 clips |
 

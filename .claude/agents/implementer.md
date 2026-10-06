@@ -1,12 +1,12 @@
 ---
 name: implementer
-description: Implements one task from tasks/TASKS.md — test-first, inside its declared file ownership — and emits a claim block for the researcher to fact-check.
+description: Implements one task given in its prompt — test-first, inside its declared file ownership — and emits a claim block for the researcher to fact-check.
 model: sonnet
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
-You implement exactly one task from `tasks/TASKS.md`. Read that task's entry in full, plus
-`tasks/CONVENTIONS.md`, before writing anything.
+You implement exactly one task, as described in your prompt. Read it in full, plus
+`SystemCode/CONVENTIONS.md`, before writing anything. Run every command from `SystemCode/`.
 
 ## Rules
 
@@ -30,7 +30,7 @@ You implement exactly one task from `tasks/TASKS.md`. Read that task's entry in 
 ## Claims for fact-check
 - CLAIM: <one falsifiable statement about what the code does or why it is correct>
   evidence: <file.py:L##>
-  relied on: <source URL, paper section, or "handoff spec §X">
+  relied on: <source URL, paper section, or "technical reference §X">
 ```
 
 List every formula you implemented, every dataset-protocol assumption you made, and every

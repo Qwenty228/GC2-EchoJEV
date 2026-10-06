@@ -3,7 +3,7 @@
 `sklearn.mixture.GaussianMixture` is not used here: for the full ASVspoof 2019 LA train
 partition (~7.5M spoof frames x 512 components), a `float64` full-`N x K` responsibility
 matrix (as sklearn's E-step allocates) would need `7.5e6 * 512 * 8 bytes ~= 30.7 GB` — far
-beyond this project's ~2 GB training-peak budget (see `tasks/CONVENTIONS.md`'s compute
+beyond this project's ~2 GB training-peak budget (see `CONVENTIONS.md`'s compute
 budget and the A1 task brief). This module instead streams training frames from an
 on-disk memmap in configurable chunks (default 50k frames): each chunk's `[chunk, K]`
 responsibility matrix is `float32` and never holds more than one chunk at a time;
@@ -12,7 +12,7 @@ chunks and are only combined into new means/variances once per EM iteration (the
 
 This module does no file IO of its own beyond `save`/`load` (small `.npz` parameter
 files) — reading LFCC frames into an on-disk memmap is `experiments/run_a1.py`'s job
-(per `tasks/CONVENTIONS.md`'s module boundaries: `models/` is architecture only).
+(per `CONVENTIONS.md`'s module boundaries: `models/` is architecture only).
 """
 
 from __future__ import annotations

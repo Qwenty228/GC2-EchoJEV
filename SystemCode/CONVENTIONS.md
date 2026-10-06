@@ -26,14 +26,12 @@ agent that owns `pyproject.toml` for that task — everyone else requests it in 
   | `stats.py` | effect size, bootstrap CI, per-feature AUC | plot |
   | `visualization.py` | figures | compute statistics |
   | `metrics.py` | EER, AUCs, calibration, per-attack | choose thresholds from eval |
-  | `evaluation.py` | scoring runs, registry rows | define models |
-  | `training.py` | loops, seeding, early stopping | define architectures |
   | `models/` | architectures only | do IO |
 
 ## Reproducibility (every run, no exceptions)
 Seed numpy/torch/python; record git commit, config path + hash, dataset split hash, seed,
-device, package versions. Append one row to `reports/experiment_registry.csv` and write the
-matching machine-readable JSON next to the artifact.
+device, package versions. Every run writes `runs/<run id>/` (config, environment, scores) and
+adds one row to `runs/REGISTRY.md`; metrics come only from `scripts/score_experiment.py`.
 
 ## Testing
 - Tests run with **no dataset present**. Synthesise audio with numpy (tones, noise, chirps).
@@ -46,7 +44,7 @@ Apple Silicon MPS or CPU. `device: auto` resolves cuda → mps → cpu. No `.cud
 assumptions, no CUDA-only ops. Anything that cannot run on MPS falls back to CPU explicitly
 and says so in its log line.
 
-## Scientific discipline (from the handoff spec)
+## Scientific discipline
 - Thresholds are chosen on dev. **Never** on eval.
 - Hold out whole attack/generator families for unseen-attack tests, never random utterances.
 - Report per-attack EER alongside pooled EER; a pooled number can hide a reversed generator.
@@ -62,7 +60,7 @@ and says so in its log line.
 
 ## Never commit
 No audio, no checkpoints, no embedding caches, no dataset files, and no run outputs
-(`experiments/<run id>/` is gitignored; only `experiments/REGISTRY.md` and the tables in
+(`runs/<run id>/` is gitignored; only `runs/REGISTRY.md` and the tables in
 `reports/tables/` are tracked). Check `git status` before committing and keep the repo
 text-sized.
 
@@ -87,10 +85,10 @@ solve a problem this project does not have.
 
 **The one real blowup.** Caching un-pooled SSL hidden states costs 10.24 MB per utterance
 (25 layers x 199 frames x 1024 dims, fp16) = **1.24 TB** for the corpus. Pooling over time
-first costs 51.2 KB per utterance = **6.22 GB**. Pool before caching; see
-`configs/ssl_probe.yaml`. Frame-level states are for bounded subsets only, recorded as such.
+first costs 51.2 KB per utterance = **6.22 GB**. Pool before caching (A2's cache,
+`audio_df.ssl_cache`). Frame-level states are for bounded subsets only, recorded as such.
 
-**Not feasible here:** fine-tuning XLS-R end-to-end. The handoff already specifies frozen
+**Not feasible here:** fine-tuning XLS-R end-to-end. The project uses frozen
 front-ends for feasibility and reproducibility. If a fine-tuning experiment is ever run, it
 belongs on rented GPU and must report trainable parameter count and compute alongside any
 result, never mixed with frozen numbers.

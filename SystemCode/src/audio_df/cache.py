@@ -20,7 +20,7 @@ that risk:
 
 This module knows nothing about what a feature array *means* — no filterbank, no DCT, no
 sample rate handling. It only stores and retrieves arrays by key. See the module boundary
-table in `tasks/CONVENTIONS.md`.
+table in `CONVENTIONS.md`.
 """
 
 from __future__ import annotations

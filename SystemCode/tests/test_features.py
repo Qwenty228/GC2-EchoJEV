@@ -1,6 +1,6 @@
 """Tests for `audio_df.features`. All analytic/synthetic — no dataset required.
 
-Per `tasks/CONVENTIONS.md`, numerical code gets a property or an analytic reference, not
+Per `CONVENTIONS.md`, numerical code gets a property or an analytic reference, not
 just a shape assertion. Every test below either checks against an independent reference
 (scipy's own `norm="ortho"` DCT, an analytically-derived filterbank channel index) or a
 provable property (orthonormal round-trip, monotone truncation loss, Parseval energy

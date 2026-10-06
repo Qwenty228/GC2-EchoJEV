@@ -217,11 +217,11 @@ runs/         REGISTRY.md (tracked) · <run id>/ (local only: config, scores, me
 scripts/      prepare_data · audit_leakage · score_experiment · make_tables · make_degraded · get_musan
 src/audio_df/ the library
 tests/        run without any dataset
-tasks/        CONVENTIONS.md (binding coding conventions)
+CONVENTIONS.md  binding coding conventions
 ```
 
 The report lives in [`../ProjectReport/`](../ProjectReport/report/README.md) and the research
 notes in [`../Miscellaneous/research/`](../Miscellaneous/research/README.md).
 
-[`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding: uv only, tests without data,
+[`CONVENTIONS.md`](CONVENTIONS.md) is binding: uv only, tests without data,
 dev-only thresholds, module boundaries, no silent stubs.

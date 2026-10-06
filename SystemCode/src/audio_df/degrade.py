@@ -3,7 +3,7 @@
 Every public function here takes 16 kHz mono `float32` audio in and returns 16 kHz mono
 `float32` audio out, **the same length as the input**. This module never loads files from
 disk on its own initiative (callers pass arrays already loaded via `audio_df.audio.load_audio`)
-and never touches manifests or configs — see `tasks/CONVENTIONS.md`'s module table; this is
+and never touches manifests or configs — see `CONVENTIONS.md`'s module table; this is
 new module scope carved out for E4, so it inherits `audio.py`'s "only ever touches waveforms"
 contract rather than `audio.py` itself.
 

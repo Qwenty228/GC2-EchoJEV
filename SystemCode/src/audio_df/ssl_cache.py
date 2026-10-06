@@ -14,7 +14,7 @@ input; see `Miscellaneous/research/knowledge/methods/ssl-hidden-states.md`). We 
     pooled cache:       25 layers x 1024 dims x 2 bytes (fp16)              ~= 51.2 KB/clip
                         -> 121,461 clips ~= 6.2 GB     (fine)
 
-(`tasks/CONVENTIONS.md`'s "one real blowup"; WavLM Base+ at 13 x 768 is smaller still,
+(`CONVENTIONS.md`'s "one real blowup"; WavLM Base+ at 13 x 768 is smaller still,
 ~2.4 GB per silence mode for the full corpus.)
 
 ## Why the pooled cache is not a lossy shortcut for A2's head
@@ -89,7 +89,7 @@ def load_backbone(model_id: str, revision: str | None = None) -> tuple[nn.Module
 
     This function makes a real network call and is never exercised by this project's test
     suite (tests build a tiny `transformers` config locally instead, per
-    `tasks/CONVENTIONS.md`); it is only invoked by `run_a2.py`'s runner, and only against a
+    `CONVENTIONS.md`); it is only invoked by `run_a2.py`'s runner, and only against a
     real, running machine.
     """
     from transformers import AutoFeatureExtractor, AutoModel

@@ -1,7 +1,7 @@
 """A1 runner: LFCC + GMM, the official ASVspoof 2019 B02 baseline.
 
 Three subcommands, everything guarded under `if __name__ == "__main__":` per
-`tasks/CONVENTIONS.md`:
+`CONVENTIONS.md`:
 
     uv run python -m audio_df.experiments.run_a1 timing [--n 200]
     uv run python -m audio_df.experiments.run_a1 train --exp e1 [--resume]

@@ -1,7 +1,7 @@
 """Device resolution and environment capture.
 
 Every experiment records the environment it ran in: without the torch version, the device
-and the git commit, a number in `reports/experiment_registry.csv` cannot be reproduced or
+and the git commit, a number in `runs/REGISTRY.md` cannot be reproduced or
 fairly compared against another row.
 
 Target hardware for this project is Apple Silicon (MPS) or CPU. Code must never assume CUDA.
