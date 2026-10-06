@@ -28,6 +28,8 @@ agent that owns `pyproject.toml` for that task — everyone else requests it in 
   | `pipelines/` | the `adf` command: one module per system wiring the above into runs | hold reusable logic |
   | `inference.py` | `load_detector(bundle)`, the entry point for applications | know about runs |
   | `config.py` | load YAML configs | interpret them |
+  | `src/backend/` | the FastAPI app: decode an upload, call `Detector.predict` | contain model logic |
+  | `frontend/` | one static page that calls the API | talk to anything but `/api` |
 
 ## Reproducibility (every run, no exceptions)
 Seed numpy/torch/python; record git commit, config path + hash, dataset split hash, seed,

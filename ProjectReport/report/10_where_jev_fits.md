@@ -87,7 +87,7 @@ so a rerun never pays twice.
 
 - **The real client is not implemented.** `TypesafeJevClient.ask` raises `NotImplementedError`
   until the JEV API documentation arrives (request format, authentication, response schema and
-  pricing are unknown; [client.py](../../SystemCode/src/audio_df/models/jev/client.py#L189)).
+  pricing are unknown; [client.py](../../SystemCode/src/audio_df/models/jev/client.py#L190)).
 - **Only a dry-run client exists**, answering as a fixed function of A2's level word, labelled
   "DRY RUN stub answer, not a real JEV result".
 - **Notebook 12 runs end to end on synthetic scores and the dry-run client**

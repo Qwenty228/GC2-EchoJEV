@@ -205,6 +205,10 @@ the detector classes reproduce the original runs' scores.
 
 ### The main model (scaffold)
 
+See [`src/audio_df/models/README.md`](src/audio_df/models/README.md) for how detectors are
+structured and how to add one.
+
+
 `configs/fusion_xattn.yaml` defines the fusion system: bidirectional cross-attention between
 A1's LFCC frames and A2's WavLM frames, both on one time axis in seconds
 (`src/audio_df/models/fusion.py`). The first run, in order:
@@ -219,7 +223,23 @@ It is a starting point: the block, the pooling and the layer mix are meant to ch
 `CrossAttentionFusion(..., return_attention=True)` returns every attention map for
 analysis. JEV wraps it like any other detector (`JevEscalation`).
 
-## 6. Notebooks
+## 6. Web app
+
+A FastAPI backend serves one detector bundle and a single-page frontend:
+
+```bash
+ADF_BUNDLE=artifacts/a2-wavlm-base-plus uv run uvicorn backend.app:app --reload
+# open http://127.0.0.1:8000 — or call the API directly:
+curl -F file=@clip.wav http://127.0.0.1:8000/api/detect
+```
+
+`GET /api/model` reports the loaded system and threshold; `POST /api/detect` takes a WAV,
+FLAC, OGG or MP3 file (up to 60 s) and returns the `DetectionResult` JSON. The model loads on
+the first request (a few seconds for WavLM), then answers in about 50 ms per clip. Change
+models by exporting another bundle and pointing `ADF_BUNDLE` at it. Code:
+[`src/backend/app.py`](src/backend/app.py), [`frontend/`](frontend/index.html).
+
+## 7. Notebooks
 
 ```text
 notebooks/01_dataset_audit.ipynb      manifest summary and the leakage audit
@@ -266,6 +286,8 @@ scripts/      prepare_data · audit_leakage · score_experiment · make_tables �
 src/audio_df/ the library: data · features · models · training · evaluation · runtime · pipelines
               (the adf command) · inference.py (load_detector)
 artifacts/    exported model bundles (gitignored)
+src/backend/  FastAPI app (uvicorn backend.app:app)
+frontend/     single static page served by the backend
 tests/        run without any dataset
 CONVENTIONS.md  binding coding conventions
 ```

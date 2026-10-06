@@ -50,7 +50,7 @@ Three things to notice:
    generators and 2 known ones (hatched) on new speakers.
 
 No speaker appears in both train and dev
-([`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data/manifests.py#L252), run in
+([`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data/manifests.py#L253), run in
 [notebook 01](../../SystemCode/notebooks/01_dataset_audit.ipynb), cell 10).
 
 ### The second dataset: In-the-Wild

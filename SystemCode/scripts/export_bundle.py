@@ -4,7 +4,7 @@
     uv run python scripts/export_bundle.py runs/E-20261001-e1-a2-raw artifacts/a2-jev \\
         --jev configs/a3_jev.yaml [--jev-margin 2.0] [--state numbers] [--questions noul_only]
 
-The run's `config.yaml` names the system (`a1` or `a2`); its dev EER threshold comes from
+The run's `config.yaml` names the system (`a1`, `a2` or `fusion`); its dev EER threshold comes from
 its `metrics.json`. `--jev` wraps the detector with `JevEscalation`. Load the result with
 `audio_df.inference.load_detector(<bundle dir>)`.
 """
@@ -12,6 +12,7 @@ its `metrics.json`. `--jev` wraps the detector with `JevEscalation`. Load the re
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import yaml
@@ -19,9 +20,14 @@ import yaml
 from audio_df.models.a1_lfcc_gmm import LfccGmmDetector
 from audio_df.models.a2_ssl_head import SslHeadDetector
 from audio_df.models.base import Detector
+from audio_df.models.fusion_detector import FusionDetector
 from audio_df.models.jev.wrapper import JevEscalation
 
-_FROM_RUN = {"a1": LfccGmmDetector.from_run, "a2": SslHeadDetector.from_run}
+_FROM_RUN = {
+    "a1": LfccGmmDetector.from_run,
+    "a2": SslHeadDetector.from_run,
+    "fusion": FusionDetector.from_run,
+}
 
 
 def main() -> None:
@@ -45,6 +51,11 @@ def main() -> None:
             state_variant=args.state,
             question_set=args.questions,
             escalate_margin=args.jev_margin,
+        )
+    if not math.isfinite(detector.threshold):
+        raise SystemExit(
+            f"{args.run_dir} has no dev threshold yet; score it first: "
+            f"uv run python scripts/score_experiment.py {args.run_dir}"
         )
     detector.save(args.out_dir)
     print(f"wrote {args.out_dir} ({detector.system}, threshold {detector.threshold:.4g})")

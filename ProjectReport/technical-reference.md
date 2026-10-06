@@ -135,7 +135,7 @@ Hard rule: **no metric is ever computed inside training code.** Runners write
 - **Origin:** all bona fide speech is Voice Cloning Toolkit corpus (VCTK): 107 English speakers, studio-quality, one
   recording chain. Spoofs are text-to-speech (TTS) or voice conversion (VC) outputs built on the same VCTK material [14].
 - **Protocol format:** `SPEAKER_ID UTT_ID - SYSTEM_ID KEY`, five whitespace-separated fields,
-  parsed by [`parse_asvspoof_protocol`](../SystemCode/src/audio_df/data/manifests.py#L121).
+  parsed by [`parse_asvspoof_protocol`](../SystemCode/src/audio_df/data/manifests.py#L122).
 
 Counts from our own manifest ([notebooks/01_dataset_audit.ipynb](../SystemCode/notebooks/01_dataset_audit.ipynb),
 cells 3–6, real-data mode):
@@ -164,7 +164,7 @@ Two properties drive the design:
 Integrity checks that pass:
 
 - No speaker overlap between train and dev, enforced by
-  [`assert_no_speaker_overlap`](../SystemCode/src/audio_df/data/manifests.py#L252) (notebook 01, NB01, cell 10).
+  [`assert_no_speaker_overlap`](../SystemCode/src/audio_df/data/manifests.py#L253) (notebook 01, NB01, cell 10).
 - `split_hash` is independent of row order, so every run can prove which split it used
   (NB01 cell 12).
 - Manifests are gitignored; their Secure Hash Algorithm, 256-bit (SHA-256) sums are committed under `data/manifests/`.
@@ -187,12 +187,12 @@ Integrity checks that pass:
 - The licence is in conflict: the Hugging Face (HF) card says Creative Commons Attribution-ShareAlike (CC-BY-SA) 4.0 and the authors' page says
   Apache-2.0. See
   [research/knowledge/datasets/in-the-wild.md](../Miscellaneous/research/knowledge/datasets/in-the-wild.md).
-- Loaded by [`build_itw_manifest`](../SystemCode/src/audio_df/data/manifests.py#L347).
+- Loaded by [`build_itw_manifest`](../SystemCode/src/audio_df/data/manifests.py#L348).
 
 ### 2.3 E4 robustness inputs (generator ready, not yet run)
 
 - **A 10,000-clip stratified eval subset**, seed 1337, stratified by `(label, attack_id)` with
-  largest-remainder allocation ([`stratified_subset`](../SystemCode/src/audio_df/data/manifests.py#L433)). It
+  largest-remainder allocation ([`stratified_subset`](../SystemCode/src/audio_df/data/manifests.py#L434)). It
   contains 1,032 bona fide clips and 689–690 clips per attack, matching the full eval mix to
   0.01 % ([notebooks/13_e4_degradations.ipynb](../SystemCode/notebooks/13_e4_degradations.ipynb) cell 4).
   The clip IDs are frozen in [configs/e4_degradations.yaml](../SystemCode/configs/e4_degradations.yaml).
