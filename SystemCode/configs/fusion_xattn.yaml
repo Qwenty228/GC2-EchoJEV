@@ -1,0 +1,64 @@
+# Main model (scaffold): bidirectional cross-attention between the A1 stream (B02 LFCC
+# frames) and the A2 stream (frozen WavLM Base+ hidden states, mixed across layers).
+# See src/audio_df/models/fusion.py for the architecture and features/frames.py for the
+# frame cache. These values are a starting point for the team, not tuned settings.
+system: fusion
+experiment: e2
+
+features:
+  name: lfcc_b02_x_ssl_frames   # recorded in each run's config; the blocks below define it
+
+ssl:
+  id: microsoft/wavlm-base-plus
+  revision: null
+  n_layers: 13
+  hidden_dim: 768
+  # Fixed before caching: "uniform", a list of layer indices (e.g. [3, 4, 5], uniform over
+  # those), or an A2 run directory whose learned layer_weights.json should be used.
+  layer_weights: uniform
+
+# The A1 front end, unchanged (the official B02 recipe; see configs/a1_lfcc_gmm.yaml).
+lfcc:
+  name: lfcc_b02
+  window_ms: 20
+  hop_ms: 10
+  n_fft: 512
+  n_filters: 20
+  fmin: 0.0
+  fmax: null
+  preemph: 0.97
+  delta_window: 3
+  total_dims: 60
+
+preprocessing:
+  sample_rate: 16000
+  crop_seconds: 4.0     # both streams cover the same 4 s: 399 LFCC and 199 SSL frames
+  crop_mode: center
+  silence_mode: raw     # trimmed training is allowed here: prepare trimmed train/dev caches
+
+model:
+  d_model: 128
+  n_heads: 4
+  n_blocks: 2
+  mlp_hidden: 64
+  dropout: 0.1
+
+train:
+  lr: 3.0e-4
+  batch_size: 32
+  max_epochs: 30
+  patience: 5
+  pos_weight: auto      # n_spoof / n_bonafide from the train split
+
+data:
+  train_manifest: data/manifests/train.csv
+  testsets:
+    dev: data/manifests/dev.csv
+    eval: data/manifests/eval.csv
+    itw: data/manifests/itw.csv
+
+# Measured 345 KB per clip (fp16): ~9 GB train, ~9 GB dev, ~25 GB eval per silence mode.
+cache_dir: data/cache/fusion
+cache_tag: wavlm-base-plus-uniform   # change it whenever ssl.layer_weights changes
+cache_chunk_size: 256
+seed: 1337

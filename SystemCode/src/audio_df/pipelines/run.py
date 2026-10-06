@@ -9,13 +9,13 @@
 
 Commands, and the systems that have them:
 
-| command   | a1 | a2 | a3 | does |
-|-----------|----|----|----|------|
-| `timing`  | x  | x  |    | time a few clips, extrapolate; builds nothing |
-| `prepare` |    | x  |    | build the pooled SSL feature cache |
-| `train`   | x  | x  |    | train, then score dev and eval into `runs/<id>/` |
-| `score`   | x  | x  |    | score more test sets with a trained run's model |
-| `jev`     |    |    | x  | the E5 JEV evaluation on a stratified dev subset |
+| command   | a1 | a2 | a3 | fusion | does |
+|-----------|----|----|----|--------|------|
+| `timing`  | x  | x  |    |        | time a few clips, extrapolate; builds nothing |
+| `prepare` |    | x  |    | x      | build the feature cache (pooled SSL; frame streams) |
+| `train`   | x  | x  |    | x      | train, then score dev and eval into `runs/<id>/` |
+| `score`   | x  | x  |    | x      | score more test sets with a trained run's model |
+| `jev`     |    |    | x  |        | the E5 JEV evaluation on a stratified dev subset |
 
 `uv run adf` is `python -m audio_df.pipelines.run`. Metrics always come afterwards from
 `scripts/score_experiment.py`. A new system adds a pipeline module with a `COMMANDS` dict
@@ -29,7 +29,7 @@ from typing import Any
 
 from audio_df.config import load_config
 from audio_df.models.jev.questions import QUESTION_SETS
-from audio_df.pipelines import Command, a1, a2, a3
+from audio_df.pipelines import Command, a1, a2, a3, fusion
 
 __all__ = ["PIPELINES", "build_parser", "main"]
 
@@ -37,6 +37,7 @@ PIPELINES: dict[str, dict[str, Command]] = {
     "a1": a1.COMMANDS,
     "a2": a2.COMMANDS,
     "a3": a3.COMMANDS,
+    "fusion": fusion.COMMANDS,
 }
 
 
@@ -49,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("timing", help="time a few clips; builds nothing")
     p.add_argument("--n", type=int, default=None)
 
-    p = sub.add_parser("prepare", help="build a feature cache (a2)")
+    p = sub.add_parser("prepare", help="build a feature cache (a2, fusion)")
     p.add_argument("--testsets", required=True)
     p.add_argument("--silence-mode", default="raw", choices=["raw", "trimmed"])
     p.add_argument("--resume", action="store_true")

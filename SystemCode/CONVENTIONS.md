@@ -21,8 +21,8 @@ agent that owns `pyproject.toml` for that task — everyone else requests it in 
   |---|---|---|
   | `data/` | manifests, protocol parsing, splits, subsets, degradations, synthetic fixtures | train anything |
   | `features/` | audio load and preprocessing, LFCC-B02, cepstral grid, SSL extraction, caches | know labels or thresholds |
-  | `models/` | detectors behind one interface (`base.Detector`): A1, A2, the JEV wrapper; their architectures | do run bookkeeping |
-  | `training/` | fitting: A1 frame cache and chunked EM, A2 head training | write score files |
+  | `models/` | detectors behind one interface (`base.Detector`): A1, A2, the fusion model, the JEV wrapper; their architectures | do run bookkeeping |
+  | `training/` | fitting: A1 frame cache and chunked EM, A2 head training, fusion training | write score files |
   | `evaluation/` | metrics, scoring from score files, statistics, leakage audit, figures, XAI | choose thresholds from eval |
   | `runtime/` | device, seeding, resource limits, run directories, registry | know what a model is |
   | `pipelines/` | the `adf` command: one module per system wiring the above into runs | hold reusable logic |

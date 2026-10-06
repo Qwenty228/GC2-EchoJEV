@@ -61,6 +61,7 @@ falls to chance. The [report](../ProjectReport/report/README.md) gives the full 
 | A1 (`pipelines/a1.py`, notebooks 09–10) | run: E1, E3, raw and trimmed; X4 with 3 seeds per arm |
 | A2 with WavLM Base+ (`pipelines/a2.py`, notebook 11) | run: E1, E3, raw and trimmed; X6 layer analysis |
 | A2 with XLS-R 300M | configured, not run |
+| Main model: A1 x A2 cross-attention fusion (`pipelines/fusion.py`) | scaffold: model, frame cache, training and scoring, tested on synthetic data; not yet trained |
 | A3 (`pipelines/a3.py`, notebook 12) | scaffold with a dry-run client; waiting for the JEV API documentation |
 | E4 degradations (`make_degraded.py`, notebook 13) | generator ready, not scored |
 | E6 efficiency | not built |
@@ -201,6 +202,22 @@ result.to_dict()
 `score` is higher for more bona fide; `label` compares it with the dev-set threshold. A1,
 A2 and any of them wrapped with JEV are interchangeable; `scripts/check_parity.py` confirms
 the detector classes reproduce the original runs' scores.
+
+### The main model (scaffold)
+
+`configs/fusion_xattn.yaml` defines the fusion system: bidirectional cross-attention between
+A1's LFCC frames and A2's WavLM frames, both on one time axis in seconds
+(`src/audio_df/models/fusion.py`). The first run, in order:
+
+```bash
+uv run adf --config configs/fusion_xattn.yaml prepare --testsets train,dev,eval   # ~27 GB, resumable
+uv run adf --config configs/fusion_xattn.yaml train --exp e2
+uv run python scripts/score_experiment.py runs/<run id>
+```
+
+It is a starting point: the block, the pooling and the layer mix are meant to change, and
+`CrossAttentionFusion(..., return_attention=True)` returns every attention map for
+analysis. JEV wraps it like any other detector (`JevEscalation`).
 
 ## 6. Notebooks
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from audio_df.models.a1_lfcc_gmm import LfccGmmDetector
 from audio_df.models.a2_ssl_head import SslHeadDetector
 from audio_df.models.base import Detector
+from audio_df.models.fusion_detector import FusionDetector
 from audio_df.models.jev.wrapper import JevEscalation
 
 __all__ = ["SYSTEMS", "detector_class"]
@@ -13,6 +14,7 @@ SYSTEMS: dict[str, type[Detector]] = {
     LfccGmmDetector.system: LfccGmmDetector,
     SslHeadDetector.system: SslHeadDetector,
     JevEscalation.system: JevEscalation,
+    FusionDetector.system: FusionDetector,
 }
 
 
