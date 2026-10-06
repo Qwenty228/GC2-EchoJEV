@@ -3,9 +3,12 @@
 Each experiment run lives in its own directory, named by its experiment ID
 (`E-YYYYMMDD-<exp>-<system>-<silence_mode>[-<tag>]`, e.g. `E-20261001-e1-a1-raw`;
 built and validated by `audio_df.exp_io.make_exp_id`). `<exp>` is `e1`..`e6`
-(research doc §5.2) or `dev`/`smoke` for tuning/smoke runs that are never scored as
+(the experiments listed in the [README](../README.md)) or `dev`/`smoke` for tuning/smoke runs that are never scored as
 an experiment result. Directories are created by `audio_df.exp_io.create_experiment`
 and never hand-edited in place except for `notes.md`.
+
+Run directories stay local and are not tracked in git (see `.gitignore`); only this file and
+`REGISTRY.md` are. The experiment tables built from them are tracked in `reports/tables/`.
 
 ```
 experiments/<exp_id>/

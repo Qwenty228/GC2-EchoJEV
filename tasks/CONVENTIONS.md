@@ -61,9 +61,9 @@ and says so in its log line.
 5. The researcher's verdict is `confirmed` — or the task is not done.
 
 ## Never commit
-The uncompressed `docs/assets/architecture-full.png` (1.8 MB) is gitignored;
-`docs/assets/architecture.jpg` (272 KB) is the committed version. No audio, no checkpoints,
-no embedding caches, no dataset files. Check `git status` before committing and keep the repo
+No audio, no checkpoints, no embedding caches, no dataset files, and no run outputs
+(`experiments/<run id>/` is gitignored; only `experiments/REGISTRY.md` and the tables in
+`reports/tables/` are tracked). Check `git status` before committing and keep the repo
 text-sized.
 
 ## Compute budget (measured, not assumed)
