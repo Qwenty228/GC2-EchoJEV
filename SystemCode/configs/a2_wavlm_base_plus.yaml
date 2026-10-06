@@ -1,0 +1,49 @@
+# System A2, WavLM Base+ backbone: frozen SSL -> learned layer-weighted head.
+#
+# Layer/hidden counts are a CHECK, not a guess: WavLM Base+ has 12 transformer layers plus
+# the feature-encoder/embedding output = 13 hidden-state tensors under
+# `output_hidden_states=True`, each of hidden size 768 — confirmed directly from the model's
+# own `config.json` (Miscellaneous/research/knowledge/methods/ssl-hidden-states.md). `run_a2.py` asserts
+# the loaded model matches `model.n_layers`/`model.hidden_dim` before extracting anything.
+system: a2
+
+model:
+  id: microsoft/wavlm-base-plus
+  tag: wavlm-base-plus
+  revision: null        # TODO pin once the raw train/dev/eval extraction finishes (changing it
+                        # mid-extraction makes the resumable job refuse, by design). Cached on
+                        # 2026-10-01: main = 4c66d4806a428f2e922ccfa1a962776e232d487b
+                        # (pytorch_model.bin); transformers also fetched the auto-converted
+                        # model.safetensors at 98fd61b9c652129c839c0a25a05987d8f59256a4 (same weights).
+  n_layers: 13          # embedding output + 12 transformer layers
+  hidden_dim: 768
+  do_normalize: false   # WavLM Base+'s own preprocessor_config.json: do_normalize=false
+
+preprocessing:
+  sample_rate: 16000
+  crop_seconds: 4.0      # 64000 samples -> 199 frames for this backbone's conv stride
+  crop_mode: center       # center crop for EVERY split, including train (see run_a2.py doc)
+  silence_mode: raw       # raw is the primary mode; trimmed is a diagnostic on eval/itw only
+
+head:
+  proj_dim: 256
+  mlp_hidden: 128
+  dropout: 0.1
+  lr: 1.0e-3
+  batch_size: 256
+  max_epochs: 60
+  patience: 8
+  pos_weight: auto        # computed from the train split's bonafide:spoof ratio (~1:8.8)
+
+data:
+  train_manifest: data/manifests/train.csv
+  testsets:
+    dev: data/manifests/dev.csv
+    eval: data/manifests/eval.csv
+    itw: data/manifests/itw.csv
+
+features:
+  name: ssl_wavlm_base_plus_layer_weighted
+
+cache_dir: data/cache/ssl
+seed: 1337
