@@ -90,6 +90,9 @@ uv run python -c "from audio_df.runtime.device import describe_env; print(descri
 
 ## 2. Get the dataset
 
+[`data/README.md`](data/README.md) has copy-paste download commands for every dataset
+(ASVspoof 2019 LA, In-the-Wild, MUSAN, ASVspoof 2021) and how to add a new one.
+
 **ASVspoof 2019 LA** is what the configs target. Hosted on Edinburgh DataShare — no login or
 registration needed (the "Log In" on that page is for depositing, not downloading).
 
