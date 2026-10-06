@@ -8,7 +8,7 @@ proves nothing, so measure it on every clip.
 For each clip we compute **the fraction of the clip that is silent before the first sound**.
 The clip is cut into frames of 2,048 samples (128 milliseconds), one every 512 samples; a frame
 is silent if its energy is more than 30 decibels (dB) below the clip's loudest frame
-([`silence_ratio`](../../SystemCode/src/audio_df/audio.py#L142), following the `librosa` audio library).
+([`silence_ratio`](../../SystemCode/src/audio_df/features/audio.py#L142), following the `librosa` audio library).
 So "silent" means "much quieter than this clip's speech", not "digital zero": room hiss counts.
 
 Here it is for all 121,461 clips of ASVspoof 2019 LA (the Automatic Speaker Verification
@@ -31,8 +31,8 @@ To be honest about it, we fit a **probe**: a classifier so small it can only ans
 there information about real versus fake in this one number?" One probe is a **logistic
 regression** (one threshold with a soft edge), the other a **decision tree of depth 2** (at most
 three yes/no cut-offs); whichever ranks better is kept
-([`_fit_and_score`](../../SystemCode/src/audio_df/leakage.py#L217),
-[`audit_single_feature`](../../SystemCode/src/audio_df/leakage.py#L299)). The probes are not our detectors;
+([`_fit_and_score`](../../SystemCode/src/audio_df/evaluation/leakage.py#L217),
+[`audit_single_feature`](../../SystemCode/src/audio_df/evaluation/leakage.py#L299)). The probes are not our detectors;
 they only measure how much a shortcut gives away.
 
 ### Scoring the probe honestly: cross-validation
@@ -40,7 +40,7 @@ they only measure how much a shortcut gives away.
 A probe tested on the clips it was fitted on would look better than it is. So we use **5-fold
 cross-validation**: split the clips into 5 parts with the same real/fake mix, fit on 4, score the
 unseen 5th, and rotate. Every clip gets an "out-of-fold" score from a probe that never saw it
-([`_cross_val_oof_scores`](../../SystemCode/src/audio_df/leakage.py#L234)). We score those with the area
+([`_cross_val_oof_scores`](../../SystemCode/src/audio_df/evaluation/leakage.py#L234)). We score those with the area
 under the curve (AUC) and the equal error rate (EER) from chapter 2 (AUC 0.5: no information;
 1.0: perfect separation).
 
@@ -50,7 +50,7 @@ Is the AUC a stable fact or luck of this set of clips? Pretend we had drawn anot
 draw 121,461 out-of-fold scores at random **with replacement** (some twice, some not at all),
 recompute the AUC, and repeat 1,000 times. The middle 95 % is the **95 % confidence interval
 (CI)**. Only the clips are resampled, not the probes
-([`_bootstrap_ci`](../../SystemCode/src/audio_df/leakage.py#L271)). A narrow interval means the number would
+([`_bootstrap_ci`](../../SystemCode/src/audio_df/evaluation/leakage.py#L271)). A narrow interval means the number would
 barely move on another sample.
 
 ## The result
@@ -76,7 +76,7 @@ The rest of the audit: total silence is almost as strong (AUC 0.825), speaker
 identity is borderline (0.649), duration (0.624) and trailing silence (0.611) are weaker, and
 the file-format details carry nothing because every clip shares them. A feature is **flagged**
 when its AUC is above 0.65. That cut-off is a project convention, not a value from the
-literature ([`DEFAULT_LEAKAGE_THRESHOLD`](../../SystemCode/src/audio_df/leakage.py#L82)). Flagged:
+literature ([`DEFAULT_LEAKAGE_THRESHOLD`](../../SystemCode/src/audio_df/evaluation/leakage.py#L82)). Flagged:
 leading silence, total silence, loudness, and all combined.
 
 Throwing in **every** feature only lifts AUC from 0.837 to 0.876: leading silence carries most
@@ -123,11 +123,11 @@ The audit's verdict ([notebook 01](../../SystemCode/notebooks/01_dataset_audit.i
 run) is that the data "should NOT be modelled on as-is until the flagged feature(s) are
 investigated". We did not rebuild the dataset; every result is reported on **raw** audio and on
 **trimmed** audio, with leading and trailing silence removed
-([`trim_silence`](../../SystemCode/src/audio_df/audio.py#L228), same 30 dB rule; inner pauses kept).
+([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L229), same 30 dB rule; inner pauses kept).
 
 When a detector needs fixed-length input (A2, chapter 7), short clips are padded by
 **repeating** them, never with zeros, which would add back the silence
-([`preprocess`](../../SystemCode/src/audio_df/audio.py#L289)).
+([`preprocess`](../../SystemCode/src/audio_df/features/audio.py#L290)).
 
 Chapter 8 measures what trimming does to our detectors, next to what [27] saw. What we do
 **not** know yet: our detectors were trained on raw audio only, so a drop when we
@@ -143,7 +143,7 @@ done.
 > - A one-number probe on leading silence ranks real above fake with AUC 0.837 [0.835, 0.840]
 >   and 24.7 % EER, under 5-fold cross-validation and a 1,000-resample bootstrap
 >   ([leakage_audit.csv](../../SystemCode/reports/tables/leakage_audit.csv);
->   [`leakage.py`](../../SystemCode/src/audio_df/leakage.py#L299)).
+>   [`leakage.py`](../../SystemCode/src/audio_df/evaluation/leakage.py#L299)).
 > - All nuisance features together reach only 0.876, so silence carries most of the shortcut
 >   (same table).
 > - The cause is how the dataset was built: TTS output has no lead-in (from paper [27, §2, p.2]),

@@ -46,7 +46,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from audio_df.jev.state import LEVEL_WORDS
+from audio_df.models.jev.state import LEVEL_WORDS
 
 __all__ = [
     "QuestionType",
@@ -69,7 +69,7 @@ _DRY_RUN_MODEL_VERSION = "dry-run-0"
 class JevRequest:
     """One typed question over one clip's evidence state.
 
-    `state_json` is whatever `audio_df.jev.state.build_state` produced — plain, JSON-
+    `state_json` is whatever `audio_df.models.jev.state.build_state` produced — plain, JSON-
     serialisable data, never a clip id, path, label, attack id, or speaker.
     """
 
@@ -135,7 +135,7 @@ class DryRunJevClient(JevClient):
     """Deterministic stub client — NEVER a real JEV result.
 
     The answer is a function of `state_json["detector"]["level"]` only (one of
-    `audio_df.jev.state.LEVEL_WORDS`), mapped to a bona-fide probability
+    `audio_df.models.jev.state.LEVEL_WORDS`), mapped to a bona-fide probability
     `p = (level_index + 0.5) / len(LEVEL_WORDS)` — strictly increasing in the level's
     ordinal, so a more bona-fide-leaning A2 score always yields a higher `p(no)` on the
     noul question (the orientation the runner and `noul_to_a3_score` rely on). An unknown or
@@ -215,6 +215,6 @@ class TypesafeJevClient(JevClient):
     def ask(self, request: JevRequest) -> JevResponse:
         raise NotImplementedError(
             "TypesafeJevClient.ask is awaiting the JEV API docs from the user — see the "
-            "TODO list in audio_df/jev/client.py's module docstring for exactly what is "
+            "TODO list in audio_df/models/jev/client.py's module docstring for exactly what is "
             "needed (wire format, auth, response schema, pricing)."
         )

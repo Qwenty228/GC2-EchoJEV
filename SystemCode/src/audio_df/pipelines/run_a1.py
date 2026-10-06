@@ -3,9 +3,9 @@
 Three subcommands, everything guarded under `if __name__ == "__main__":` per
 `CONVENTIONS.md`:
 
-    uv run python -m audio_df.experiments.run_a1 timing [--n 200]
-    uv run python -m audio_df.experiments.run_a1 train --exp e1 [--resume]
-    uv run python -m audio_df.experiments.run_a1 score --model-from runs/<raw exp id> \
+    uv run python -m audio_df.pipelines.run_a1 timing [--n 200]
+    uv run python -m audio_df.pipelines.run_a1 train --exp e1 [--resume]
+    uv run python -m audio_df.pipelines.run_a1 score --model-from runs/<raw exp id> \
         --exp e1 --silence-mode raw|trimmed --testsets eval[,itw,...] [--resume]
 
 ## Train-frame cache
@@ -61,12 +61,12 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from audio_df.audio import load_audio, preprocess
-from audio_df.exp_io import make_exp_id, write_scores
-from audio_df.experiments.lifecycle import experiment_run
-from audio_df.lfcc_b02 import extract_lfcc_b02
+from audio_df.features.audio import load_audio, preprocess
+from audio_df.features.lfcc_b02 import extract_lfcc_b02
 from audio_df.models.gmm import DiagGMM, score_llr
-from audio_df.resources import (
+from audio_df.runtime.exp_io import make_exp_id, write_scores
+from audio_df.runtime.lifecycle import experiment_run
+from audio_df.runtime.resources import (
     ChunkedJob,
     MemoryGuard,
     MemoryPressureExit,

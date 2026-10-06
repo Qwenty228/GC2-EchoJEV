@@ -1,4 +1,4 @@
-"""Tests for audio_df.degrade — synthetic tones/noise only, no dataset needed."""
+"""Tests for audio_df.data.degrade — synthetic tones/noise only, no dataset needed."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 import pytest
 
-from audio_df.degrade import (
+from audio_df.data.degrade import (
     add_noise,
     clip_seed,
     degrade,

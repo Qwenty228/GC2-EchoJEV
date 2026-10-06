@@ -2,9 +2,9 @@
 id: lfcc-vs-mfcc-explained
 type: method
 sources:
-  - src/audio_df/lfcc_b02.py (HEAD d6f123f; line numbers below refer to this file)
-  - src/audio_df/features.py (HEAD d6f123f; hz_to_mel L76-86, mel_to_hz L88-91, filterbank L120-173)
-  - src/audio_df/audio.py (trim_silence L227-285, silence_ratio)
+  - src/audio_df/features/lfcc_b02.py (HEAD d6f123f; line numbers below refer to this file)
+  - src/audio_df/features/cepstral.py (HEAD d6f123f; hz_to_mel L76-86, mel_to_hz L88-91, filterbank L120-173)
+  - src/audio_df/features/audio.py (trim_silence L227-285, silence_ratio)
   - configs/features.yaml; configs/a1_lfcc_gmm.yaml
   - research/knowledge/methods/b02-lfcc-gmm.md, lfcc-mfcc-dct.md, leakage-audit.md (existing notes, relied on for the B02 parameters and the silence-shortcut literature)
   - https://www.isca-archive.org/interspeech_2015/sahidullah15_interspeech.pdf (Sahidullah, Kinnunen, Hanilci 2015; fetched and read in full)
@@ -102,7 +102,7 @@ differences, which a change of filter spacing would not obviously remove [recomp
 
 ## Mechanism / derivation
 
-### §1 (a) The pipeline as equations, matching `src/audio_df/lfcc_b02.py`
+### §1 (a) The pipeline as equations, matching `src/audio_df/features/lfcc_b02.py`
 Notation: sampling rate f_s = 16000 Hz, frame length N = 320 (20 ms), hop H = 160 (10 ms), FFT size 512, J = 20 filters.
 
 1. **Pre-emphasis** (L246, `lfilter([1, -0.97], [1], x)`). y[n] = x[n] - 0.97 x[n-1], y[0] = x[0]. Transfer function

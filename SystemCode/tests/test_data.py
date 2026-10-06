@@ -1,4 +1,4 @@
-"""Tests for manifest building, protocol parsing, and split hygiene (src/audio_df/data.py).
+"""Tests for manifest building, protocol parsing and split hygiene (audio_df/data/manifests.py).
 
 No dataset is required: a tiny fake ASVspoof-shaped protocol file plus fake audio files are
 synthesised under `tmp_path` for every test. Real-data tests would be marked
@@ -17,7 +17,7 @@ import pytest
 import soundfile as sf
 import yaml
 
-from audio_df.data import (
+from audio_df.data.manifests import (
     DatasetNotFoundError,
     assert_no_speaker_overlap,
     build_itw_manifest,

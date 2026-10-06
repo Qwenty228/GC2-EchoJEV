@@ -1,4 +1,4 @@
-"""Tests for the content-hashed feature cache (src/audio_df/cache.py).
+"""Tests for the content-hashed feature cache (src/audio_df/features/cache.py).
 
 No dataset is required: arrays are synthesised with numpy. These tests exist to catch the
 single most dangerous failure mode in the project — a cache that silently returns stale or
@@ -12,7 +12,7 @@ import json
 import numpy as np
 import pytest
 
-from audio_df.cache import FeatureCache, cache_key
+from audio_df.features.cache import FeatureCache, cache_key
 
 # --------------------------------------------------------------------------- cache_key
 

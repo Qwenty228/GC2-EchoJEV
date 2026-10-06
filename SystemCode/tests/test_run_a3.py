@@ -10,7 +10,7 @@ import pytest
 import soundfile as sf
 import yaml
 
-from audio_df.experiments.run_a3 import resolve_eer_threshold, run_a3
+from audio_df.pipelines.run_a3 import resolve_eer_threshold, run_a3
 
 NORMAL_STATUS = {
     "pressure_level": 1,
@@ -67,7 +67,7 @@ def _build_fixture(tmp_path, n_clips=6):
 
 
 def _write_a2_metrics(a2_dir, eer_threshold=0.0, via="testsets_dev"):
-    """A minimal, real-shaped `metrics.json` (see `audio_df.scoring.score_experiment`)."""
+    """A minimal, real-shaped `metrics.json` (as `audio_df.evaluation.scoring` writes it)."""
     if via == "testsets_dev":
         payload = {
             "exp_id": a2_dir.name,
@@ -228,8 +228,8 @@ def test_run_a3_budget_guard_aborts(tmp_path, monkeypatch):
     manifest_path, a2_dir = _build_fixture(tmp_path, n_clips=10)
     cfg = _cfg(manifest_path, a2_dir, tmp_path / "jev_cache", n=10)
 
-    import audio_df.experiments.run_a3 as run_a3_mod
-    from audio_df.jev.client import DryRunJevClient, JevRequest
+    import audio_df.pipelines.run_a3 as run_a3_mod
+    from audio_df.models.jev.client import DryRunJevClient, JevRequest
 
     class _ExpensiveClient(DryRunJevClient):
         route = "typesafe"

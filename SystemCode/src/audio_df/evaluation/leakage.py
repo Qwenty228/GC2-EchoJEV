@@ -67,8 +67,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
 
-from audio_df import audio as audio_mod
-from audio_df import metrics
+from audio_df.evaluation import metrics
+from audio_df.features import audio as audio_mod
 
 __all__ = [
     "NUISANCE_FEATURES",
@@ -477,14 +477,14 @@ def audit_all(
 def run_audit(cfg: dict) -> pd.DataFrame:
     """End-to-end Stage 0 leakage audit driven by a parsed config dict.
 
-    Builds the manifest via `audio_df.data.build_manifest(cfg)`, extracts nuisance features
-    (optionally loading audio under `cfg['dataset']['root']` for RMS/silence features),
+    Builds the manifest via `audio_df.data.manifests.build_manifest(cfg)`, extracts nuisance
+    features (optionally loading audio under `cfg['dataset']['root']` for RMS/silence features),
     audits every feature plus the combined model, writes the report to
     `reports/tables/leakage_audit.csv`, and returns the report DataFrame. `cfg` may set
     `cfg['leakage_audit']['threshold']` (default `DEFAULT_LEAKAGE_THRESHOLD`) and
     `cfg['seed']` (default 0).
     """
-    from audio_df.data import build_manifest  # local import: keep leakage.py's import
+    from audio_df.data.manifests import build_manifest  # local import: keep leakage.py's import
 
     # surface unusable to callers that only want extract/audit on a pre-built manifest.
     manifest = build_manifest(cfg)

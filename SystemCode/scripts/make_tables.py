@@ -7,7 +7,7 @@
 Reads every `runs/<id>/{config.yaml,metrics.json}` for rows whose
 `runs/REGISTRY.md` status is exactly `done` (rows marked `running`,
 `failed`, or `superseded` are excluded). Computes nothing: every number already
-lives in some `metrics.json`, written once by `audio_df.scoring.score_experiment`.
+lives in some `metrics.json`, written once by `audio_df.evaluation.scoring.score_experiment`.
 Ordering is always sorted by explicit key tuples (system, then silence_mode /
 testset name / attack id, ...), never insertion order, so re-running this script
 on the same registry produces byte-identical tables.

@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 import torch
 
-import audio_df.resources as resources_mod
-from audio_df.resources import (
+import audio_df.runtime.resources as resources_mod
+from audio_df.runtime.resources import (
     ChunkConfigMismatchError,
     ChunkedJob,
     DiskBudgetError,
@@ -261,8 +261,8 @@ def test_memory_status_parses_real_sysctl_output(monkeypatch):
             )
         return r
 
-    monkeypatch.setattr("audio_df.resources.platform.system", lambda: "Darwin")
-    monkeypatch.setattr("audio_df.resources.subprocess.run", fake_run)
+    monkeypatch.setattr("audio_df.runtime.resources.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("audio_df.runtime.resources.subprocess.run", fake_run)
 
     status = memory_status()
     assert status["pressure_level"] == 1
@@ -284,8 +284,8 @@ def test_memory_status_parses_gb_units(monkeypatch):
             r.stdout = "vm.swapusage: total = 2.00G  used = 1.50G  free = 0.50G\n"
         return r
 
-    monkeypatch.setattr("audio_df.resources.platform.system", lambda: "Darwin")
-    monkeypatch.setattr("audio_df.resources.subprocess.run", fake_run)
+    monkeypatch.setattr("audio_df.runtime.resources.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("audio_df.runtime.resources.subprocess.run", fake_run)
 
     status = memory_status()
     assert status["pressure_level"] == 4
@@ -295,7 +295,7 @@ def test_memory_status_parses_gb_units(monkeypatch):
 
 
 def test_memory_status_non_macos_returns_none_and_warns(monkeypatch):
-    monkeypatch.setattr("audio_df.resources.platform.system", lambda: "Linux")
+    monkeypatch.setattr("audio_df.runtime.resources.platform.system", lambda: "Linux")
     monkeypatch.setattr(resources_mod, "_warned_no_sysctl", False)
     with pytest.warns(UserWarning):
         status = memory_status()

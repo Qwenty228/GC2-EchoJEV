@@ -55,7 +55,7 @@ $$
 
 In words: how many "typical spreads" (pooled over both groups) apart the averages are. A rough
 scale often quoted, from Cohen's 1988 textbook (not in
-our reading list): 0.2 small, 0.5 medium, 0.8 large. The code is [`cohens_d`](../../SystemCode/src/audio_df/stats.py#L78).
+our reading list): 0.2 small, 0.5 medium, 0.8 large. The code is [`cohens_d`](../../SystemCode/src/audio_df/evaluation/stats.py#L78).
 
 ### Cliff's δ: who wins, pair by pair
 
@@ -65,7 +65,7 @@ fake–real pairs and ask: does the fake have the higher value or the lower? The
 - δ = (share of pairs where the fake is higher) − (share where it is lower).
 
 δ runs from −1 (every fake is lower than every real clip) through 0 (no tendency) to +1. The
-code is [`cliffs_delta`](../../SystemCode/src/audio_df/stats.py#L105).
+code is [`cliffs_delta`](../../SystemCode/src/audio_df/evaluation/stats.py#L105).
 
 The figure below draws *d* (top: the gap between means, with a grey ruler one pooled standard
 deviation long) and δ (bottom: every pair, orange where the fake wins, green where the real clip wins):
@@ -153,7 +153,7 @@ per-attack sample would turn this hint into a measurement.
 >
 > - Cohen's *d* measures the gap between averages in units of spread; Cliff's δ counts who wins
 >   each pair and resists outliers; they agree on every feature's direction
->   (notebook 02, cells 13 and 15; [`stats.py`](../../SystemCode/src/audio_df/stats.py#L78)).
+>   (notebook 02, cells 13 and 15; [`stats.py`](../../SystemCode/src/audio_df/evaluation/stats.py#L78)).
 > - Bandwidth separates strongly (d = −1.32, δ = −0.65), as does rolloff (d = −0.93, δ = −0.50);
 >   the share above 4 kHz does not (d = −0.13, interval includes zero)
 >   ([notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cells 7 and 10).

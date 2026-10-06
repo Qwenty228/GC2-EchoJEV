@@ -16,7 +16,7 @@ raw-only — see that config's own header comment).
 `extract` only ever produces `data/cache/ssl/...` — no `runs/<id>/` directory, no
 registry row. It still goes through this project's full resource discipline
 (`apply_resource_limits`, `check_can_start`, `heavy_job_lock`, `MemoryGuard`, `ChunkedJob`)
-directly via `audio_df.resources`, because it is exactly the kind of long-running,
+directly via `audio_df.runtime.resources`, because it is exactly the kind of long-running,
 resumable, memory-sensitive job that discipline exists for; it just isn't an "experiment"
 in this project's sense (a run that produces scored predictions).
 
@@ -24,7 +24,7 @@ in this project's sense (a run that produces scored predictions).
 
 `train` (and `score`, against an already-trained head) produce `scores/<testset>.csv`
 files under `runs/<exp_id>/`, so they go through the shared lifecycle
-(`audio_df.experiments.lifecycle.experiment_run`): resource limits, seeding, disk/pressure
+(`audio_df.runtime.lifecycle.experiment_run`): resource limits, seeding, disk/pressure
 checks, the heavy-job lock, a registry row, and `run_summary.json` on exit.
 
 ## Fixed A2 design decisions (see the handoff spec this runner implements)
@@ -54,7 +54,7 @@ checks, the heavy-job lock, a registry row, and `run_summary.json` on exit.
   reweight the already-majority class and get the correction backwards. No sign-flip of the
   logit is needed under this framing, unlike a target=`is_spoof` framing would need.
 - **No metrics computed here.** Only `scores/<testset>.csv` files are written (via
-  `audio_df.exp_io.write_scores`); `scripts/score_experiment.py` is the only place EER/AUC/
+  `audio_df.runtime.exp_io.write_scores`); `scripts/score_experiment.py` is the only place EER/AUC/
   minDCF are computed, run by the user afterward — this file prints the exact command.
 """
 
@@ -76,12 +76,20 @@ import yaml
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from audio_df.audio import load_audio, preprocess
-from audio_df.device import resolve_device
-from audio_df.exp_io import make_exp_id, write_scores
-from audio_df.experiments.lifecycle import experiment_run
+from audio_df.features.audio import load_audio, preprocess
+from audio_df.features.ssl import (
+    build_job_config,
+    cache_dir_for,
+    extract_pooled_hidden_states,
+    load_backbone,
+    load_cache,
+    run_extraction,
+)
 from audio_df.models.ssl_head import SSLHead
-from audio_df.resources import (
+from audio_df.runtime.device import resolve_device
+from audio_df.runtime.exp_io import make_exp_id, write_scores
+from audio_df.runtime.lifecycle import experiment_run
+from audio_df.runtime.resources import (
     MemoryGuard,
     MemoryPressureExit,
     apply_resource_limits,
@@ -95,16 +103,8 @@ from audio_df.resources import (
     run_resource_summary,
     timing_run,
 )
-from audio_df.seeding import make_generator
-from audio_df.seeding import worker_init_fn as seed_worker_init_fn
-from audio_df.ssl_cache import (
-    build_job_config,
-    cache_dir_for,
-    extract_pooled_hidden_states,
-    load_backbone,
-    load_cache,
-    run_extraction,
-)
+from audio_df.runtime.seeding import make_generator
+from audio_df.runtime.seeding import worker_init_fn as seed_worker_init_fn
 
 __all__ = [
     "load_config",
@@ -396,7 +396,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
     )
     print(f"wrote {out_path}")
     print(
-        f"next: uv run python -m audio_df.experiments.run_a2 extract "
+        f"next: uv run python -m audio_df.pipelines.run_a2 extract "
         f"--config {args.config} --testsets train,dev,eval"
     )
 
@@ -484,7 +484,7 @@ def cmd_extract(args: argparse.Namespace) -> None:
         sys.exit(3)
 
     print(
-        f"next: uv run python -m audio_df.experiments.run_a2 train --config {args.config} --exp e1"
+        f"next: uv run python -m audio_df.pipelines.run_a2 train --config {args.config} --exp e1"
     )
 
 
@@ -571,7 +571,7 @@ def cmd_train(args: argparse.Namespace) -> None:
 
     print(
         f"next: uv run python scripts/score_experiment.py {run.exp_dir} "
-        f"&& uv run python -m audio_df.experiments.run_a2 score --model-from {run.exp_dir} "
+        f"&& uv run python -m audio_df.pipelines.run_a2 score --model-from {run.exp_dir} "
         f"--exp {args.exp} --silence-mode raw --testsets itw"
     )
 

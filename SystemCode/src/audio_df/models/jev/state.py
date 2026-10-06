@@ -13,7 +13,7 @@ contain the label, attack_id, speaker, file path, or clip id — the JEV API onl
 evidence, never the answer key. See `tests/test_jev_state.py::test_no_label_leakage`.
 
 This module does not know about the JEV client, the cache, or the questions — it only builds
-a dict. It reuses `audio_df.audio.silence_ratio` rather than re-deriving silence handling.
+a dict. It reuses `audio_df.features.audio.silence_ratio` rather than re-deriving silence handling.
 """
 
 from __future__ import annotations
@@ -22,12 +22,12 @@ from typing import Any
 
 import numpy as np
 
-from audio_df.audio import silence_ratio
+from audio_df.features.audio import silence_ratio
 
 __all__ = ["LEVEL_WORDS", "build_state"]
 
 # Five-way detector level, ordered low (spoof) -> high (bona fide). Index used by
-# `audio_df.jev.client.DryRunJevClient` as the sole, deterministic driver of its stub
+# `audio_df.models.jev.client.DryRunJevClient` as the sole, deterministic driver of its stub
 # answers — see that module's docstring for why a word-level ordinal is enough for a
 # clearly-labelled dry run.
 LEVEL_WORDS: tuple[str, ...] = (

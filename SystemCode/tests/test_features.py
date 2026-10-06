@@ -1,4 +1,4 @@
-"""Tests for `audio_df.features`. All analytic/synthetic — no dataset required.
+"""Tests for `audio_df.features.cepstral`. All analytic/synthetic — no dataset required.
 
 Per `CONVENTIONS.md`, numerical code gets a property or an analytic reference, not
 just a shape assertion. Every test below either checks against an independent reference
@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from scipy.fft import dct as scipy_dct
 
-from audio_df.features import (
+from audio_df.features.cepstral import (
     add_deltas,
     apply_filterbank,
     dct_coeffs,

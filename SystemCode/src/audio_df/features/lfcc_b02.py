@@ -224,7 +224,7 @@ def lfcc_b02_filterbank(
     if spacing == "linear":
         edges = np.linspace(fmin, fmax, n_filters + 2)
     else:
-        from audio_df.features import hz_to_mel, mel_to_hz
+        from audio_df.features.cepstral import hz_to_mel, mel_to_hz
 
         edges = np.asarray(
             mel_to_hz(np.linspace(hz_to_mel(fmin), hz_to_mel(fmax), n_filters + 2)),
@@ -241,7 +241,7 @@ def extract_lfcc_b02(
 ) -> np.ndarray:
     """Extract the official B02 LFCC feature: `[T, 60]` (20 static + 20 delta + 20 delta-delta).
 
-    `x` is a 1-D waveform (already loaded/resampled by `audio_df.audio.load_audio`), `sr`
+    `x` is a 1-D waveform (already loaded/resampled by `audio_df.features.audio.load_audio`), `sr`
     must equal `cfg["sample_rate"]` (default 16000, matching the official baseline's
     training data). `cfg` overrides `DEFAULT_LFCC_B02_CONFIG` entries; unset keys fall back
     to the default. No cropping, no CMVN, no caching (A1's train-frame cache is a separate,

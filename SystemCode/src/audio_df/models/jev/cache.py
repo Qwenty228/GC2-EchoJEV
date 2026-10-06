@@ -34,7 +34,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from audio_df.jev.client import JevClient, JevRequest, JevResponse
+from audio_df.models.jev.client import JevClient, JevRequest, JevResponse
 
 __all__ = ["JevCache", "config_hash", "cache_key"]
 

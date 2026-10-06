@@ -15,7 +15,7 @@ import soundfile as sf
 import torch
 import yaml
 
-import audio_df.experiments.run_a2 as run_a2
+import audio_df.pipelines.run_a2 as run_a2
 from audio_df.models.ssl_head import SSLHead
 
 NORMAL_STATUS = {

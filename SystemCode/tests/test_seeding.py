@@ -3,7 +3,7 @@ import random
 import numpy as np
 import torch
 
-from audio_df.seeding import make_generator, seed_everything, worker_init_fn
+from audio_df.runtime.seeding import make_generator, seed_everything, worker_init_fn
 
 
 def test_seed_everything_reproducible_numpy_torch_random():

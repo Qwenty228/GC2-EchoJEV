@@ -1,25 +1,25 @@
 """A3 runner: frozen A2 dev scores + the JEV API over a stratified dev subset (E5).
 
 ```
-uv run python -m audio_df.experiments.run_a3 run \\
+uv run python -m audio_df.pipelines.run_a3 run \\
     --state numbers|words --questions noul_only|all3 \\
     [--client dry-run|typesafe] [--n 500] [--max-cost-usd 0.5] [--resume]
 ```
 
 For each clip in the subset: load its A2 dev score, load its audio, build the evidence
-state (`audio_df.jev.state.build_state`), ask every question in the chosen set through the
-cache (`audio_df.jev.cache.JevCache`), and derive the A3 score from the noul answer
-(`audio_df.jev.questions.noul_to_a3_score`, higher = more bona fide). Writes
+state (`audio_df.models.jev.state.build_state`), ask every question in the chosen set through the
+cache (`audio_df.models.jev.cache.JevCache`), and derive the A3 score from the noul answer
+(`audio_df.models.jev.questions.noul_to_a3_score`, higher = more bona fide). Writes
 `scores/jev_dev500.csv`, `scores/a2_dev500.csv` (the matching A2 scores on the same clips,
 for the A2-vs-A3 comparison), `answers.csv` (every typed answer), and `cost_summary.json`.
 
-Every run goes through `audio_df.experiments.lifecycle.experiment_run` (resource limits,
+Every run goes through `audio_df.runtime.lifecycle.experiment_run` (resource limits,
 seeding, the heavy-job lock, the registry row, `run_summary.json`) — see that module. A
 `--client dry-run` run additionally calls `run.note("DRY RUN — stub client, not a result")`
 so its registry row is unmistakable.
 
 **Budget guard.** The real per-call cost of the JEV API is unknown until `TypesafeJevClient`
-is implemented (it currently raises `NotImplementedError`, see `audio_df.jev.client`). Until
+is implemented (it currently raises `NotImplementedError`, see `audio_df.models.jev.client`). Until
 then: `--client typesafe` refuses to run with `--n` above 20, and the loop aborts with a
 `RuntimeError` if the running cost total reaches `--max-cost-usd` before finishing.
 """
@@ -36,26 +36,26 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from audio_df.audio import load_audio
-from audio_df.data import stratified_subset
-from audio_df.exp_io import make_exp_id, write_scores
-from audio_df.experiments.lifecycle import RunContext, experiment_run
-from audio_df.jev.cache import JevCache
-from audio_df.jev.client import (
+from audio_df.data.manifests import stratified_subset
+from audio_df.features.audio import load_audio
+from audio_df.models.jev.cache import JevCache
+from audio_df.models.jev.client import (
     DryRunJevClient,
     JevClient,
     JevRequest,
     JevResponse,
     TypesafeJevClient,
 )
-from audio_df.jev.questions import (
+from audio_df.models.jev.questions import (
     QUESTION_SETS,
     QUESTION_TEXT_VERSION,
     build_request,
     noul_to_a3_score,
 )
-from audio_df.jev.state import build_state
-from audio_df.resources import memory_status
+from audio_df.models.jev.state import build_state
+from audio_df.runtime.exp_io import make_exp_id, write_scores
+from audio_df.runtime.lifecycle import RunContext, experiment_run
+from audio_df.runtime.resources import memory_status
 
 __all__ = ["run_a3", "build_arg_parser", "main", "resolve_eer_threshold"]
 
@@ -70,14 +70,14 @@ def resolve_eer_threshold(cfg: dict[str, Any], a2_experiment: str | Path) -> tup
     instead". When a non-null override is given it wins outright (e.g. for a dry-run/dev
     smoke test that has no real A2 metrics.json yet); otherwise this reads
     `<a2_experiment>/metrics.json` (written by `scripts/score_experiment.py` /
-    `audio_df.scoring.score_experiment`), preferring `testsets.dev.eer_threshold` (the A2
+    `audio_df.evaluation.scoring.score_experiment`), preferring `testsets.dev.eer_threshold` (the A2
     experiment's own dev EER threshold) and falling back to `threshold_source.value` (in
     case, unusually, that metrics.json itself borrowed its threshold from yet another
     experiment via `--threshold-from`).
 
     Raises `FileNotFoundError`/`ValueError` with an actionable "score the A2 experiment
     first" message rather than silently defaulting to some placeholder threshold — the
-    detector-level word buckets (`audio_df.jev.state`) are meaningless relative to the
+    detector-level word buckets (`audio_df.models.jev.state`) are meaningless relative to the
     wrong threshold, and a silent 0.0 fallback would look like a valid (if unlucky) run.
 
     Returns `(threshold, source_info)`, where `source_info` is JSON-serialisable and
@@ -183,7 +183,8 @@ def run_a3(
     if client_kind == "typesafe" and n_eff > _TYPESAFE_FIRST_RUN_MAX_N:
         raise ValueError(
             "TypesafeJevClient's cost per call is not yet known (ask() is not implemented "
-            f"yet — see audio_df.jev.client). Pass --n <= {_TYPESAFE_FIRST_RUN_MAX_N} for the "
+            "yet — see audio_df.models.jev.client). "
+            f"Pass --n <= {_TYPESAFE_FIRST_RUN_MAX_N} for the "
             "first real run so the measured cost per clip can be printed before scaling up."
         )
 
@@ -357,7 +358,7 @@ def _run_a3_body(
             # against a future question set that omits it rather than writing a bad score.
             raise ValueError(
                 "question_set produced no 'noul' answer; the A3 score is defined only from "
-                "the noul question (see audio_df.jev.questions module docstring)"
+                "the noul question (see audio_df.models.jev.questions module docstring)"
             )
 
         a3_rows.append(

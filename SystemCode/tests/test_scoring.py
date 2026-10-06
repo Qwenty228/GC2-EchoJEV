@@ -1,7 +1,7 @@
-"""Tests for `audio_df.scoring.score_experiment` on synthetic experiment dirs.
+"""Tests for `audio_df.evaluation.scoring.score_experiment` on synthetic experiment dirs.
 
 No real dataset or model is needed: score files are hand-built numpy/pandas data with
-known EER (cross-checked against `audio_df.metrics.compute_eer` directly).
+known EER (cross-checked against `audio_df.evaluation.metrics.compute_eer` directly).
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ import pandas as pd
 import pytest
 import yaml
 
-from audio_df.exp_io import create_experiment, write_scores
-from audio_df.metrics import compute_eer
-from audio_df.scoring import score_experiment
+from audio_df.evaluation.metrics import compute_eer
+from audio_df.evaluation.scoring import score_experiment
+from audio_df.runtime.exp_io import create_experiment, write_scores
 
 
 @pytest.fixture
@@ -132,7 +132,7 @@ def test_dev_threshold_is_reused_unchanged_on_eval(tmp_path, scoring_cfg_path):
     assert result["threshold_source"]["value"] == pytest.approx(dev_thr, abs=1e-12)
 
     eval_df = pd.read_csv(exp_dir / "scores" / "eval.csv")
-    from audio_df.metrics import prf1_at_threshold
+    from audio_df.evaluation.metrics import prf1_at_threshold
 
     expected = prf1_at_threshold(
         eval_df["score"], eval_df["label"], thr=dev_thr, higher_is_spoof=False

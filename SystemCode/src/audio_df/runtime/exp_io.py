@@ -46,7 +46,7 @@ import pandas as pd
 import torch
 import yaml
 
-from audio_df.device import git_commit
+from audio_df.runtime.device import git_commit
 
 __all__ = [
     "make_exp_id",

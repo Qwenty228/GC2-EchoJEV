@@ -16,7 +16,7 @@ checked_on: 2026-09-20
 > `<root>/ASVspoof2019_LA_<split>/flac/<utt_id>.flac`.
 
 ## Evidence examined
-- code: `src/audio_df/data.py:75-102` (`_PROTOCOL_N_FIELDS`, `_PROTOCOL_FIELD_INDEX`,
+- code: `src/audio_df/data/manifests.py:75-102` (`_PROTOCOL_N_FIELDS`, `_PROTOCOL_FIELD_INDEX`,
   `_split_protocol_line`), `data.py:113-135` (`parse_asvspoof_protocol`), `data.py:138-152`
   (`_resolve_audio_path`), and `build_manifest`'s `split_audio_dir = root /
   f"ASVspoof2019_LA_{split}" / "flac"` construction.

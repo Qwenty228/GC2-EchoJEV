@@ -1,4 +1,4 @@
-"""Tests for the Stage 0 leakage audit (src/audio_df/leakage.py).
+"""Tests for the Stage 0 leakage audit (src/audio_df/evaluation/leakage.py).
 
 No dataset is required: every test builds a synthetic manifest with numpy/pandas. The
 question each test answers is purely "does the audit's statistics behave correctly on data
@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from audio_df.leakage import (
+from audio_df.evaluation.leakage import (
     audit_all,
     audit_single_feature,
     extract_nuisance_features,

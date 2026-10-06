@@ -14,7 +14,7 @@ import pandas as pd
 import soundfile as sf
 import yaml
 
-from audio_df.experiments import run_a1
+from audio_df.pipelines import run_a1
 
 NORMAL_STATUS = {
     "pressure_level": 1,

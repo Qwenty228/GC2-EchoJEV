@@ -57,7 +57,7 @@ import librosa
 import numpy as np
 from scipy.fft import dct
 
-from audio_df.cache import FeatureCache, cache_key
+from audio_df.features.cache import FeatureCache, cache_key
 
 __all__ = [
     "stft_power",

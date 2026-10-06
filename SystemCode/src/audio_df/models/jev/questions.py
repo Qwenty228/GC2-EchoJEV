@@ -3,13 +3,13 @@ combine them.
 
 Question text is **versioned** (`QUESTION_TEXT_VERSION`): the cache key covers the version,
 so changing a question's wording invalidates cached answers rather than silently mixing
-answers to two different questions under one key (`audio_df.jev.cache`).
+answers to two different questions under one key (`audio_df.models.jev.cache`).
 
 **Score orientation (binding).** A3's per-clip score (written to `scores/jev_dev500.csv`,
 project convention: higher = more bona fide) is derived from the **noul** question only,
 as `log(p(no) / p(yes))` — the log-odds of "no, the evidence does not indicate synthetic
 speech". `p(no)` is the bona-fide-leaning answer, so this is higher-is-bonafide, matching
-every other score file in this project (`audio_df.exp_io` module docstring). See
+every other score file in this project (`audio_df.runtime.exp_io` module docstring). See
 `noul_to_a3_score` for the exact clipping applied to avoid `log(0)`.
 """
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from audio_df.jev.client import JevRequest, QuestionType
+from audio_df.models.jev.client import JevRequest, QuestionType
 
 __all__ = [
     "QUESTION_TEXT_VERSION",

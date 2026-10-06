@@ -1,4 +1,4 @@
-"""audio_df.xai.layers: single-layer heads, leave-one-layer-out, LR probe, table builders.
+"""audio_df.evaluation.xai_layers: single-layer heads, leave-one-out, LR probe, table builders.
 
 Tiny synthetic arrays only; no real data."""
 
@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 import torch
 
-from audio_df.metrics import compute_eer
+from audio_df.evaluation import xai_layers as xl
+from audio_df.evaluation.metrics import compute_eer
 from audio_df.models.ssl_head import SSLHead
-from audio_df.xai import layers as xl
 
 HEAD_CFG = {"proj_dim": 8, "mlp_hidden": 4, "dropout": 0.0, "lr": 1e-2, "batch_size": 32,
             "max_epochs": 30, "patience": 5, "pos_weight": "auto"}

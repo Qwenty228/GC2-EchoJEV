@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from audio_df.jev.client import DryRunJevClient, TypesafeJevClient
-from audio_df.jev.questions import (
+from audio_df.models.jev.client import DryRunJevClient, TypesafeJevClient
+from audio_df.models.jev.questions import (
     CHOICE_QUESTION,
     NOUL_QUESTION,
     SCORE_QUESTION,
     build_request,
     noul_to_a3_score,
 )
-from audio_df.jev.state import LEVEL_WORDS
+from audio_df.models.jev.state import LEVEL_WORDS
 
 
 def _state_with_level(level: str) -> dict:

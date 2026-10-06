@@ -84,7 +84,7 @@ an explicitly requested but unavailable backend raises rather than silently fall
 a quiet CPU fallback would make the registry's timing columns meaningless.
 
 ```bash
-uv run python -c "from audio_df.device import describe_env; print(describe_env())"
+uv run python -c "from audio_df.runtime.device import describe_env; print(describe_env())"
 ```
 
 ## 2. Get the dataset
@@ -162,7 +162,7 @@ row in [`runs/REGISTRY.md`](runs/REGISTRY.md). Metrics come only from the shared
 scorer:
 
 ```bash
-uv run python -m audio_df.experiments.run_a1 train --exp e1
+uv run python -m audio_df.pipelines.run_a1 train --exp e1
 uv run python scripts/score_experiment.py runs/E-20261001-e1-a1-raw
 uv run python scripts/make_tables.py          # regenerates reports/tables/E1…E6
 ```

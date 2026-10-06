@@ -44,7 +44,7 @@ clip, and mixes those averages. Same answer? Mixing with fixed weights and avera
 their order does not matter, just as weighing coins then averaging equals averaging then weighing.
 
 The figure below checks this with A2's actual head code
-([`SSLHead.weighted_sum`](../../SystemCode/src/audio_df/models/ssl_head.py#L62)) on random numbers of A2's
+([`SSLHead.weighted_sum`](../../SystemCode/src/audio_df/models/ssl_head.py#L102)) on random numbers of A2's
 exact shape: the two orders agree to about 0.0000001 (rounding). Insert LayerNorm (which rescales
 each vector by its own spread) *before* averaging, and they disagree. That is why A2 applies
 LayerNorm only *after* pooling; `tests/test_ssl_head.py` checks the same identity.

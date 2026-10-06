@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from audio_df.experiments.lifecycle import experiment_run, machine_cell
-from audio_df.resources import MemoryPressureError, MemoryPressureExit
+from audio_df.runtime.lifecycle import experiment_run, machine_cell
+from audio_df.runtime.resources import MemoryPressureError, MemoryPressureExit
 
 NORMAL = {
     "pressure_level": 1,
@@ -81,7 +81,7 @@ def test_refuses_to_start_under_pressure_without_creating_anything(tmp_path):
 def test_resume_adds_the_registry_row_if_it_is_missing(tmp_path):
     # 2026-10-01: a run was interrupted after creating its folder but before its registry
     # row was written, and `--resume` then crashed on "no row".
-    from audio_df.exp_io import create_experiment
+    from audio_df.runtime.exp_io import create_experiment
 
     create_experiment("E-20261001-e1-a1-raw", _config(), root=tmp_path / "runs")
     with _run(tmp_path, resume=True) as run:

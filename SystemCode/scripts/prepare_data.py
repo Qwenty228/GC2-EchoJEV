@@ -9,12 +9,13 @@ Usage:
 Writes `data/manifests/<split>.csv` for every split of the chosen `--dataset`
 (`asvspoof2019_la`, the default, unchanged from before; or `in_the_wild`, which writes a
 single `data/manifests/itw.csv`) and prints the per-class/per-attack/per-speaker/per-split
-counts from `audio_df.data.summarise_manifest`. Raises the same actionable
+counts from `audio_df.data.manifests.summarise_manifest`. Raises the same actionable
 `DatasetNotFoundError` as `build_manifest`/`build_itw_manifest` if the dataset has not been
 downloaded yet — this script does not swallow it.
 
 After writing manifests, (re)writes `data/manifests/SHA256SUMS` — the reproducibility record
-for the gitignored manifest CSVs (see `audio_df.data.write_checksums`) — covering every CSV
+for the gitignored manifest CSVs (see `audio_df.data.manifests.write_checksums`) — covering
+every CSV
 currently in `data/manifests/`. `--verify` instead recomputes checksums for every file listed
 in `data/manifests/SHA256SUMS` and exits non-zero if any file is missing or has changed,
 without writing or rebuilding any manifest.
@@ -28,7 +29,7 @@ from pathlib import Path
 
 import yaml
 
-from audio_df.data import (
+from audio_df.data.manifests import (
     build_itw_manifest,
     build_manifest,
     manifest_checksums,

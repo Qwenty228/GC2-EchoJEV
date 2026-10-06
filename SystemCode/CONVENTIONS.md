@@ -16,17 +16,15 @@ agent that owns `pyproject.toml` for that task — everyone else requests it in 
 ## Code boundaries
 - `src/audio_df/` holds all reusable logic. Notebooks import from it and hold questions,
   plots and interpretation only. A function used twice moves into `src/`.
-- Module purposes are fixed:
-  | module | does | must not |
+- Package purposes are fixed:
+  | package | does | must not |
   |---|---|---|
-  | `audio.py` | load, resample, mono, crop/pad | compute features |
-  | `features.py` | STFT → filterbank → log → DCT variants | load files, cache |
-  | `cache.py` | content-hashed on-disk cache | know what a feature means |
-  | `data.py` | manifests, protocol parsing, splits | train anything |
-  | `stats.py` | effect size, bootstrap CI, per-feature AUC | plot |
-  | `visualization.py` | figures | compute statistics |
-  | `metrics.py` | EER, AUCs, calibration, per-attack | choose thresholds from eval |
-  | `models/` | architectures only | do IO |
+  | `data/` | manifests, protocol parsing, splits, subsets, degradations, synthetic fixtures | train anything |
+  | `features/` | audio load and preprocessing, LFCC-B02, cepstral grid, SSL extraction, caches | know labels or thresholds |
+  | `models/` | detector architectures (GMM, SSL head, JEV client and state) | do run bookkeeping |
+  | `evaluation/` | metrics, scoring from score files, statistics, leakage audit, figures, XAI | choose thresholds from eval |
+  | `runtime/` | device, seeding, resource limits, run directories, registry | know what a model is |
+  | `pipelines/` | command-line runners that wire the above into runs | hold reusable logic |
 
 ## Reproducibility (every run, no exceptions)
 Seed numpy/torch/python; record git commit, config path + hash, dataset split hash, seed,
@@ -86,7 +84,7 @@ solve a problem this project does not have.
 **The one real blowup.** Caching un-pooled SSL hidden states costs 10.24 MB per utterance
 (25 layers x 199 frames x 1024 dims, fp16) = **1.24 TB** for the corpus. Pooling over time
 first costs 51.2 KB per utterance = **6.22 GB**. Pool before caching (A2's cache,
-`audio_df.ssl_cache`). Frame-level states are for bounded subsets only, recorded as such.
+`audio_df.features.ssl`). Frame-level states are for bounded subsets only, recorded as such.
 
 **Not feasible here:** fine-tuning XLS-R end-to-end. The project uses frozen
 front-ends for feasibility and reproducibility. If a fine-tuning experiment is ever run, it

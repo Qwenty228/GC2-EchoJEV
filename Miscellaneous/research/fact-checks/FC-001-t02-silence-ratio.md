@@ -14,10 +14,10 @@ checked_on: 2026-09-20
 > matching `librosa.effects.trim`/`split`).
 
 ## Evidence examined
-- code (as originally submitted, before correction): `src/audio_df/audio.py`, `silence_ratio`
+- code (as originally submitted, before correction): `src/audio_df/features/audio.py`, `silence_ratio`
   — thresholded **instantaneous per-sample magnitude** against a fixed level, not framed RMS
   energy relative to a per-clip peak.
-- code (current, corrected, verified in this pass): `src/audio_df/audio.py:133-163`
+- code (current, corrected, verified in this pass): `src/audio_df/features/audio.py:133-163`
   (`silence_ratio`), now delegates to `librosa.effects.split(top_db=..., frame_length=...,
   hop_length=...)`.
 - knowledge: no pre-existing knowledge note covered this; the discrepancy was caught by
@@ -61,7 +61,7 @@ wrong, caught only by reading the actual code and testing it against synthetic s
 known ground truth (zero true silence) rather than trusting the docstring.
 
 ## Required action
-Already applied at the time of this fact-check: `silence_ratio` (`src/audio_df/audio.py:133-163`)
+Already applied at the time of this fact-check: `silence_ratio` (`src/audio_df/features/audio.py:133-163`)
 now delegates directly to `librosa.effects.split(top_db=..., frame_length=..., hop_length=...)`
 rather than re-deriving frame/dB arithmetic by hand, which the current docstring itself notes
 is deliberate ("rather than re-deriving the frame/dB arithmetic by hand and risking a second,

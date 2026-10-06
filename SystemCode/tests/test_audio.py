@@ -1,4 +1,4 @@
-"""Tests for `audio_df.audio`. All synthetic — no dataset required."""
+"""Tests for `audio_df.features.audio`. All synthetic — no dataset required."""
 
 from __future__ import annotations
 
@@ -7,7 +7,14 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from audio_df.audio import fix_length, load_audio, preprocess, rms, silence_ratio, trim_silence
+from audio_df.features.audio import (
+    fix_length,
+    load_audio,
+    preprocess,
+    rms,
+    silence_ratio,
+    trim_silence,
+)
 
 
 def _tone(freq: float, sr: int, duration_s: float, amplitude: float = 0.5) -> np.ndarray:

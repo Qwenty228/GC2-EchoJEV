@@ -26,12 +26,12 @@ checked_on: 2026-09-20
   `argmin(|frr-far|)` then `mean(frr[i], far[i])` with no interpolation, and *"higher
   detection scores values are assumed to indicate stronger support for the bona fide
   hypothesis."*
-- code (current, corrected, verified in this pass): `src/audio_df/metrics.py:1-70` — module
+- code (current, corrected, verified in this pass): `src/audio_df/evaluation/metrics.py:1-70` — module
   docstring now states the official (non-interpolated) algorithm explicitly, quotes the same
   evaluation-plan footnote, requires a `higher_is_spoof: bool` argument with no default
   (rather than hardcoding either polarity or inferring it from label order), and implements
   `per_attack_eer` against the full shared bonafide pool.
-- code: `src/audio_df/data.py` / `configs/features.yaml` — no dependency on this claim beyond
+- code: `src/audio_df/data/manifests.py` / `configs/features.yaml` — no dependency on this claim beyond
   what's already covered in FC-004 / `asvspoof-2019-la.md`.
 
 ## Verdict
@@ -88,7 +88,7 @@ scoring code.
 
 ## Required action
 Already applied: `tasks/TASKS.md` T04 corrected at source (per the coordinator), and
-`src/audio_df/metrics.py` reimplemented to vendor/match the official nearest-neighbour
+`src/audio_df/evaluation/metrics.py` reimplemented to vendor/match the official nearest-neighbour
 algorithm exactly, with a conformance test against the official code as the executable spec
 (per the coordinator's message). No further action required from this fact-check. Recommend
 the conformance test explicitly include the exact 4-point hand-computed case from the task's

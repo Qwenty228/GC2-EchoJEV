@@ -50,7 +50,7 @@ Three things to notice:
    generators and 2 known ones (hatched) on new speakers.
 
 No speaker appears in both train and dev
-([`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data.py#L252), run in
+([`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data/manifests.py#L252), run in
 [notebook 01](../../SystemCode/notebooks/01_dataset_audit.ipynb), cell 10).
 
 ### The second dataset: In-the-Wild
@@ -110,7 +110,7 @@ For A2 on dev, the EER is **0.39 %** at threshold **−2.43**
 
 With real data the curves move in steps and rarely meet exactly. We use the official rule:
 take the threshold where the two rates are *closest* and average them, with no interpolation.
-Our [`compute_eer`](../../SystemCode/src/audio_df/metrics.py#L217) reproduces the official scoring code.
+Our [`compute_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L217) reproduces the official scoring code.
 
 ## One number for every threshold: the area under the curve
 
@@ -128,14 +128,14 @@ clip the same score and gets 0.5.
 On dev, A2's AUC is 0.99995 and A1's is 0.9958
 (`metrics.json` of run `E-20261001-e1-a2-raw`,
 `metrics.json` of run `E-20261001-e1-a1-raw`, `roc_auc`; the
-function is [`roc_auc`](../../SystemCode/src/audio_df/metrics.py#L302)).
+function is [`roc_auc`](../../SystemCode/src/audio_df/evaluation/metrics.py#L303)).
 
 ## Where the threshold comes from
 
 EER picks its own best threshold on each test set. That is fair for comparing how well
 detectors *separate* real from fake, but a deployed detector must commit in advance. So we also
 fix the EER threshold **on the dev set** and reuse it unchanged on
-eval and on In-the-Wild ([`_dev_threshold`](../../SystemCode/src/audio_df/scoring.py#L139)). For A2 that
+eval and on In-the-Wild ([`_dev_threshold`](../../SystemCode/src/audio_df/evaluation/scoring.py#L145)). For A2 that
 is −2.43 (the `threshold_source` field in
 `metrics.json` of run `E-20261001-e3-a2-raw` shows In-the-Wild
 reuses it). Two questions, two kinds of number:
@@ -147,7 +147,7 @@ reuses it). Two questions, two kinds of number:
 Chapter 9 shows that these two questions can have very different answers.
 
 Finally, we report EER **per attack**: each attack's fakes against the whole pool of real clips
-([`per_attack_eer`](../../SystemCode/src/audio_df/metrics.py#L460)), because a pooled number can hide one
+([`per_attack_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), because a pooled number can hide one
 generator the detector gets badly wrong.
 
 > **Checkpoint**
@@ -164,7 +164,7 @@ generator the detector gets badly wrong.
 >   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cells 8–9;
 >   `metrics.json` of run `E-20261001-e1-a2-raw`).
 > - AUC measures ranking over all thresholds; a fixed dev threshold tests whether a decision rule
->   transfers ([`_dev_threshold`](../../SystemCode/src/audio_df/scoring.py#L139)).
+>   transfers ([`_dev_threshold`](../../SystemCode/src/audio_df/evaluation/scoring.py#L145)).
 >
 > **The question this leaves us with:** we can now score a detector fairly. But before building
 > one, could something stupid, with no idea what a voice is, already score well?

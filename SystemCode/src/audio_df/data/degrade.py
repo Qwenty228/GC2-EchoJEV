@@ -2,10 +2,10 @@
 
 Every public function here takes 16 kHz mono `float32` audio in and returns 16 kHz mono
 `float32` audio out, **the same length as the input**. This module never loads files from
-disk on its own initiative (callers pass arrays already loaded via `audio_df.audio.load_audio`)
-and never touches manifests or configs — see `CONVENTIONS.md`'s module table; this is
-new module scope carved out for E4, so it inherits `audio.py`'s "only ever touches waveforms"
-contract rather than `audio.py` itself.
+disk on its own initiative (callers pass arrays already loaded via
+`audio_df.features.audio.load_audio`) and never touches manifests or configs — see
+`CONVENTIONS.md`'s module table. It inherits `audio.py`'s "only ever touches waveforms"
+contract.
 
 Alignment convention (documented once, used by every codec function below): ffmpeg's
 mp3/opus encoders prepend encoder delay (priming samples) and the decoder can also emit a

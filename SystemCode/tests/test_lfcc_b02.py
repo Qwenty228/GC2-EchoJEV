@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from scipy.signal import lfilter
 
-from audio_df.lfcc_b02 import (
+from audio_df.features.lfcc_b02 import (
     DEFAULT_LFCC_B02_CONFIG,
     extract_lfcc_b02,
     frame_count,
@@ -257,7 +257,7 @@ def test_filter_edges_span_0_to_nyquist_not_30hz():
 
 
 def test_log10_eps_is_added_not_max_floored():
-    from audio_df.lfcc_b02 import _LOG10_EPS
+    from audio_df.features.lfcc_b02 import _LOG10_EPS
 
     assert pytest.approx(2.220446049250313e-16) == _LOG10_EPS
     energy = np.array([[0.0, 1.0]])
@@ -302,7 +302,7 @@ def test_sr_mismatch_raises():
 
 
 def test_linear_spacing_is_default_and_bit_identical():
-    from audio_df.lfcc_b02 import _LOG10_EPS  # noqa: F401  (module still importable)
+    from audio_df.features.lfcc_b02 import _LOG10_EPS  # noqa: F401  (module still importable)
 
     x = _tone(freq=700.0, seconds=0.5)
     base = extract_lfcc_b02(x, sr=16000, cfg={})
@@ -314,7 +314,7 @@ def test_linear_spacing_is_default_and_bit_identical():
 
 
 def test_features_filterbank_linear_reproduces_b02_filterbank():
-    from audio_df.features import filterbank
+    from audio_df.features.cepstral import filterbank
 
     ours = lfcc_b02_filterbank(n_filters=20, n_fft=512, sr=16000, fmin=0.0, fmax=8000.0)
     theirs = filterbank(20, 512, 16000, spacing="linear", fmin=0.0, fmax=8000.0)
@@ -322,7 +322,7 @@ def test_features_filterbank_linear_reproduces_b02_filterbank():
 
 
 def test_mel_spacing_matches_features_filterbank_mel():
-    from audio_df.features import filterbank
+    from audio_df.features.cepstral import filterbank
 
     ours = lfcc_b02_filterbank(
         n_filters=20, n_fft=512, sr=16000, fmin=0.0, fmax=8000.0, spacing="mel"

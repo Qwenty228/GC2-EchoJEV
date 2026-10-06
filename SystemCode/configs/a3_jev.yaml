@@ -24,7 +24,7 @@ client:
 # Detector-level and acoustic-evidence thresholds, applied in code (never learned).
 #
 # `detector.eer_threshold` is an EXPLICIT OVERRIDE ONLY — its default is `null`, meaning
-# "read it from <a2_experiment>/metrics.json instead" (audio_df.experiments.run_a3.
+# "read it from <a2_experiment>/metrics.json instead" (audio_df.pipelines.run_a3.
 # resolve_eer_threshold: prefers testsets.dev.eer_threshold, falls back to
 # threshold_source.value). The runner refuses to start with an actionable
 # "score the A2 experiment first" message if that metrics.json does not exist yet. Only
@@ -37,7 +37,7 @@ thresholds:
     # five levels collapse to two (docs/report/10_where_jev_fits.md, notebook 20 cell 43).
     # Rescale (e.g. from dev score percentiles) before E5. E5 on ASVspoof dev also cannot test
     # the In-the-Wild calibration problem.
-    margins: [0.05, 0.2]   # (m1, m2); see audio_df.jev.state._level_word
+    margins: [0.05, 0.2]   # (m1, m2); see audio_df.models.jev.state._level_word
     confidence_words: [low, medium, high]
   acoustic:
     high_band_hz: 4000

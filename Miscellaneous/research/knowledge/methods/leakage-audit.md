@@ -126,7 +126,7 @@ N/A — this is an empirical/methodological note, not a formula-derivation note.
   reference alongside the survey, since it is materially more useful for this specific task
   than the general survey is.
 - I have not verified whether the exact manifest/duration-extraction code this project will
-  use (`src/audio_df/data.py`, once written) computes "leading/trailing silence duration" the
+  use (`src/audio_df/data/manifests.py`, once written) computes "leading/trailing silence duration" the
   same way Müller et al. did (`librosa.effects.trim`, `ref_db=40`); if a different silence
   detector or threshold is used, the measured leakage magnitude could differ from the
   15.1%/3.61%/etc. figures cited here, though the qualitative conclusion (silence leaks

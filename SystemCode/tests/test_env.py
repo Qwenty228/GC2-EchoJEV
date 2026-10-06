@@ -7,7 +7,7 @@ import pytest
 import torch
 
 import audio_df
-from audio_df.device import describe_env, git_commit, resolve_device
+from audio_df.runtime.device import describe_env, git_commit, resolve_device
 
 
 def test_package_imports_with_version():

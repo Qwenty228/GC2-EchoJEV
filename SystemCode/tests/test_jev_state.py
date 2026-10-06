@@ -7,7 +7,7 @@ import json
 import numpy as np
 import pytest
 
-from audio_df.jev.state import LEVEL_WORDS, build_state
+from audio_df.models.jev.state import LEVEL_WORDS, build_state
 
 _CFG = {
     "sample_rate": 16000,

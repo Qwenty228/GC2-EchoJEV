@@ -63,8 +63,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-from audio_df.audio import load_audio, preprocess
-from audio_df.resources import ChunkedJob, MemoryGuard
+from audio_df.features.audio import load_audio, preprocess
+from audio_df.runtime.resources import ChunkedJob, MemoryGuard
 
 __all__ = [
     "load_backbone",
@@ -249,14 +249,14 @@ def run_extraction(
 ) -> ChunkedJob:
     """Extract pooled hidden states for `ids`/`paths` into a resumable chunked cache.
 
-    Resumable by construction: `ChunkedJob` (see `audio_df.resources`) only re-hands out
+    Resumable by construction: `ChunkedJob` (see `audio_df.runtime.resources`) only re-hands out
     chunks whose `.npz` is missing or unreadable, so calling this again against the same
     `out_dir`/`job_config`/`ids` after an interruption (Ctrl-C, crash, `MemoryPressureExit`)
     picks up exactly where it left off, never re-extracting a completed chunk. Batching
     within a chunk goes through a plain `DataLoader` (`shuffle=False`, so a chunk's output
     order always matches `ids`' order) so `num_workers`/`worker_init_fn`/`generator` compose
-    with this project's resource limits and seeding (`audio_df.resources.loader_workers`,
-    `audio_df.seeding.worker_init_fn`/`make_generator`) exactly as every other loader does.
+    with this project's resource limits and seeding (`audio_df.runtime.resources.loader_workers`,
+    `audio_df.runtime.seeding.worker_init_fn`/`make_generator`) exactly as every other loader does.
     """
     dataset = WaveformDataset(ids, paths, sample_rate, silence_mode, crop_seconds, crop_mode)
     id_to_index = {utt_id: i for i, utt_id in enumerate(ids)}

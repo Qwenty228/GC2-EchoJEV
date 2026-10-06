@@ -18,7 +18,7 @@ import pytest
 import soundfile as sf
 import yaml
 
-from audio_df.resources import load_resources
+from audio_df.runtime.resources import load_resources
 
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "make_degraded.py"
 _spec = importlib.util.spec_from_file_location("make_degraded", _SCRIPT_PATH)

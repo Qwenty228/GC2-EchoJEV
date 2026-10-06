@@ -3,14 +3,14 @@
 Per the project protocol, metrics are **never** computed inside training code and a
 score file is produced once and never re-run in place; this module is the single
 place that reads score files and writes metrics. It reimplements no metric: every
-number here comes from `audio_df.metrics` (`compute_eer`, `roc_auc`, `min_dcf`,
+number here comes from `audio_df.evaluation.metrics` (`compute_eer`, `roc_auc`, `min_dcf`,
 `prf1_at_threshold`, `per_attack_eer`).
 
 ## Score polarity
 
 Every `scores/<testset>.csv` in this project follows the fixed SCORE CONVENTION
 (higher score = more bona fide, i.e. `higher_is_spoof=False`). This module hardcodes
-that polarity when calling `audio_df.metrics` — it is not a per-call guess, it is the
+that polarity when calling `audio_df.evaluation.metrics` — it is not a per-call guess, it is the
 project-wide file format contract score files are written under (`exp_io.write_scores`
 validates the `label` column but the score *direction* is a convention documented in
 `runs/README.md` and `exp_io`'s module docstring, not re-validated numerically
@@ -27,7 +27,7 @@ reported as `null` with an explicit reason string rather than silently omitted.
 
 Decision rule (tested explicitly in `tests/test_scoring.py`, not just documented):
 predicted spoof iff `score <= threshold` (project convention `higher_is_spoof=False`;
-this is exactly `audio_df.metrics.prf1_at_threshold`'s built-in rule for that polarity,
+this is exactly `audio_df.evaluation.metrics.prf1_at_threshold`'s built-in rule for that polarity,
 not a separate reimplementation here).
 """
 
@@ -44,7 +44,13 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from audio_df.metrics import compute_eer, min_dcf, per_attack_eer, prf1_at_threshold, roc_auc
+from audio_df.evaluation.metrics import (
+    compute_eer,
+    min_dcf,
+    per_attack_eer,
+    prf1_at_threshold,
+    roc_auc,
+)
 
 __all__ = ["score_experiment"]
 

@@ -7,7 +7,7 @@ built A1 (9.56 % equal error rate (EER, chapter 2) on eval) and A2 (0.96 %), bot
 audio, silence and all.
 
 The stress test: same trained detectors, same eval clips, with leading and trailing silence cut
-([`trim_silence`](../../SystemCode/src/audio_df/audio.py#L228), chapter 3's 30 decibel (dB) rule; inner
+([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L229), chapter 3's 30 decibel (dB) rule; inner
 pauses stay). Nothing is retrained; the threshold stays the raw-dev one.
 
 | detector | eval EER, raw | eval EER, trimmed |
@@ -51,7 +51,7 @@ lead-ins still get somewhat worse (A18 0.9 → 4.6 %, A19 1.9 → 7.4 %), except
 ## A1: three things happen at once
 
 Per-attack EER compares each attack's fakes with the **same** real pool
-([`per_attack_eer`](../../SystemCode/src/audio_df/metrics.py#L460)), so it can change because the real clips
+([`per_attack_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), so it can change because the real clips
 moved, the fakes moved, or both. Each group's median score before and after tells which.
 
 ![Change in A1's median score per group when silence is trimmed](img/ch08_a1_median_shift.png)

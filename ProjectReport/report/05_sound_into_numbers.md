@@ -7,7 +7,7 @@ Chapter 4's single summaries throw away almost everything. Chapter 1 told us wha
 
 This chapter builds A1's recipe: the official 2019 challenge baseline (B02), transcribed line
 by line from the official code into
-[`lfcc_b02.py`](../../SystemCode/src/audio_df/lfcc_b02.py). Its output is **linear-frequency
+[`lfcc_b02.py`](../../SystemCode/src/audio_df/features/lfcc_b02.py). Its output is **linear-frequency
 cepstral coefficients (LFCC)**.
 
 [Notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 9 rebuilds the recipe by hand on one
@@ -105,13 +105,13 @@ Panels 2 and 3 check this on a real eval clip, **recomputed in notebook 20**: c0
 So **loudness, recording gain and silence all live in c0** (a silent frame is a very low c0).
 B02 keeps c0 and does not subtract each recording's average (no cepstral mean and variance
 normalisation, CMVN; absent from the official code, per the
-[`lfcc_b02.py`](../../SystemCode/src/audio_df/lfcc_b02.py) docstring). So A1 sees level and silence
+[`lfcc_b02.py`](../../SystemCode/src/audio_df/features/lfcc_b02.py) docstring). So A1 sees level and silence
 directly. Remember chapter 3.
 
 ## Step 6: add movement
 
 Finally, add each coefficient's frame-to-frame change (the "delta", Δ: next frame minus previous)
-and the change of that change (ΔΔ), following the official code ([`official_deltas`](../../SystemCode/src/audio_df/lfcc_b02.py#L136)).
+and the change of that change (ΔΔ), following the official code ([`official_deltas`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L136)).
 20 static + 20 Δ + 20 ΔΔ = **60 numbers per 10 ms frame**. That is A1's input.
 
 ## What this recipe cannot see
@@ -126,7 +126,7 @@ and the change of that change (ΔΔ), following the official code ([`official_de
 Most speech systems use a different filter placement: the **mel scale**, designed to mimic the
 ear for speech recognition: narrow filters at low frequencies, wide at high ones (bottom row of
 the filter figure). Mel filters give **mel-frequency cepstral coefficients (MFCC)**: same
-recipe, only the filter edges move ([`lfcc_b02_filterbank`](../../SystemCode/src/audio_df/lfcc_b02.py#L194),
+recipe, only the filter edges move ([`lfcc_b02_filterbank`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L194),
 `spacing="mel"`). With 20 filters on 0–8 kHz, from our own filterbank code:
 
 | | linear (LFCC) | mel (MFCC) |
@@ -162,7 +162,7 @@ asks again on real-world audio.
 >
 > - The recipe: frames of 20 ms → FFT power → 20 filters → log → DCT → add Δ and ΔΔ = 60 numbers
 >   per frame ([notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cells 9–10;
->   [`extract_lfcc_b02`](../../SystemCode/src/audio_df/lfcc_b02.py#L239)).
+>   [`extract_lfcc_b02`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L239)).
 > - The DCT cuts the average absolute correlation from 0.85 to 0.17 ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb),
 >   cell 17, redrawing notebook 03, cell 11).
 > - c0 is level, c1 is tilt, higher c<sub>q</sub> are ripple; a 10 dB gain change moves only c0, by

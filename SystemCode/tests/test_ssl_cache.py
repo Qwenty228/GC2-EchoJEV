@@ -10,14 +10,14 @@ import numpy as np
 import soundfile as sf
 import torch
 
-from audio_df.resources import ChunkedJob
-from audio_df.ssl_cache import (
+from audio_df.features.ssl import (
     WaveformDataset,
     build_job_config,
     cache_dir_for,
     extract_pooled_hidden_states,
     run_extraction,
 )
+from audio_df.runtime.resources import ChunkedJob
 
 torch.manual_seed(0)
 
@@ -184,7 +184,7 @@ def test_run_extraction_writes_cache_and_resume_skips_completed_chunks(tmp_path)
         calls["n"] += 1
         return real_extract(*args, **kwargs)
 
-    import audio_df.ssl_cache as ssl_cache_mod
+    import audio_df.features.ssl as ssl_cache_mod
 
     original = ssl_cache_mod.extract_pooled_hidden_states
     ssl_cache_mod.extract_pooled_hidden_states = _counting_extract

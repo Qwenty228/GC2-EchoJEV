@@ -30,7 +30,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-from audio_df.resources import check_free_disk, load_resources
+from audio_df.runtime.resources import check_free_disk, load_resources
 
 # OpenSLR SLR17 ("A corpus of music, speech, and noise") download page:
 # https://www.openslr.org/17/ — the single-archive URL pattern for SLR resources, confirmed

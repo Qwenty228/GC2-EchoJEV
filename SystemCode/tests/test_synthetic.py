@@ -1,4 +1,4 @@
-"""Tests for the synthetic ASVspoof-2019-LA-shaped fixture (src/audio_df/synthetic.py).
+"""Tests for the synthetic ASVspoof-2019-LA-shaped fixture (src/audio_df/data/synthetic.py).
 
 These tests exist so that if `synthetic.py` ever changes, a test fails loudly instead of three
 notebooks quietly telling different stories about the same "synthetic mini-manifest" -- per the
@@ -12,8 +12,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from audio_df import data
-from audio_df.synthetic import build_synthetic_asvspoof_tree
+from audio_df.data import manifests as data
+from audio_df.data.synthetic import build_synthetic_asvspoof_tree
 
 
 def test_build_manifest_accepts_the_synthetic_tree(tmp_path):

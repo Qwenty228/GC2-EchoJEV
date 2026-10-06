@@ -18,7 +18,8 @@ matches what is currently stored in the config, without writing anything.
 `generate` applies every requested condition to every subset clip, writing 16 kHz mono FLAC
 under `output_dir` and one manifest CSV per condition
 (`data/manifests/eval_<condition>.csv`). Resumable via `--resume`: partially-completed
-conditions pick up where they left off (chunk granularity — see `audio_df.resources.ChunkedJob`).
+conditions pick up where they left off (chunk granularity — see
+`audio_df.runtime.resources.ChunkedJob`).
 The `noise` condition refuses to start if `data/raw/musan/noise` is missing, naming
 `scripts/get_musan.py` as the fix.
 
@@ -41,10 +42,10 @@ import pandas as pd
 import soundfile as sf
 import yaml
 
-from audio_df.audio import load_audio
-from audio_df.data import stratified_subset
-from audio_df.degrade import degrade
-from audio_df.resources import (
+from audio_df.data.degrade import degrade
+from audio_df.data.manifests import stratified_subset
+from audio_df.features.audio import load_audio
+from audio_df.runtime.resources import (
     ChunkedJob,
     MemoryGuard,
     MemoryPressureExit,
@@ -137,7 +138,7 @@ def _stratum_report(full_df: pd.DataFrame, sub_df: pd.DataFrame, strata: list[st
     sub_counts = sub_df.groupby(strata, dropna=False).size()
     lines = [
         "# Per-stratum counts, subset vs full eval (proportions preserved by construction —",
-        "# audio_df.data.stratified_subset allocates by largest remainder):",
+        "# audio_df.data.manifests.stratified_subset allocates by largest remainder):",
     ]
     for key in sorted(full_counts.index, key=str):
         n_full = int(full_counts.get(key, 0))

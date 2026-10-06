@@ -3,7 +3,7 @@
 #   uv run python scripts/make_degraded.py subset [--verify]
 #
 # Per-stratum counts, subset vs full eval (proportions preserved by construction —
-# audio_df.data.stratified_subset allocates by largest remainder):
+# audio_df.data.manifests.stratified_subset allocates by largest remainder):
 #   ('bonafide', '-'): full=7355 (0.1032)  subset=1032 (0.1032)
 #   ('spoof', 'A07'): full=4914 (0.0690)  subset=690 (0.0690)
 #   ('spoof', 'A08'): full=4914 (0.0690)  subset=690 (0.0690)

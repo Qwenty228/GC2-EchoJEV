@@ -1,4 +1,4 @@
-"""Tests for the EDA figure vocabulary in `audio_df.visualization`.
+"""Tests for the EDA figure vocabulary in `audio_df.evaluation.visualization`.
 
 Headless: force the Agg backend before any pyplot import. No dataset is used — every input
 is synthesised with numpy.
@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 from matplotlib.axes import Axes
 
-from audio_df import visualization as viz
+from audio_df.evaluation import visualization as viz
 
 RNG = np.random.default_rng(0)
 

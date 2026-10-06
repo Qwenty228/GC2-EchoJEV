@@ -19,15 +19,15 @@ checked_on: 2026-09-20
 > error.
 
 ## Evidence examined
-- code (as originally submitted, before correction): `src/audio_df/cache.py`, canonicalisation
+- code (as originally submitted, before correction): `src/audio_df/features/cache.py`, canonicalisation
   logic — converted every scalar leaf via `repr(value)`-style string serialisation without a
   type tag, so a fractional float `20.5` and the string `"20.5"` both canonicalised to the
   JSON string `"20.5"` and therefore hashed identically.
-- code (current, corrected, verified in this pass): `src/audio_df/cache.py:41-108`
+- code (current, corrected, verified in this pass): `src/audio_df/features/cache.py:41-108`
   (`_canonicalise`), now encodes every scalar leaf as a type-tagged 2-element
   `["n"|"s"|"b"|"z", payload]` pair — `["n", "20.5"]` for the float, `["s", "20.5"]` for the
   string — making the collision structurally impossible (different first element).
-  `cache_key` itself: `src/audio_df/cache.py:110-125`, SHA-256 of the canonical JSON, truncated
+  `cache_key` itself: `src/audio_df/features/cache.py:110-125`, SHA-256 of the canonical JSON, truncated
   to 32 hex chars (128 bits).
 - probe (performed by the coordinator, reported to the researcher as settled): re-ran a
   cross-type probe after the fix — all cross-type cases (`20` vs `20.0` vs `"20"` vs `"20.0"`
@@ -74,7 +74,7 @@ hashed (the canonicalisation step), not how much of the hash was kept.
 
 ## Required action
 Already applied at the time of this fact-check: type-tagged canonicalisation
-(`src/audio_df/cache.py:41-108`), independently re-probed and confirmed to separate all
+(`src/audio_df/features/cache.py:41-108`), independently re-probed and confirmed to separate all
 cross-type cases while preserving the intended `20 == 20.0` unification. No further code
 change required from this fact-check. No action required on the 128-bit truncation design —
 it is confirmed correct as originally claimed.

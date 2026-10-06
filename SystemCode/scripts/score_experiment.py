@@ -7,10 +7,10 @@
         [--registry-root experiments]
 
 Reads every `scores/*.csv` under the given experiment directory, writes
-`metrics.json` next to it (via `audio_df.scoring.score_experiment`), prints a
+`metrics.json` next to it (via `audio_df.evaluation.scoring.score_experiment`), prints a
 compact per-testset table, and updates that experiment's row in
 `<registry-root>/REGISTRY.md` with a short "key EERs" summary. Never computes a
-metric itself — all numbers come from `audio_df.scoring`/`audio_df.metrics`.
+metric itself — all numbers come from `audio_df.evaluation.scoring`/`audio_df.evaluation.metrics`.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from audio_df.exp_io import registry_update
-from audio_df.scoring import score_experiment
+from audio_df.evaluation.scoring import score_experiment
+from audio_df.runtime.exp_io import registry_update
 
 
 def _build_key_eers_summary(result: dict) -> str:

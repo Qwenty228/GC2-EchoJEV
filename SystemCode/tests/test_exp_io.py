@@ -1,4 +1,4 @@
-"""Tests for `audio_df.exp_io`: experiment IDs, dirs, env capture, scores, registry.
+"""Tests for `audio_df.runtime.exp_io`: experiment IDs, dirs, env capture, scores, registry.
 
 All tests use `tmp_path` as the experiment root so nothing here touches the real
 `runs/` directory. No dataset or model download is needed.
@@ -12,7 +12,7 @@ import json
 import pandas as pd
 import pytest
 
-from audio_df.exp_io import (
+from audio_df.runtime.exp_io import (
     _REGISTRY_COLUMNS,
     capture_env,
     create_experiment,

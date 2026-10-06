@@ -35,8 +35,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from audio_df.exp_io import capture_env, create_experiment, registry_append, registry_update
-from audio_df.resources import (
+from audio_df.runtime.exp_io import capture_env, create_experiment, registry_append, registry_update
+from audio_df.runtime.resources import (
     MemoryGuard,
     MemoryPressureExit,
     _mps_peak_mb,
@@ -48,7 +48,7 @@ from audio_df.resources import (
     memory_status,
     run_resource_summary,
 )
-from audio_df.seeding import seed_everything
+from audio_df.runtime.seeding import seed_everything
 
 __all__ = ["RunContext", "experiment_run", "machine_cell"]
 

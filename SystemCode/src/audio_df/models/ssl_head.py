@@ -1,7 +1,7 @@
 """A2's head: learnable softmax layer weights -> LayerNorm -> projection -> MLP -> logit.
 
 This is the only trainable part of System A2. The frozen SSL backbone (WavLM Base+ or
-XLS-R 300M, see `audio_df.ssl_cache`) is never touched here; this module only knows about
+XLS-R 300M, see `audio_df.features.ssl`) is never touched here; this module only knows about
 a `[batch, n_layers, hidden_dim]` tensor of per-layer, time-mean-pooled hidden states (the
 pooled cache `ssl_cache.py` writes to disk) and turns it into one scalar logit per clip.
 

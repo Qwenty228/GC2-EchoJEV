@@ -9,8 +9,8 @@ Leave-one-layer-out acts on an already-trained 13-layer head: that layer's logit
 
 All training goes through `run_a2.train_head`. Caches stay fp16 in memory and are converted
 to float32 per batch (`score_head`) or per training set (`train_layer_head`).
-Metrics are NOT computed here; callers use `audio_df.scoring` (this module only builds tables
-from its output).
+Metrics are NOT computed here; callers use `audio_df.evaluation.scoring` (this module only builds
+tables from its output).
 """
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from audio_df.experiments.run_a2 import train_head
 from audio_df.models.ssl_head import SSLHead
-from audio_df.seeding import make_generator
+from audio_df.pipelines.run_a2 import train_head
+from audio_df.runtime.seeding import make_generator
 
 __all__ = [
     "leave_one_layer_out",

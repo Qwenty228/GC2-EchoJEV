@@ -114,7 +114,7 @@ Composed together, the confirmed on-disk layout for ASVspoof 2019 LA is:
 <root>/ASVspoof2019_LA_cm_protocols/ASVspoof2019.LA.cm.{train.trn,dev.trl,eval.trl}.txt
 ```
 
-This is a direct match for `src/audio_df/data.py:_resolve_audio_path`'s own stated assumption
+This is a direct match for `src/audio_df/data/manifests.py:_resolve_audio_path`'s own stated assumption
 (`<root>/ASVspoof2019_LA_<split>/flac/<utt_id>.flac`, `data.py:141-144`) and for
 `build_manifest`'s construction of `split_audio_dir = root / f"ASVspoof2019_LA_{split}" /
 "flac"` (`data.py:~180`) — **the assumption is correct as implemented, no fix required.**
@@ -144,7 +144,7 @@ N/A (protocol/metadata note, not a formula).
 ## Implications for us
 
 - **T05's on-disk directory layout assumption is confirmed correct** — no code change
-  needed. `src/audio_df/data.py:_resolve_audio_path` (lines 138-152) and the
+  needed. `src/audio_df/data/manifests.py:_resolve_audio_path` (lines 138-152) and the
   `split_audio_dir` construction in `build_manifest` implement exactly the
   `<root>/ASVspoof2019_LA_<split>/flac/<utt_id>.flac` layout confirmed above from two
   independent official-baseline loaders (RawNet2 2021 baseline, AASIST). This was T05's own
@@ -153,7 +153,7 @@ N/A (protocol/metadata note, not a formula).
 - `configs/data.yaml` and `tasks/TASKS.md` (T05) should parse the LA protocol files with
   exactly this 5-field format: columns
   `[speaker_id, utt_id, unused("-"), attack_id("-"/"A01".."A19"), label]`.
-  `src/audio_df/data.py:parse_asvspoof_protocol` must **not** assume 4 columns — the `-`
+  `src/audio_df/data/manifests.py:parse_asvspoof_protocol` must **not** assume 4 columns — the `-`
   placeholder in position 3 is real and must be consumed/ignored, not treated as the
   attack_id column. Getting the column index wrong (e.g. treating column 3 as attack_id)
   would silently swap `-`/attack_id and corrupt every downstream leakage/attack-conditioned

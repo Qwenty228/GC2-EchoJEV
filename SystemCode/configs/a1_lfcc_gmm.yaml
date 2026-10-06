@@ -1,7 +1,7 @@
 # A1: LFCC + GMM, the official ASVspoof 2019 B02 baseline reproduction.
 # Every front-end parameter below is tied to a specific line in the official baseline
 # code (`ASVspoof_2019_baseline_CM_v1.zip`), per `Miscellaneous/research/knowledge/methods/
-# b02-lfcc-gmm.md`. See `src/audio_df/lfcc_b02.py`'s module docstring for how each of
+# b02-lfcc-gmm.md`. See `src/audio_df/features/lfcc_b02.py`'s module docstring for how each of
 # these differs from `configs/features.yaml`'s general ablation-grid primitives.
 
 system: a1

@@ -40,7 +40,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from audio_df.metrics import roc_auc
+from audio_df.evaluation.metrics import roc_auc
 
 __all__ = [
     "describe_by_class",

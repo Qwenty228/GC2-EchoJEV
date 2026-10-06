@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from audio_df.jev.cache import JevCache, cache_key, config_hash
-from audio_df.jev.client import DryRunJevClient, JevClient, JevRequest, JevResponse
-from audio_df.jev.questions import NOUL_QUESTION, QUESTION_TEXT_VERSION, build_request
+from audio_df.models.jev.cache import JevCache, cache_key, config_hash
+from audio_df.models.jev.client import DryRunJevClient, JevClient, JevRequest, JevResponse
+from audio_df.models.jev.questions import NOUL_QUESTION, QUESTION_TEXT_VERSION, build_request
 
 
 class _CountingClient(JevClient):

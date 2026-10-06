@@ -3,7 +3,7 @@
     uv run python scripts/xai_layer_analysis.py [--root experiments]
 
 Variants (all scored on dev, eval raw, eval trimmed, ITW raw; thresholds from each variant's
-own raw dev scores, via `audio_df.scoring.score_experiment`, the same code path as
+own raw dev scores, via `audio_df.evaluation.scoring.score_experiment`, the same code path as
 `scripts/score_experiment.py`):
   full_seed{1337,2337,3337}  standard 13-layer head, retrained
   layer00..layer12           single-layer heads (SSLHead(n_layers=1) on x[:, l:l+1]), seed 1337
@@ -26,15 +26,15 @@ import numpy as np
 import pandas as pd
 import torch
 
-from audio_df.exp_io import make_exp_id, registry_update, write_scores
-from audio_df.experiments.lifecycle import experiment_run
-from audio_df.experiments.run_a2 import align_cache_with_manifest, load_config
-from audio_df.metrics import prf1_at_threshold
+from audio_df.evaluation import xai_layers as xl
+from audio_df.evaluation.metrics import prf1_at_threshold
+from audio_df.evaluation.scoring import score_experiment
+from audio_df.features.ssl import cache_dir_for, load_cache
 from audio_df.models.ssl_head import SSLHead
-from audio_df.resources import memory_status
-from audio_df.scoring import score_experiment
-from audio_df.ssl_cache import cache_dir_for, load_cache
-from audio_df.xai import layers as xl
+from audio_df.pipelines.run_a2 import align_cache_with_manifest, load_config
+from audio_df.runtime.exp_io import make_exp_id, registry_update, write_scores
+from audio_df.runtime.lifecycle import experiment_run
+from audio_df.runtime.resources import memory_status
 
 BASE_RUN = "runs/E-20261001-e1-a2-raw"
 SEEDS = (1337, 2337, 3337)

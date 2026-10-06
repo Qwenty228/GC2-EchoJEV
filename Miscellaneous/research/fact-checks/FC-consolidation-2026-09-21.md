@@ -76,14 +76,14 @@ exactly the kind of failure this project's own conventions warn against.
 
 **Verdict: CONFIRMED.**
 
-`git diff src/audio_df/leakage.py` shows `_resolve_audio_path` previously did:
+`git diff src/audio_df/evaluation/leakage.py` shows `_resolve_audio_path` previously did:
 ```python
 p = Path(row["path"])
 if audio_root is not None and not p.is_absolute():
     p = Path(audio_root) / p          # unconditional join
 ```
 and now tries `p` as-written first, falling back to `audio_root / p` only if the as-written
-path doesn't exist (`src/audio_df/leakage.py:117-137` post-diff). The docstring added in the
+path doesn't exist (`src/audio_df/evaluation/leakage.py:117-137` post-diff). The docstring added in the
 diff states the mechanism explicitly and correctly: `build_manifest` already joins
 `dataset.root` onto `path`, while `run_audit` passes that same root in again as `audio_root`,
 so the old code produced `<root>/<root>/...`.
@@ -91,7 +91,7 @@ so the old code produced `<root>/<root>/...`.
 Confirmed the NaN conversion and downstream drop independently by reading the surrounding
 code, not just the diff's own claim:
 - `_extract_rms`/silence extractors catch `(FileNotFoundError, OSError, KeyError)` and leave
-  the cell `NaN` — `src/audio_df/leakage.py:192`.
+  the cell `NaN` — `src/audio_df/evaluation/leakage.py:192`.
 - `audit_single_feature` drops NaN rows before fitting (`leakage.py:322-324`), and
   `_audit_combined` drops any column that is **entirely** NaN before fitting the combined
   model (`leakage.py:359-364`).
@@ -167,7 +167,7 @@ matching.
 
 ## Claim 9 — new per-split silence_leading stats from `data/metadata/nuisance_features.csv`
 
-**Verdict: CONFIRMED, all sub-claims, computed independently via `audio_df.leakage.audit_single_feature(..., seed=1337)` and pandas groupbys.**
+**Verdict: CONFIRMED, all sub-claims, computed independently via `audio_df.evaluation.leakage.audit_single_feature(..., seed=1337)` and pandas groupbys.**
 
 - Per-split AUC (logreg, `seed=1337`, `n`=25380/24844/71237): train **0.7460**, dev
   **0.7890**, eval **0.8867**. Matches 0.746 / 0.789 / 0.887 exactly.
@@ -215,7 +215,7 @@ rather than left implying something about the eval split itself.
      them also reporting a separate, worse dev number, 31.09%, from the same fitted model).
      Our `audit_single_feature` figure is a **5-fold stratified cross-validation number
      computed entirely within the eval split** (`_cross_val_oof_scores`,
-     `src/audio_df/leakage.py:234-260`) — it never sees train or dev at all. It answers "how
+     `src/audio_df/evaluation/leakage.py:234-260`) — it never sees train or dev at all. It answers "how
      separable is silence_leading within eval's own attack mix," not "does a
      silence-duration classifier fit on train generalize to eval."
   2. **Classifier.** Müller et al. use a small FCNN; ours reports whichever of {logreg, tiny
