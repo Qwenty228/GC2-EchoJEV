@@ -44,6 +44,9 @@ def test_chunked_em_matches_unchunked_on_small_data():
         data, n_iter=5, chunk_frames=10_000, seed=7, init_sample_size=500
     )
 
+    assert gmm_chunked.means is not None and gmm_unchunked.means is not None
+    assert gmm_chunked.vars_ is not None and gmm_unchunked.vars_ is not None
+    assert gmm_chunked.weights is not None and gmm_unchunked.weights is not None
     np.testing.assert_allclose(gmm_chunked.means, gmm_unchunked.means, atol=1e-6)
     np.testing.assert_allclose(gmm_chunked.vars_, gmm_unchunked.vars_, atol=1e-6)
     np.testing.assert_allclose(gmm_chunked.weights, gmm_unchunked.weights, atol=1e-6)
@@ -102,6 +105,9 @@ def test_save_and_load_roundtrip(tmp_path):
     gmm.save(path)
     loaded = DiagGMM.load(path)
 
+    assert loaded.means is not None and gmm.means is not None
+    assert loaded.vars_ is not None and gmm.vars_ is not None
+    assert loaded.weights is not None and gmm.weights is not None
     np.testing.assert_allclose(loaded.means, gmm.means)
     np.testing.assert_allclose(loaded.vars_, gmm.vars_)
     np.testing.assert_allclose(loaded.weights, gmm.weights)

@@ -336,9 +336,7 @@ def preprocess(
     if silence_mode == "trimmed":
         x = trim_silence(x, sr)
     elif silence_mode != "raw":
-        raise ValueError(
-            f"silence_mode must be 'raw' or 'trimmed', got {silence_mode!r}"
-        )
+        raise ValueError(f"silence_mode must be 'raw' or 'trimmed', got {silence_mode!r}")
 
     if crop_seconds is None:
         return x.copy()

@@ -160,9 +160,7 @@ def plot_spectrogram(
     return ax
 
 
-def _mean_and_ci(
-    arr: np.ndarray, ci: float = 0.95
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _mean_and_ci(arr: np.ndarray, ci: float = 0.95) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Mean and a normal-approximation CI of the mean across axis 0 (examples).
 
     This is a display-only convenience (not a statistical claim of significance); `stats.py`

@@ -50,7 +50,7 @@ def test_describe_by_class_n_equals_1_is_sane():
     assert out.loc["only", "n"] == 1
     assert out.loc["only", "mean"] == pytest.approx(5.0)
     # std of a single observation is undefined, not fabricated as 0.0
-    assert np.isnan(out.loc["only", "std"])
+    assert pd.isna(out.loc["only", "std"])
     # IQR of a single point is well-defined: Q1 = Q3 = the value itself.
     assert out.loc["only", "iqr"] == pytest.approx(0.0)
 

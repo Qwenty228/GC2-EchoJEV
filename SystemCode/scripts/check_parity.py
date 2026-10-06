@@ -110,7 +110,7 @@ def check_a2_audio(detector: SslHeadDetector, n: int, seed: int) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--n", type=int, default=200, help="clips per end-to-end check")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

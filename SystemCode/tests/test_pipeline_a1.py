@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -265,7 +266,7 @@ def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
 
 
 def test_front_end_hash_unchanged_without_spacing_and_differs_for_mel():
-    base = {
+    base: dict[str, Any] = {
         "features": {"name": "lfcc_b02", "n_filters": 20, "fmin": 0.0, "fmax": None},
         "preprocessing": {"sample_rate": SR, "crop_seconds": None, "silence_mode": "raw"},
         "seed": 1337,

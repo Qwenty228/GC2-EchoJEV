@@ -9,6 +9,8 @@ preservation, constant/zero derivatives of an affine ramp).
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 from scipy.fft import dct as scipy_dct
@@ -30,7 +32,7 @@ HOP = 160
 WIN = 400
 N_FILTERS = 20
 
-BASE_CFG = {
+BASE_CFG: dict[str, Any] = {
     "sr": SR,
     "stft": {
         "n_fft": N_FFT,
@@ -117,7 +119,7 @@ def test_dct_orthonormal_round_trips_via_idct():
     c = dct_coeffs(L, n_coeff=None, orthonormal=True)
     # scipy's own inverse DCT-II (type=3 is the mathematical inverse of type=2) with the
     # matching norm="ortho" must reconstruct L exactly, to floating-point tolerance.
-    recon = scipy_dct(c, type=3, axis=-1, norm="ortho")
+    recon = np.asarray(scipy_dct(c, type=3, axis=-1, norm="ortho"))
     np.testing.assert_allclose(recon, L, atol=1e-10)
 
 
@@ -125,7 +127,7 @@ def test_dct_matches_scipy_ortho_directly():
     rng = np.random.default_rng(2)
     L = rng.standard_normal((7, N_FILTERS))
     ours = dct_coeffs(L, n_coeff=None, orthonormal=True)
-    reference = scipy_dct(L, type=2, axis=-1, norm="ortho")
+    reference = np.asarray(scipy_dct(L, type=2, axis=-1, norm="ortho"))
     np.testing.assert_allclose(ours, reference, atol=1e-12)
 
 
@@ -134,7 +136,7 @@ def test_dct_unnormalised_differs_from_orthonormal():
     L = rng.standard_normal((4, N_FILTERS))
     ortho = dct_coeffs(L, orthonormal=True)
     raw = dct_coeffs(L, orthonormal=False)
-    reference_raw = scipy_dct(L, type=2, axis=-1, norm=None)
+    reference_raw = np.asarray(scipy_dct(L, type=2, axis=-1, norm=None))
     np.testing.assert_allclose(raw, reference_raw, atol=1e-10)
     assert not np.allclose(ortho, raw)
 
@@ -158,7 +160,7 @@ def test_dct_truncation_loses_energy_monotonically():
     for n_coeff in range(1, N_FILTERS + 1):
         c_trunc = np.zeros_like(c_full)
         c_trunc[..., :n_coeff] = c_full[..., :n_coeff]
-        recon = scipy_dct(c_trunc, type=3, axis=-1, norm="ortho")
+        recon = np.asarray(scipy_dct(c_trunc, type=3, axis=-1, norm="ortho"))
         errors.append(np.sum((recon - L) ** 2))
 
     errors = np.array(errors)

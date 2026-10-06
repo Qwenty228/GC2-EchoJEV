@@ -68,9 +68,7 @@ def test_training_reduces_dev_loss_and_orients_higher_is_bonafide():
     rng = np.random.default_rng(1)
     bonafide = rng.normal(loc=1.0, scale=0.3, size=(n_per_class, n_layers, hidden_dim))
     spoof = rng.normal(loc=-1.0, scale=0.3, size=(n_per_class, n_layers, hidden_dim))
-    pooled = torch.tensor(
-        np.concatenate([bonafide, spoof], axis=0), dtype=torch.float32
-    )
+    pooled = torch.tensor(np.concatenate([bonafide, spoof], axis=0), dtype=torch.float32)
     is_spoof = torch.tensor([0.0] * n_per_class + [1.0] * n_per_class)
 
     head = SSLHead(

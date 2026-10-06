@@ -86,9 +86,7 @@ def test_score_experiment_eer_matches_compute_eer_directly(tmp_path, scoring_cfg
         dev_df["score"], dev_df["label"], higher_is_spoof=False
     )
     assert result["testsets"]["dev"]["eer"] == pytest.approx(expected_dev_eer, abs=1e-12)
-    assert result["testsets"]["dev"]["eer_threshold"] == pytest.approx(
-        expected_dev_thr, abs=1e-12
-    )
+    assert result["testsets"]["dev"]["eer_threshold"] == pytest.approx(expected_dev_thr, abs=1e-12)
     # eer_threshold only reported for dev
     assert "eer_threshold" not in result["testsets"]["eval"]
 
@@ -171,9 +169,7 @@ def test_missing_dev_reports_null_f1_with_reason(tmp_path, scoring_cfg_path):
     exp_dir = _make_experiment(tmp_path, with_dev=False)
     result = score_experiment(exp_dir, scoring_cfg_path=scoring_cfg_path)
     assert result["testsets"]["eval"]["f1"] is None
-    assert "reason" not in result["testsets"]["eval"] or result["testsets"]["eval"].get(
-        "f1_reason"
-    )
+    assert "reason" not in result["testsets"]["eval"] or result["testsets"]["eval"].get("f1_reason")
     assert result["threshold_source"]["value"] is None
     assert result["threshold_source"]["reason"]
 
@@ -182,9 +178,7 @@ def test_threshold_from_other_experiment_dev(tmp_path, scoring_cfg_path):
     dev_source = _make_experiment(tmp_path, exp_id="E-20261001-dev-a1-raw", with_dev=True)
     subset = _make_experiment(tmp_path, exp_id="E-20261001-e5-a1-raw", with_dev=False)
 
-    result = score_experiment(
-        subset, scoring_cfg_path=scoring_cfg_path, threshold_from=dev_source
-    )
+    result = score_experiment(subset, scoring_cfg_path=scoring_cfg_path, threshold_from=dev_source)
     assert result["threshold_source"]["value"] is not None
     assert result["threshold_source"]["exp_dir"] == str(dev_source)
     assert result["testsets"]["eval"]["f1"] is not None

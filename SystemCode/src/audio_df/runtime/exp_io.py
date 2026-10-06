@@ -90,7 +90,7 @@ _REGISTRY_HEADER_PARAGRAPH = (
     "swap_peak_gb, pressure_max} — e.g. `3.1 h · RSS 1.8 GB · MPS 2.9 GB · swap\n"
     "0.6→0.7 GB (peak 0.8) · pressure max warn` — see `exp_io.registry_append`/\n"
     "`registry_update`'s `resources` argument; the same dict is stored verbatim under\n"
-    "`metrics.json`'s `\"resources\"` key when a `run_summary.json` is present.\n\n"
+    '`metrics.json`\'s `"resources"` key when a `run_summary.json` is present.\n\n'
 )
 _REGISTRY_COLUMNS = [
     "id",

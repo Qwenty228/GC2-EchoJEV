@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -91,7 +92,9 @@ def _write_a2_metrics(a2_dir, eer_threshold=0.0, via="testsets_dev"):
     (a2_dir / "metrics.json").write_text(json.dumps(payload))
 
 
-def _cfg(manifest_path, a2_dir, cache_dir, n=6, eer_threshold=0.0):
+def _cfg(
+    manifest_path, a2_dir, cache_dir, n=6, eer_threshold: float | None = 0.0
+) -> dict[str, Any]:
     return {
         "a2_experiment": str(a2_dir),
         "sample_rate": 16000,

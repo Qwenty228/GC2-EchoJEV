@@ -478,8 +478,6 @@ def test_sha256sums_format_verified_by_shasum_binary(tmp_path):
     else:
         cmd = [shasum_bin, "-c", str(sums_path)]
 
-    result = subprocess.run(
-        cmd, cwd=str(tmp_path), capture_output=True, text=True, check=False
-    )
+    result = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "OK" in result.stdout

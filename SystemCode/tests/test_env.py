@@ -43,8 +43,15 @@ def test_unavailable_backend_raises_rather_than_falling_back():
 def test_describe_env_is_fully_populated():
     env = describe_env()
     expected = {
-        "python", "platform", "machine", "torch", "numpy",
-        "device", "mps_available", "cuda_available", "git_commit",
+        "python",
+        "platform",
+        "machine",
+        "torch",
+        "numpy",
+        "device",
+        "mps_available",
+        "cuda_available",
+        "git_commit",
     }
     assert expected == set(env)
     assert all(isinstance(v, str) and v for v in env.values())

@@ -16,6 +16,7 @@ import pytest
 
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "get_musan.py"
 _spec = importlib.util.spec_from_file_location("get_musan", _SCRIPT_PATH)
+assert _spec is not None and _spec.loader is not None
 get_musan_mod = importlib.util.module_from_spec(_spec)
 sys.modules["get_musan"] = get_musan_mod
 _spec.loader.exec_module(get_musan_mod)

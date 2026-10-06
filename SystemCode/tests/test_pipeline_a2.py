@@ -121,8 +121,15 @@ def test_train_head_reduces_dev_loss_and_selects_best_dev_epoch():
 
     head = SSLHead(n_layers=n_layers, hidden_dim=hidden_dim, proj_dim=12, mlp_hidden=8, dropout=0.0)
     result = run_a2.train_head(
-        head, x_train, y_train, x_dev, y_dev,
-        lr=1e-2, batch_size=16, max_epochs=40, patience=10,
+        head,
+        x_train,
+        y_train,
+        x_dev,
+        y_dev,
+        lr=1e-2,
+        batch_size=16,
+        max_epochs=40,
+        patience=10,
     )
     assert result.dev_losses[result.best_epoch] == min(result.dev_losses)
     assert result.dev_losses[result.best_epoch] < result.dev_losses[0]
@@ -142,7 +149,7 @@ def test_score_cached_writes_expected_columns_and_orientation(tmp_path):
     cache_dir.mkdir()
     ids = np.array(["u1", "u2", "u3"])
     pooled = np.zeros((3, 2, 3), dtype=np.float16)
-    pooled[0] = 1.0   # -> bonafide-ish input
+    pooled[0] = 1.0  # -> bonafide-ish input
     pooled[1] = -1.0
     pooled[2] = 0.5
     np.savez(cache_dir / "chunk_00000.npz", ids=ids, pooled=pooled)

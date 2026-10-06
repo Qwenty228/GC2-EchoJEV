@@ -12,6 +12,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -19,6 +20,7 @@ import yaml
 
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "make_tables.py"
 _spec = importlib.util.spec_from_file_location("make_tables", _SCRIPT_PATH)
+assert _spec is not None and _spec.loader is not None
 make_tables_mod = importlib.util.module_from_spec(_spec)
 sys.modules["make_tables"] = make_tables_mod
 _spec.loader.exec_module(make_tables_mod)
@@ -95,7 +97,13 @@ def _write_experiment(
 
 
 def _eval_result(eer=0.05, min_dcf=0.2, roc_auc=0.95, f1=0.9, per_attack=None):
-    result = {"n": 100, "eer": eer, "min_dcf": min_dcf, "roc_auc": roc_auc, "f1": f1}
+    result: dict[str, Any] = {
+        "n": 100,
+        "eer": eer,
+        "min_dcf": min_dcf,
+        "roc_auc": roc_auc,
+        "f1": f1,
+    }
     if per_attack is not None:
         result["per_attack_eer"] = {"per_attack": per_attack}
     return result

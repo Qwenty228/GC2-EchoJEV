@@ -58,6 +58,7 @@ def _official_compute_eer(target_scores, nontarget_scores):
     eer = np.mean((frr[min_index], far[min_index]))
     return eer, thresholds[min_index]
 
+
 # ---------------------------------------------------------------------------
 # compute_eer
 # ---------------------------------------------------------------------------
@@ -378,12 +379,8 @@ def test_per_attack_eer_pooled_sits_between_easy_and_hard_attacks():
     a03_scores = rng.normal(loc=0.1, scale=1.0, size=n_per_attack)
 
     scores = np.concatenate([bonafide_scores, a02_scores, a03_scores])
-    labels = (
-        ["bonafide"] * n_bonafide + ["spoof"] * n_per_attack + ["spoof"] * n_per_attack
-    )
-    attack_ids = (
-        ["bonafide"] * n_bonafide + ["A02"] * n_per_attack + ["A03"] * n_per_attack
-    )
+    labels = ["bonafide"] * n_bonafide + ["spoof"] * n_per_attack + ["spoof"] * n_per_attack
+    attack_ids = ["bonafide"] * n_bonafide + ["A02"] * n_per_attack + ["A03"] * n_per_attack
 
     result = per_attack_eer(scores, labels, attack_ids, higher_is_spoof=True)
 
@@ -565,7 +562,12 @@ def test_min_dcf_normalized_value_can_exceed_one_when_beta_below_one():
     assert paper_normaliser == pytest.approx(5.0)
     assert min_form_normaliser == pytest.approx(0.5)
     raw_dcf, _ = min_dcf(
-        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        scores,
+        labels,
+        higher_is_spoof=False,
+        c_miss=c_miss,
+        c_fa=c_fa,
+        p_spoof=p_spoof,
         normalize=False,
     )
     min_form_value = raw_dcf / min_form_normaliser
@@ -599,11 +601,21 @@ def test_min_dcf_unnormalized_matches_normalized_times_c_fa_p_spoof():
     normaliser = c_fa * p_spoof  # ASVspoof 5 Eq. 1's fixed normaliser
 
     raw, thr_raw = min_dcf(
-        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        scores,
+        labels,
+        higher_is_spoof=False,
+        c_miss=c_miss,
+        c_fa=c_fa,
+        p_spoof=p_spoof,
         normalize=False,
     )
     norm, thr_norm = min_dcf(
-        scores, labels, higher_is_spoof=False, c_miss=c_miss, c_fa=c_fa, p_spoof=p_spoof,
+        scores,
+        labels,
+        higher_is_spoof=False,
+        c_miss=c_miss,
+        c_fa=c_fa,
+        p_spoof=p_spoof,
         normalize=True,
     )
     assert raw == pytest.approx(norm * normaliser, abs=1e-9)

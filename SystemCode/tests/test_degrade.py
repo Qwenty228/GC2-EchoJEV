@@ -169,8 +169,7 @@ def test_degrade_resample_matches_direct_call():
 def test_degrade_noise_uses_noise_bank_and_is_deterministic():
     x = _tone(duration_s=0.5)
     bank = [
-        np.random.default_rng(i).normal(0, 1, size=len(x) * 2).astype(np.float32)
-        for i in range(3)
+        np.random.default_rng(i).normal(0, 1, size=len(x) * 2).astype(np.float32) for i in range(3)
     ]
     out1 = degrade(x, SR, "eval_noise_10db", _cfg(), seed=1337, clip_id="LA_E_1", noise_bank=bank)
     out2 = degrade(x, SR, "eval_noise_10db", _cfg(), seed=1337, clip_id="LA_E_1", noise_bank=bank)

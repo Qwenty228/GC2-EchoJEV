@@ -170,9 +170,7 @@ def _dev_threshold(
             "reason": "no scores/dev.csv in this experiment and no threshold_from given",
         }
 
-    eer, thr = compute_eer(
-        dev_df["score"], dev_df["label"], higher_is_spoof=_HIGHER_IS_SPOOF
-    )
+    eer, thr = compute_eer(dev_df["score"], dev_df["label"], higher_is_spoof=_HIGHER_IS_SPOOF)
     return thr, {
         "exp_dir": source_dir,
         "testset": "dev",
@@ -277,9 +275,7 @@ def score_experiment(
         exp_dir, Path(threshold_from) if threshold_from is not None else None, scores_by_testset
     )
 
-    manifest_attack_map = (
-        _load_manifest_attack_map(manifest_paths) if manifest_paths else None
-    )
+    manifest_attack_map = _load_manifest_attack_map(manifest_paths) if manifest_paths else None
 
     testset_results = {}
     for name, df in scores_by_testset.items():

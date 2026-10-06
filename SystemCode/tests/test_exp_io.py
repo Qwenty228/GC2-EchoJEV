@@ -327,9 +327,7 @@ def test_registry_update_edits_row_in_place(tmp_path):
         status="running",
         root=tmp_path,
     )
-    registry_update(
-        "E-20261001-e1-a1-raw", root=tmp_path, status="done", key_eers="eval=3.20"
-    )
+    registry_update("E-20261001-e1-a1-raw", root=tmp_path, status="done", key_eers="eval=3.20")
     text = (tmp_path / "REGISTRY.md").read_text()
     assert "done" in text
     assert "eval=3.20" in text
@@ -385,8 +383,7 @@ def test_format_resources_all_fields_present():
     }
     rendered = format_resources(resources)
     assert rendered == (
-        "3.1 h · RSS 1.8 GB · MPS 2.9 GB · swap 0.6→0.7 GB "
-        "(peak 0.8) · pressure max warn"
+        "3.1 h · RSS 1.8 GB · MPS 2.9 GB · swap 0.6→0.7 GB (peak 0.8) · pressure max warn"
     )
 
 

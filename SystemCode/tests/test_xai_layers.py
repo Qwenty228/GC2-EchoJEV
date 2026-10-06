@@ -4,6 +4,8 @@ Tiny synthetic arrays only; no real data."""
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 import torch
@@ -12,8 +14,16 @@ from audio_df.evaluation import xai_layers as xl
 from audio_df.evaluation.metrics import compute_eer
 from audio_df.models.ssl_head import SSLHead
 
-HEAD_CFG = {"proj_dim": 8, "mlp_hidden": 4, "dropout": 0.0, "lr": 1e-2, "batch_size": 32,
-            "max_epochs": 30, "patience": 5, "pos_weight": "auto"}
+HEAD_CFG = {
+    "proj_dim": 8,
+    "mlp_hidden": 4,
+    "dropout": 0.0,
+    "lr": 1e-2,
+    "batch_size": 32,
+    "max_epochs": 30,
+    "patience": 5,
+    "pos_weight": "auto",
+}
 L, D = 4, 6
 
 
@@ -66,8 +76,9 @@ def test_train_single_layer_head_prefers_informative_layer():
     xt, yt = _data(n=400, seed=3)
     eers = {}
     for layer in (0, 2):
-        head = xl.train_layer_head(x, y, xd, yd, layer=layer, seed=5, head_cfg=HEAD_CFG,
-                                   n_layers=L, hidden_dim=D)
+        head = xl.train_layer_head(
+            x, y, xd, yd, layer=layer, seed=5, head_cfg=HEAD_CFG, n_layers=L, hidden_dim=D
+        )
         s = xl.score_head(head, xt, layer=layer)
         lab = np.where(yt == 1, "bonafide", "spoof")
         eers[layer], _ = compute_eer(s, lab, higher_is_spoof=False)
@@ -77,7 +88,7 @@ def test_train_single_layer_head_prefers_informative_layer():
 def test_train_is_deterministic_for_seed():
     x, y = _data(seed=1)
     xd, yd = _data(seed=2)
-    kw = dict(layer=None, seed=9, head_cfg=HEAD_CFG, n_layers=L, hidden_dim=D)
+    kw: dict[str, Any] = dict(layer=None, seed=9, head_cfg=HEAD_CFG, n_layers=L, hidden_dim=D)
     h1 = xl.train_layer_head(x, y, xd, yd, **kw)
     h2 = xl.train_layer_head(x, y, xd, yd, **kw)
     np.testing.assert_array_equal(xl.score_head(h1, xd), xl.score_head(h2, xd))
@@ -92,12 +103,17 @@ def test_lr_probe_scores_orientation():
 
 
 def test_per_attack_table_and_summary_row():
-    metrics = {"testsets": {
-        "dev": {"eer": 0.01, "roc_auc": 0.99, "per_attack_eer": {"per_attack": {"A01": 0.0}}},
-        "eval": {"eer": 0.1, "per_attack_eer": {"per_attack": {"A07": 0.2, "A08": 0.1}}},
-        "eval_trimmed": {"eer": 0.2, "per_attack_eer": {"per_attack": {"A07": 0.3, "A08": 0.2}}},
-        "itw": {"eer": 0.15, "roc_auc": 0.9, "per_attack_eer": None},
-    }}
+    metrics = {
+        "testsets": {
+            "dev": {"eer": 0.01, "roc_auc": 0.99, "per_attack_eer": {"per_attack": {"A01": 0.0}}},
+            "eval": {"eer": 0.1, "per_attack_eer": {"per_attack": {"A07": 0.2, "A08": 0.1}}},
+            "eval_trimmed": {
+                "eer": 0.2,
+                "per_attack_eer": {"per_attack": {"A07": 0.3, "A08": 0.2}},
+            },
+            "itw": {"eer": 0.15, "roc_auc": 0.9, "per_attack_eer": None},
+        }
+    }
     row = xl.summary_row("v", metrics, bonafide_rejected=0.05)
     assert row["itw_eer"] == 0.15 and row["itw_bonafide_rejected"] == 0.05
     tab = xl.per_attack_table({"v1": metrics, "v2": metrics}, "eval")

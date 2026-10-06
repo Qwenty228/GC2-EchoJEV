@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -237,10 +238,14 @@ def test_timing_run_default_n_from_config():
 # --------------------------------------------------------------------------------------
 
 
-def _fake_status(pressure_level=1, swap_used_gb=0.5, swap_total_gb=1.0, rss_mb=100.0):
+def _fake_status(pressure_level: int | None = 1, swap_used_gb=0.5, swap_total_gb=1.0, rss_mb=100.0):
     return {
         "pressure_level": pressure_level,
-        "pressure_name": {1: "normal", 2: "warn", 4: "critical"}.get(pressure_level, "unknown"),
+        "pressure_name": (
+            {1: "normal", 2: "warn", 4: "critical"}.get(pressure_level, "unknown")
+            if pressure_level is not None
+            else "unknown"
+        ),
         "swap_used_gb": swap_used_gb,
         "swap_total_gb": swap_total_gb,
         "rss_mb": rss_mb,
@@ -249,17 +254,11 @@ def _fake_status(pressure_level=1, swap_used_gb=0.5, swap_total_gb=1.0, rss_mb=1
 
 def test_memory_status_parses_real_sysctl_output(monkeypatch):
     def fake_run(args, **kwargs):
-        class Result:
-            pass
-
-        r = Result()
         if args[:2] == ["sysctl", "-n"]:
-            r.stdout = "1\n"
-        else:
-            r.stdout = (
-                "vm.swapusage: total = 1024.00M  used = 592.25M  free = 431.75M  (encrypted)\n"
-            )
-        return r
+            return SimpleNamespace(stdout="1\n")
+        return SimpleNamespace(
+            stdout="vm.swapusage: total = 1024.00M  used = 592.25M  free = 431.75M  (encrypted)\n"
+        )
 
     monkeypatch.setattr("audio_df.runtime.resources.platform.system", lambda: "Darwin")
     monkeypatch.setattr("audio_df.runtime.resources.subprocess.run", fake_run)
@@ -274,15 +273,9 @@ def test_memory_status_parses_real_sysctl_output(monkeypatch):
 
 def test_memory_status_parses_gb_units(monkeypatch):
     def fake_run(args, **kwargs):
-        class Result:
-            pass
-
-        r = Result()
         if args[:2] == ["sysctl", "-n"]:
-            r.stdout = "4\n"
-        else:
-            r.stdout = "vm.swapusage: total = 2.00G  used = 1.50G  free = 0.50G\n"
-        return r
+            return SimpleNamespace(stdout="4\n")
+        return SimpleNamespace(stdout="vm.swapusage: total = 2.00G  used = 1.50G  free = 0.50G\n")
 
     monkeypatch.setattr("audio_df.runtime.resources.platform.system", lambda: "Darwin")
     monkeypatch.setattr("audio_df.runtime.resources.subprocess.run", fake_run)

@@ -145,9 +145,7 @@ def _stratum_report(full_df: pd.DataFrame, sub_df: pd.DataFrame, strata: list[st
         n_sub = int(sub_counts.get(key, 0))
         p_full = n_full / len(full_df)
         p_sub = (n_sub / len(sub_df)) if len(sub_df) else 0.0
-        lines.append(
-            f"#   {key}: full={n_full} ({p_full:.4f})  subset={n_sub} ({p_sub:.4f})"
-        )
+        lines.append(f"#   {key}: full={n_full} ({p_full:.4f})  subset={n_sub} ({p_sub:.4f})")
     return "\n".join(lines)
 
 
@@ -217,9 +215,7 @@ def load_noise_bank(noise_dir: str | Path, sr: int = _SR) -> list[np.ndarray]:
             f"noise directory not found at '{noise_dir}'. Run "
             f"'uv run python scripts/get_musan.py' to fetch MUSAN's noise/ subset."
         )
-    paths = sorted(
-        p for p in noise_dir.rglob("*") if p.suffix.lower() in (".wav", ".flac", ".mp3")
-    )
+    paths = sorted(p for p in noise_dir.rglob("*") if p.suffix.lower() in (".wav", ".flac", ".mp3"))
     if not paths:
         raise FileNotFoundError(
             f"no audio files found under '{noise_dir}'. Run "
@@ -462,8 +458,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
             noise_dir = Path(condition_cfg["noise_dir"])
             if not noise_dir.is_dir():
                 print(
-                    f"skipping timing for {name!r}: {noise_dir} missing "
-                    "(run scripts/get_musan.py)"
+                    f"skipping timing for {name!r}: {noise_dir} missing (run scripts/get_musan.py)"
                 )
                 continue
             noise_bank = load_noise_bank(noise_dir)
@@ -488,9 +483,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
     n_timed = sum(1 for name in results)
     if n_timed and total_bytes:
         bytes_per_clip = total_bytes / (n_timed * n)
-        est_total_gb = (
-            bytes_per_clip * len(clips_df) * len(_all_condition_names(cfg)) / (1024**3)
-        )
+        est_total_gb = bytes_per_clip * len(clips_df) * len(_all_condition_names(cfg)) / (1024**3)
         print(
             f"disk estimate for the full 4-condition x {len(clips_df)}-clip run: "
             f"{est_total_gb:.2f} GB"
@@ -572,8 +565,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
             print(f"  {p}")
         sys.exit(1)
     print(
-        f"OK: sampled up to {args.sample} rows per manifest across "
-        f"{len(manifest_paths)} manifests."
+        f"OK: sampled up to {args.sample} rows per manifest across {len(manifest_paths)} manifests."
     )
 
 

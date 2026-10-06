@@ -42,7 +42,7 @@ PIPELINES: dict[str, dict[str, Command]] = {
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="adf", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(prog="adf", description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--config", required=True, help="configs/<system>.yaml")
     parser.add_argument("--resources", default="configs/resources.yaml")
     sub = parser.add_subparsers(dest="command", required=True)

@@ -25,7 +25,7 @@ _FROM_RUN = {"a1": LfccGmmDetector.from_run, "a2": SslHeadDetector.from_run}
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("out_dir", type=Path)
     parser.add_argument("--jev", type=Path, default=None, help="A3/JEV config to wrap with")

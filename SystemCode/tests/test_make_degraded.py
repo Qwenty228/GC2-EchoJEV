@@ -22,6 +22,7 @@ from audio_df.runtime.resources import load_resources
 
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "make_degraded.py"
 _spec = importlib.util.spec_from_file_location("make_degraded", _SCRIPT_PATH)
+assert _spec is not None and _spec.loader is not None
 make_degraded_mod = importlib.util.module_from_spec(_spec)
 sys.modules["make_degraded"] = make_degraded_mod
 _spec.loader.exec_module(make_degraded_mod)

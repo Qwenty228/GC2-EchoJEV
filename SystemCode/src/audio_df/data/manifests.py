@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import os
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -537,7 +538,9 @@ def stratified_subset(
 # ================================================================================================
 
 
-def manifest_checksums(paths: list[str | Path], base_dir: str | Path | None = None) -> list[dict]:
+def manifest_checksums(
+    paths: Sequence[str | Path], base_dir: str | Path | None = None
+) -> list[dict]:
     """Compute `(file, sha256, rows, split_hash)` for each manifest CSV in `paths`.
 
     `sha256` hashes the file's raw bytes (what `shasum -c` will re-check). `rows` and

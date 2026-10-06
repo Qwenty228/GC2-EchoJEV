@@ -80,8 +80,17 @@ def test_no_label_leakage(variant, score):
                 yield k
                 yield from _keys(v)
 
-    forbidden_keys = {"label", "attack_id", "attack", "speaker", "speaker_id", "path", "clip_id",
-                      "utt_id", "split"}
+    forbidden_keys = {
+        "label",
+        "attack_id",
+        "attack",
+        "speaker",
+        "speaker_id",
+        "path",
+        "clip_id",
+        "utt_id",
+        "split",
+    }
     leaked = forbidden_keys & set(_keys(json.loads(encoded_a)))
     assert not leaked, f"identity/label keys in state: {leaked}"
 
@@ -94,7 +103,11 @@ def test_state_keys_are_exactly_the_documented_ones(variant):
     detector_keys = {"level", "confidence"} | ({"score"} if variant == "numbers" else set())
     assert set(state["detector"]) == detector_keys
     assert set(state["acoustic"]) == {
-        "high_band_energy", "silence_leading", "silence_trailing", "silence_total", "duration_s"
+        "high_band_energy",
+        "silence_leading",
+        "silence_trailing",
+        "silence_total",
+        "duration_s",
     }
 
 

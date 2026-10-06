@@ -163,9 +163,20 @@ def test_run_extraction_writes_cache_and_resume_skips_completed_chunks(tmp_path)
     out_dir = tmp_path / "cache"
 
     job = run_extraction(
-        ids, paths, model, fe, out_dir, job_config,
-        device=torch.device("cpu"), sample_rate=16000, silence_mode="raw",
-        crop_seconds=1.0, crop_mode="center", batch_size=4, num_workers=0, chunk_size=2,
+        ids,
+        paths,
+        model,
+        fe,
+        out_dir,
+        job_config,
+        device=torch.device("cpu"),
+        sample_rate=16000,
+        silence_mode="raw",
+        crop_seconds=1.0,
+        crop_mode="center",
+        batch_size=4,
+        num_workers=0,
+        chunk_size=2,
     )
     assert job.is_complete()
     data = job.load_all()
@@ -192,9 +203,20 @@ def test_run_extraction_writes_cache_and_resume_skips_completed_chunks(tmp_path)
         job2 = ChunkedJob(out_dir, ids, chunk_size=2, job_config=job_config)
         assert not job2.is_complete()
         job3 = run_extraction(
-            ids, paths, model, fe, out_dir, job_config,
-            device=torch.device("cpu"), sample_rate=16000, silence_mode="raw",
-            crop_seconds=1.0, crop_mode="center", batch_size=4, num_workers=0, chunk_size=2,
+            ids,
+            paths,
+            model,
+            fe,
+            out_dir,
+            job_config,
+            device=torch.device("cpu"),
+            sample_rate=16000,
+            silence_mode="raw",
+            crop_seconds=1.0,
+            crop_mode="center",
+            batch_size=4,
+            num_workers=0,
+            chunk_size=2,
         )
     finally:
         ssl_cache_mod.extract_pooled_hidden_states = original

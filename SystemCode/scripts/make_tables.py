@@ -74,9 +74,7 @@ def load_done_experiments(
     a registry row can legitimately outlive a metrics file during development.
     """
     runs_root = Path(runs_root)
-    registry_path = (
-        Path(registry_path) if registry_path is not None else runs_root / "REGISTRY.md"
-    )
+    registry_path = Path(registry_path) if registry_path is not None else runs_root / "REGISTRY.md"
     rows = _parse_registry_rows(registry_path)
 
     out = []

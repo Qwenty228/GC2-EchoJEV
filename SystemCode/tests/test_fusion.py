@@ -156,10 +156,10 @@ def test_attention_maps_are_returned_per_block() -> None:
 def test_gradients_reach_both_streams() -> None:
     model = _model().train()
     model(torch.randn(2, 40, 60), torch.randn(2, 20, 16)).sum().backward()
-    assert model.lfcc_in[1].weight.grad is not None
-    assert model.ssl_in[1].weight.grad is not None
-    assert model.lfcc_in[1].weight.grad.abs().sum() > 0
-    assert model.ssl_in[1].weight.grad.abs().sum() > 0
+    for proj in (model.lfcc_in[1], model.ssl_in[1]):
+        assert isinstance(proj, torch.nn.Linear)
+        assert proj.weight.grad is not None
+        assert proj.weight.grad.abs().sum() > 0
 
 
 # -- frame features -------------------------------------------------------------
@@ -181,7 +181,7 @@ def test_ssl_frame_states_is_the_weighted_layer_sum() -> None:
     got = ssl_frame_states(model, fe, x, SR, torch.device("cpu"), weights)
     with torch.no_grad():
         hidden = model(torch.from_numpy(x), output_hidden_states=True).hidden_states
-    expected = sum(w * h for w, h in zip(weights, hidden, strict=True)).numpy()
+    expected = torch.einsum("l,lbtd->btd", torch.from_numpy(weights), torch.stack(hidden)).numpy()
     np.testing.assert_allclose(got.astype(np.float32), expected, atol=2e-3, rtol=2e-3)
 
 

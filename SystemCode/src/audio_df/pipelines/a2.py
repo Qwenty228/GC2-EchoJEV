@@ -206,9 +206,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
         json.dumps({"timing": result, "extrapolations_hours": extrapolations}, indent=2)
     )
     print(f"wrote {out_path}")
-    print(
-        f"next: uv run adf --config {args.config} prepare --testsets train,dev,eval"
-    )
+    print(f"next: uv run adf --config {args.config} prepare --testsets train,dev,eval")
 
 
 def cmd_extract(args: argparse.Namespace) -> None:

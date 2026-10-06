@@ -21,6 +21,7 @@ import json
 import time
 from datetime import date
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -147,8 +148,8 @@ def main() -> None:
             del itw
             r = rows[-1]
             print(
-                f"[xai] {name}: dev {r['dev_eer']*100:.2f} eval {r['eval_eer']*100:.2f} "
-                f"trim {r['eval_trimmed_eer']*100:.2f} itw {r['itw_eer']*100:.2f} "
+                f"[xai] {name}: dev {r['dev_eer'] * 100:.2f} eval {r['eval_eer'] * 100:.2f} "
+                f"trim {r['eval_trimmed_eer'] * 100:.2f} itw {r['itw_eer'] * 100:.2f} "
                 f"({time.monotonic() - t0:.0f}s)"
             )
 
@@ -156,8 +157,15 @@ def main() -> None:
         # (a) full head, 3 seeds
         for s in SEEDS:
             h = xl.train_layer_head(
-                x_train, y_train, x_dev, y_dev, layer=None, seed=s, head_cfg=head_cfg,
-                n_layers=N_LAYERS, hidden_dim=cfg["model"]["hidden_dim"],
+                x_train,
+                y_train,
+                x_dev,
+                y_dev,
+                layer=None,
+                seed=s,
+                head_cfg=head_cfg,
+                n_layers=N_LAYERS,
+                hidden_dim=cfg["model"]["hidden_dim"],
             )
             finish(
                 f"full_seed{s}",
@@ -167,14 +175,24 @@ def main() -> None:
         # (b) single-layer heads
         for i in range(N_LAYERS):
             h = xl.train_layer_head(
-                x_train, y_train, x_dev, y_dev, layer=i, seed=cfg["seed"], head_cfg=head_cfg,
-                n_layers=N_LAYERS, hidden_dim=cfg["model"]["hidden_dim"],
+                x_train,
+                y_train,
+                x_dev,
+                y_dev,
+                layer=i,
+                seed=cfg["seed"],
+                head_cfg=head_cfg,
+                n_layers=N_LAYERS,
+                hidden_dim=cfg["model"]["hidden_dim"],
             )
             finish(f"layer{i:02d}", lambda x, h=h, i=i: xl.score_head(h, x, layer=i))
         # (c) leave-one-layer-out on the E1 head
         base = SSLHead(
-            N_LAYERS, cfg["model"]["hidden_dim"], cfg["head"]["proj_dim"],
-            cfg["head"]["mlp_hidden"], cfg["head"]["dropout"],
+            N_LAYERS,
+            cfg["model"]["hidden_dim"],
+            cfg["head"]["proj_dim"],
+            cfg["head"]["mlp_hidden"],
+            cfg["head"]["dropout"],
         )
         base.load_state_dict(torch.load(f"{BASE_RUN}/head_state_dict.pt", map_location="cpu"))
         for i in range(N_LAYERS):
@@ -241,12 +259,16 @@ def main() -> None:
             exp_id,
             root=args.root,
             key_eers=(
-                f"full1337 eval={summ.loc['full_seed1337','eval_eer']*100:.2f}; "
-                f"itw={summ.loc['full_seed1337','itw_eer']*100:.2f}; "
-                f"lr12 itw={summ.loc['lr_layer12','itw_eer']*100:.2f}"
+                f"full1337 eval={_pct(summ, 'full_seed1337', 'eval_eer')}; "
+                f"itw={_pct(summ, 'full_seed1337', 'itw_eer')}; "
+                f"lr12 itw={_pct(summ, 'lr_layer12', 'itw_eer')}"
             ),
         )
         print(md)
+
+
+def _pct(df: pd.DataFrame, row: str, col: str) -> str:
+    return f"{cast(float, df.loc[row, col]) * 100:.2f}"
 
 
 def _md(df: pd.DataFrame) -> str:
@@ -267,19 +289,28 @@ def _heatmap(tabs: dict[str, pd.DataFrame], path: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharey=True)
     for ax, (name, t) in zip(axes, tabs.items(), strict=True):
         im = ax.imshow(t.to_numpy() * 100, aspect="auto", cmap="viridis", vmin=0, vmax=50)
-        ax.set_xticks(range(len(t.columns)), [c.replace("full_seed", "full") for c in t.columns],
-                      rotation=60, fontsize=8)
+        ax.set_xticks(
+            range(len(t.columns)),
+            [c.replace("full_seed", "full") for c in t.columns],
+            rotation=60,
+            fontsize=8,
+        )
         ax.set_yticks(range(len(t.index)), t.index)
         ax.set_title(f"per-attack EER (%), {name}")
         for i in range(t.shape[0]):
             for j in range(t.shape[1]):
                 ax.text(
-                    j, i, f"{t.iat[i, j] * 100:.0f}", ha="center", va="center", color="w",
+                    j,
+                    i,
+                    f"{cast(float, t.iat[i, j]) * 100:.0f}",
+                    ha="center",
+                    va="center",
+                    color="w",
                     fontsize=6,
                 )
         fig.colorbar(im, ax=ax, fraction=0.03)
     fig.tight_layout()
-    fig.savefig(path, dpi=130)
+    fig.savefig(str(path), dpi=130)
     plt.close(fig)
 
 

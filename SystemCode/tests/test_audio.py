@@ -363,7 +363,11 @@ def test_trim_silence_removes_leading_and_trailing_only():
         _clip_with_lead_interior_trail_silence()
     )
     trimmed, (start, end) = trim_silence(
-        x, sr, top_db=_TOP_DB, frame_length=_FRAME_LENGTH, hop_length=_HOP_LENGTH,
+        x,
+        sr,
+        top_db=_TOP_DB,
+        frame_length=_FRAME_LENGTH,
+        hop_length=_HOP_LENGTH,
         return_offsets=True,
     )
 
@@ -465,7 +469,8 @@ def test_preprocess_trimmed_no_crop_removes_silence():
 def test_preprocess_invalid_silence_mode_raises():
     x = _tone(440, 16000, 1.0)
     with pytest.raises(ValueError):
-        preprocess(x, 16000, silence_mode="bogus", crop_seconds=None)
+        # An invalid mode on purpose: the call must raise.
+        preprocess(x, 16000, silence_mode="bogus", crop_seconds=None)  # pyright: ignore[reportArgumentType]
 
 
 def test_preprocess_crop_long_clip_center_length():
@@ -477,11 +482,19 @@ def test_preprocess_crop_long_clip_center_length():
 def test_preprocess_crop_long_clip_random_length_and_determinism():
     x = _tone(440, 16000, 6.0)
     out1 = preprocess(
-        x, 16000, silence_mode="raw", crop_seconds=4.0, crop_mode="random",
+        x,
+        16000,
+        silence_mode="raw",
+        crop_seconds=4.0,
+        crop_mode="random",
         rng=np.random.default_rng(42),
     )
     out2 = preprocess(
-        x, 16000, silence_mode="raw", crop_seconds=4.0, crop_mode="random",
+        x,
+        16000,
+        silence_mode="raw",
+        crop_seconds=4.0,
+        crop_mode="random",
         rng=np.random.default_rng(42),
     )
     assert out1.shape == (64000,)

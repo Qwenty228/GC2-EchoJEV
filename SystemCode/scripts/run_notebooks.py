@@ -25,6 +25,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Any
 
 import nbformat
 from jupyter_client.kernelspec import KernelSpecManager
@@ -91,7 +92,12 @@ def run_notebook(path: Path, timeout: float, spec_root: Path) -> dict:
     kc = km.client()
     kc.start_channels()
     t0 = time.monotonic()
-    result = {"notebook": path.name, "status": "ok", "failed_cell": None, "error": None}
+    result: dict[str, Any] = {
+        "notebook": path.name,
+        "status": "ok",
+        "failed_cell": None,
+        "error": None,
+    }
     try:
         kc.wait_for_ready(timeout=120)
         code_cells = [c for c in nb.cells if c.cell_type == "code"]
@@ -112,10 +118,14 @@ def run_notebook(path: Path, timeout: float, spec_root: Path) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("notebooks", nargs="*", type=Path)
-    parser.add_argument("--cell-timeout", type=float, default=3600.0,
-                        help="seconds to wait for a single cell's output (default 3600)")
+    parser.add_argument(
+        "--cell-timeout",
+        type=float,
+        default=3600.0,
+        help="seconds to wait for a single cell's output (default 3600)",
+    )
     args = parser.parse_args()
     paths = args.notebooks or sorted((REPO_ROOT / "notebooks").glob("[0-9]*.ipynb"))
 
@@ -124,16 +134,26 @@ def main() -> int:
         for path in paths:
             print(f"running {path.name} ...", flush=True)
             res = run_notebook(Path(path).resolve(), args.cell_timeout, Path(spec_root))
-            print(f"  -> {res['status']} in {res['seconds']}s"
-                  + (f" (cell {res['failed_cell']}: {res['error']})" if res["error"] else ""))
+            print(
+                f"  -> {res['status']} in {res['seconds']}s"
+                + (f" (cell {res['failed_cell']}: {res['error']})" if res["error"] else "")
+            )
             results.append(res)
 
-    lines = ["# Notebook run summary", "", f"Run at {time.strftime('%Y-%m-%d %H:%M')}.", "",
-             "| notebook | status | seconds | failed cell | error |", "|---|---|---|---|---|"]
+    lines = [
+        "# Notebook run summary",
+        "",
+        f"Run at {time.strftime('%Y-%m-%d %H:%M')}.",
+        "",
+        "| notebook | status | seconds | failed cell | error |",
+        "|---|---|---|---|---|",
+    ]
     for r in results:
         err = (r["error"] or "").replace("|", "\\|")[:160]
-        lines.append(f"| {r['notebook']} | {r['status']} | {r['seconds']} | "
-                     f"{r['failed_cell'] or ''} | {err} |")
+        lines.append(
+            f"| {r['notebook']} | {r['status']} | {r['seconds']} | "
+            f"{r['failed_cell'] or ''} | {err} |"
+        )
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "SUMMARY.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

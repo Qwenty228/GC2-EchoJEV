@@ -101,9 +101,7 @@ def _disjoint_speaker_manifest(n_speakers: int = 20, per_speaker: int = 10) -> p
     """Each speaker appears in exactly one class; duration is pure noise (no shortcut there)."""
     rng = _rng()
     rows = []
-    speaker_labels = {
-        f"spk{i}": ("bonafide" if i % 2 == 0 else "spoof") for i in range(n_speakers)
-    }
+    speaker_labels = {f"spk{i}": ("bonafide" if i % 2 == 0 else "spoof") for i in range(n_speakers)}
     idx = 0
     for spk, lab in speaker_labels.items():
         for _ in range(per_speaker):

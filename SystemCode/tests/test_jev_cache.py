@@ -14,15 +14,9 @@ from audio_df.models.jev.questions import NOUL_QUESTION, QUESTION_TEXT_VERSION, 
 class _CountingClient(JevClient):
     def __init__(self, inner: JevClient) -> None:
         self._inner = inner
+        self.route = inner.route
+        self.model_version = inner.model_version
         self.calls = 0
-
-    @property
-    def route(self) -> str:
-        return self._inner.route
-
-    @property
-    def model_version(self) -> str:
-        return self._inner.model_version
 
     def ask(self, request: JevRequest) -> JevResponse:
         self.calls += 1
@@ -94,8 +88,8 @@ def test_key_changes_when_any_config_element_changes(tmp_path, mutate):
         req2 = req
         variant, question_version = "words", QUESTION_TEXT_VERSION
 
+    other_counting = _CountingClient(DryRunJevClient())
     if mutate == "route_and_model":
-        other_counting = _CountingClient(DryRunJevClient())
         # Simulate a distinct route/model_version via a thin wrapper.
         class _OtherRoute(JevClient):
             route = "typesafe"

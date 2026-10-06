@@ -74,8 +74,7 @@ def _synth_utt(
     t = np.arange(n) / sr
     f0 = rng.uniform(90, 220)
     harmonics = sum(
-        (1.0 / k) * np.sin(2 * np.pi * f0 * k * t + rng.uniform(0, 2 * np.pi))
-        for k in range(1, 6)
+        (1.0 / k) * np.sin(2 * np.pi * f0 * k * t + rng.uniform(0, 2 * np.pi)) for k in range(1, 6)
     )
     noise = rng.standard_normal(n) * 0.02
     env = np.clip(np.sin(np.pi * np.minimum(t / max(duration_s, 1e-6), 1.0)), 0.05, 1.0)
