@@ -40,11 +40,10 @@ from audio_df.data.manifests import stratified_subset
 from audio_df.features.audio import load_audio
 from audio_df.models.jev.cache import JevCache
 from audio_df.models.jev.client import (
-    DryRunJevClient,
     JevClient,
     JevRequest,
     JevResponse,
-    TypesafeJevClient,
+    build_client,
 )
 from audio_df.models.jev.questions import (
     QUESTION_SETS,
@@ -132,18 +131,6 @@ class _CountingClient(JevClient):
     def ask(self, request: JevRequest) -> JevResponse:
         self.calls += 1
         return self._inner.ask(request)
-
-
-def _build_client(kind: str, cfg: dict[str, Any]) -> JevClient:
-    if kind == "dry-run":
-        return DryRunJevClient()
-    if kind == "typesafe":
-        client_cfg = cfg.get("client", {})
-        return TypesafeJevClient(
-            model_version=client_cfg.get("model_version", "unknown"),
-            route=client_cfg.get("route", "typesafe"),
-        )
-    raise ValueError(f"unknown client kind {kind!r}; expected 'dry-run' or 'typesafe'")
 
 
 def _question_set_tag(question_set: str) -> str:
@@ -299,7 +286,7 @@ def _run_a3_body(
     write_scores(run.exp_dir, "a2_dev500", a2_out)
 
     cache = JevCache(cfg.get("cache_dir", "data/jev_cache"))
-    client = _build_client(client_kind, cfg)
+    client = build_client(client_kind, cfg)
     counting = _CountingClient(client)
 
     sample_rate = int(cfg.get("sample_rate", 16000))

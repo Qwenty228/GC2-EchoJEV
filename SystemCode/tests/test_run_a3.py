@@ -248,7 +248,7 @@ def test_run_a3_budget_guard_aborts(tmp_path, monkeypatch):
                 raw=resp.raw,
             )
 
-    monkeypatch.setattr(run_a3_mod, "_build_client", lambda kind, cfg: _ExpensiveClient())
+    monkeypatch.setattr(run_a3_mod, "build_client", lambda kind, cfg: _ExpensiveClient())
 
     with pytest.raises(RuntimeError, match="budget guard"):
         run_a3(

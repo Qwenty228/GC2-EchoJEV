@@ -24,6 +24,20 @@ __all__ = [
 ]
 
 
+def to_mono_at(x: np.ndarray, sr: int, target_sr: int = 16000) -> np.ndarray:
+    """Average channels to mono and resample to `target_sr`, exactly as `load_audio` does.
+
+    For callers that already hold samples (an uploaded clip, a microphone buffer) rather
+    than a file path. `x` is `[n]` or `[n, channels]`. Returns `float32` `[n']`.
+    """
+    x = np.asarray(x, dtype=np.float32)
+    if x.ndim > 1:
+        x = x.mean(axis=1)
+    if sr != target_sr:
+        x = librosa_resample(x.astype(np.float32), orig_sr=sr, target_sr=target_sr)
+    return x.astype(np.float32)
+
+
 def load_audio(
     path: str,
     target_sr: int = 16000,

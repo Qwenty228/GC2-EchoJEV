@@ -56,6 +56,7 @@ __all__ = [
     "JevClient",
     "DryRunJevClient",
     "TypesafeJevClient",
+    "build_client",
 ]
 
 QuestionType = Literal["noul", "choice", "score"]
@@ -218,3 +219,17 @@ class TypesafeJevClient(JevClient):
             "TODO list in audio_df/models/jev/client.py's module docstring for exactly what is "
             "needed (wire format, auth, response schema, pricing)."
         )
+
+
+def build_client(kind: str, cfg: dict[str, Any]) -> JevClient:
+    """`"dry-run"` -> `DryRunJevClient`; `"typesafe"` -> `TypesafeJevClient` configured from
+    `cfg["client"]` (`configs/a3_jev.yaml`)."""
+    if kind == "dry-run":
+        return DryRunJevClient()
+    if kind == "typesafe":
+        client_cfg = cfg.get("client", {})
+        return TypesafeJevClient(
+            model_version=client_cfg.get("model_version", "unknown"),
+            route=client_cfg.get("route", "typesafe"),
+        )
+    raise ValueError(f"unknown client kind {kind!r}; expected 'dry-run' or 'typesafe'")
