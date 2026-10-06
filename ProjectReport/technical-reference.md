@@ -107,10 +107,10 @@ flowchart LR
   ITW[In-the-Wild meta.csv + WAV] --> M2[itw manifest]
   M --> L[audit_leakage.py<br/>Stage 0 shortcut audit]
   M --> EDA[notebooks 02/03<br/>spectral + cepstral EDA]
-  M --> A1[run_a1: LFCC-B02 → 2×512 GMM → mean LLR]
-  M --> A2X[run_a2 extract: WavLM → per-layer mean-pool cache]
-  A2X --> A2T[run_a2 train: softmax layer weights → LN → MLP]
-  A2T --> A3[run_a3: A2 score + acoustic state → JEV typed questions]
+  M --> A1[adf train, a1: LFCC-B02 → 2×512 GMM → mean LLR]
+  M --> A2X[adf prepare, a2: WavLM → per-layer mean-pool cache]
+  A2X --> A2T[adf train, a2: softmax layer weights → LN → MLP]
+  A2T --> A3[adf jev, a3: A2 score + acoustic state → JEV typed questions]
   A1 --> S[scores/*.csv]
   A2T --> S
   M2 --> S
@@ -256,7 +256,7 @@ eval together). None of them should matter for whether speech is synthetic.
 
 A frame (2,048 samples, hop 512) counts as **silent** if its RMS energy is more than 30 dB below
 the loudest frame in the clip, the convention of `librosa.effects.split`
-([`silence_ratio`](../SystemCode/src/audio_df/features/audio.py#L142)). Silence is decided per frame, not per
+([`silence_ratio`](../SystemCode/src/audio_df/features/audio.py#L156)). Silence is decided per frame, not per
 sample, so zero-crossings inside speech never count as silence.
 
 Spectral features such as bandwidth are **not** here. They describe the sound itself, so they
@@ -370,8 +370,8 @@ The audit's verdict is "do not model as-is". Instead of re-cutting the corpus, t
 
 - keeps **raw audio as the main condition**;
 - makes **trimmed audio** (leading and trailing silence removed,
-  [`trim_silence`](../SystemCode/src/audio_df/features/audio.py#L229)) **a mandatory diagnostic** on every test set
-  ([`preprocess(silence_mode=...)`](../SystemCode/src/audio_df/features/audio.py#L290)).
+  [`trim_silence`](../SystemCode/src/audio_df/features/audio.py#L243)) **a mandatory diagnostic** on every test set
+  ([`preprocess(silence_mode=...)`](../SystemCode/src/audio_df/features/audio.py#L304)).
 
 The shortcut is therefore *measured* in every headline number instead of hidden. One more
 protection: `preprocess` **repeat-pads, never zero-pads**, short clips, because zero padding
@@ -835,7 +835,9 @@ out-of-domain score [19, §3.3, p.3]. [19] tested it only fake-against-fake.
 
 Code: [src/audio_df/features/lfcc_b02.py](../SystemCode/src/audio_df/features/lfcc_b02.py),
 [src/audio_df/models/gmm.py](../SystemCode/src/audio_df/models/gmm.py),
-[src/audio_df/pipelines/run_a1.py](../SystemCode/src/audio_df/pipelines/run_a1.py). For a hands-on
+[src/audio_df/training/gmm.py](../SystemCode/src/audio_df/training/gmm.py),
+[src/audio_df/models/a1_lfcc_gmm.py](../SystemCode/src/audio_df/models/a1_lfcc_gmm.py),
+[src/audio_df/pipelines/a1.py](../SystemCode/src/audio_df/pipelines/a1.py). For a hands-on
 walk-through on real clips, read [notebooks/09_a1_playground.ipynb](../SystemCode/notebooks/09_a1_playground.ipynb)
 first. Cell 9 rebuilds the front end by hand and asserts it matches the library exactly.
 
@@ -948,7 +950,9 @@ frames (**hypothesis**). Attack A09 has 5 % exact-zero frames, and A12 has 1.7 %
 
 Code: [src/audio_df/features/ssl.py](../SystemCode/src/audio_df/features/ssl.py),
 [src/audio_df/models/ssl_head.py](../SystemCode/src/audio_df/models/ssl_head.py),
-[src/audio_df/pipelines/run_a2.py](../SystemCode/src/audio_df/pipelines/run_a2.py). Notebook:
+[src/audio_df/training/head.py](../SystemCode/src/audio_df/training/head.py),
+[src/audio_df/models/a2_ssl_head.py](../SystemCode/src/audio_df/models/a2_ssl_head.py),
+[src/audio_df/pipelines/a2.py](../SystemCode/src/audio_df/pipelines/a2.py). Notebook:
 [notebooks/11_a2_ssl_head.ipynb](../SystemCode/notebooks/11_a2_ssl_head.ipynb). Configs:
 [configs/a2_wavlm_base_plus.yaml](../SystemCode/configs/a2_wavlm_base_plus.yaml) and
 [configs/a2_xlsr_300m.yaml](../SystemCode/configs/a2_xlsr_300m.yaml).
@@ -991,7 +995,7 @@ ruled out for the same reason. [4]'s MaskedFeature masks frame-level latents [4,
 which a time-mean cache cannot do, and frame-level spectral-SSL fusion as in [6] needs frames
 too.
 
-### 7.3 Head and loss ([`SSLHead`](../SystemCode/src/audio_df/models/ssl_head.py#L62), [`train_head`](../SystemCode/src/audio_df/pipelines/run_a2.py#L214))
+### 7.3 Head and loss ([`SSLHead`](../SystemCode/src/audio_df/models/ssl_head.py#L62), [`train_head`](../SystemCode/src/audio_df/training/head.py#L56))
 
 $$
 \begin{aligned}
@@ -1108,7 +1112,7 @@ of the full head does not reproduce the original GPU run exactly. Eval is 1.10�
 
 ## 8. A3: A2 + JEV (scaffold only)
 
-Code: [src/audio_df/models/jev/](../SystemCode/src/audio_df/models/jev/), [run_a3.py](../SystemCode/src/audio_df/pipelines/run_a3.py),
+Code: [src/audio_df/models/jev/](../SystemCode/src/audio_df/models/jev/), [jev/wrapper.py](../SystemCode/src/audio_df/models/jev/wrapper.py), [pipelines/a3.py](../SystemCode/src/audio_df/pipelines/a3.py),
 config [configs/a3_jev.yaml](../SystemCode/configs/a3_jev.yaml), notebook
 [notebooks/12_a3_jev.ipynb](../SystemCode/notebooks/12_a3_jev.ipynb).
 
@@ -1515,7 +1519,7 @@ Each has a cheap test in §13.
 
 | item | status | next step |
 |---|---|---|
-| A2 with XLS-R 300M | config ready | `run_a2 --config configs/a2_xlsr_300m.yaml timing`, then a resumable overnight `extract --testsets train,dev,eval,itw` |
+| A2 with XLS-R 300M | config ready | `adf --config configs/a2_xlsr_300m.yaml timing`, then a resumable overnight `prepare --testsets train,dev,eval,itw` |
 | E4 robustness | generator ready | `scripts/get_musan.py` → `scripts/make_degraded.py timing/generate` → score A1 and A2 on the four sets |
 | A3 / E5 | scaffold, dry run | needs JEV API docs; then measure latency and cost on ≤20 clips before choosing the subset size |
 | A3 margins (open) | placeholder values `[0.05, 0.2]` in `configs/a3_jev.yaml` | A2 scores span about −40 to +30, so only 0.10 % of dev clips fall in the "unsure" band and A3 would almost never consult JEV. Rescale the margins (for example from dev score percentiles) before E5, and decide whether E5 should include In-the-Wild clips, since an ASVspoof-dev-only E5 cannot test the calibration problem ([report chapter 10](report/10_where_jev_fits.md)) |
@@ -1562,21 +1566,25 @@ randomised-weights sanity check (our addition; no paper here supplies one).
 
 ## 14. Where each step lives
 
-| step | run | code | notebook |
+Every system is trained and scored through one command, `uv run adf --config <config> <command>`
+(run from `SystemCode/`); any trained model loads for inference with
+`audio_df.inference.load_detector` after `scripts/export_bundle.py`.
+
+| step | command | code | notebook |
 |---|---|---|---|
 | manifests | `uv run python scripts/prepare_data.py` | [data.py](../SystemCode/src/audio_df/data/manifests.py) | [01](../SystemCode/notebooks/01_dataset_audit.ipynb) |
 | leakage audit | `uv run python scripts/audit_leakage.py` | [leakage.py](../SystemCode/src/audio_df/evaluation/leakage.py), [audio.py](../SystemCode/src/audio_df/features/audio.py) | [01](../SystemCode/notebooks/01_dataset_audit.ipynb) cells 14–21 |
 | spectral and cepstral EDA | — | [features.py](../SystemCode/src/audio_df/features/cepstral.py), [stats.py](../SystemCode/src/audio_df/evaluation/stats.py) | [02](../SystemCode/notebooks/02_spectral_eda.ipynb), [03](../SystemCode/notebooks/03_cepstral_eda.ipynb) |
 | learn A1 by hand | — | [lfcc_b02.py](../SystemCode/src/audio_df/features/lfcc_b02.py), [gmm.py](../SystemCode/src/audio_df/models/gmm.py) | [09](../SystemCode/notebooks/09_a1_playground.ipynb) |
-| A1 train and score | `run_a1 train --exp e1`; `run_a1 score --model-from … --silence-mode trimmed --testsets eval,itw` | [run_a1.py](../SystemCode/src/audio_df/pipelines/run_a1.py) ([`cmd_train`](../SystemCode/src/audio_df/pipelines/run_a1.py#L345), [`score_manifest`](../SystemCode/src/audio_df/pipelines/run_a1.py#L241)) | [10](../SystemCode/notebooks/10_a1_lfcc_gmm.ipynb) |
-| A2 extract, train, score | `run_a2 timing / extract / train / score` | [ssl_cache.py](../SystemCode/src/audio_df/features/ssl.py), [ssl_head.py](../SystemCode/src/audio_df/models/ssl_head.py), [run_a2.py](../SystemCode/src/audio_df/pipelines/run_a2.py) | [11](../SystemCode/notebooks/11_a2_ssl_head.ipynb) |
-| A3 | `run_a3` (dry run) | [jev/](../SystemCode/src/audio_df/models/jev/), [run_a3.py](../SystemCode/src/audio_df/pipelines/run_a3.py) | [12](../SystemCode/notebooks/12_a3_jev.ipynb) |
+| A1 train and score | `adf --config configs/a1_lfcc_gmm.yaml train --exp e1`; `… score --model-from … --silence-mode trimmed --testsets eval,itw` | [a1.py](../SystemCode/src/audio_df/pipelines/a1.py) ([`cmd_train`](../SystemCode/src/audio_df/pipelines/a1.py#L137), [`score_manifest`](../SystemCode/src/audio_df/pipelines/score_audio.py#L23)), [training/gmm.py](../SystemCode/src/audio_df/training/gmm.py) | [10](../SystemCode/notebooks/10_a1_lfcc_gmm.ipynb) |
+| A2 extract, train, score | `adf --config configs/a2_wavlm_base_plus.yaml timing / prepare / train / score` | [ssl.py](../SystemCode/src/audio_df/features/ssl.py), [a2_ssl_head.py](../SystemCode/src/audio_df/models/a2_ssl_head.py), [training/head.py](../SystemCode/src/audio_df/training/head.py), [a2.py](../SystemCode/src/audio_df/pipelines/a2.py) | [11](../SystemCode/notebooks/11_a2_ssl_head.ipynb) |
+| A3 | `adf --config configs/a3_jev.yaml jev` (dry run) | [jev/](../SystemCode/src/audio_df/models/jev/), [a3.py](../SystemCode/src/audio_df/pipelines/a3.py) | [12](../SystemCode/notebooks/12_a3_jev.ipynb) |
 | E4 degradations | `scripts/get_musan.py`, `scripts/make_degraded.py` | [degrade.py](../SystemCode/src/audio_df/data/degrade.py) | [13](../SystemCode/notebooks/13_e4_degradations.ipynb) |
 | metrics | `uv run python scripts/score_experiment.py runs/<id> [--threshold-from <raw id>]` | [scoring.py](../SystemCode/src/audio_df/evaluation/scoring.py), [metrics.py](../SystemCode/src/audio_df/evaluation/metrics.py) | — |
 | tables | `uv run python scripts/make_tables.py` | [make_tables.py](../SystemCode/scripts/make_tables.py) | — |
-| run lifecycle and resource guard | (used by every runner) | [lifecycle.py](../SystemCode/src/audio_df/runtime/lifecycle.py), [resources.py](../SystemCode/src/audio_df/runtime/resources.py), [exp_io.py](../SystemCode/src/audio_df/runtime/exp_io.py) | — |
+| run lifecycle and resource guard | (used by every pipeline) | [lifecycle.py](../SystemCode/src/audio_df/runtime/lifecycle.py), [resources.py](../SystemCode/src/audio_df/runtime/resources.py), [exp_io.py](../SystemCode/src/audio_df/runtime/exp_io.py) | — |
 
-Every heavy runner applies the limits in [configs/resources.yaml](../SystemCode/configs/resources.yaml):
+Every heavy pipeline applies the limits in [configs/resources.yaml](../SystemCode/configs/resources.yaml):
 MPS watermark 0.3, 4 threads, one heavy job at a time, a memory-pressure guard between chunks,
 resumable chunks, and a 200-clip timing run first. Every run writes `config.yaml`, `env.json`,
 `notes.md`, `scores/` and `run_summary.json`, and adds a registry row.

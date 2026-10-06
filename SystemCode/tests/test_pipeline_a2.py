@@ -1,4 +1,4 @@
-"""run_a2.py: config/manifest helpers, train_head, score_testset, and an end-to-end CLI run
+"""pipelines/a2.py: config/manifest helpers, train_head, score_cached, and an end-to-end CLI run
 against a tiny locally-built WavLM model and synthetic audio (no network, no real data)."""
 
 from __future__ import annotations
@@ -15,7 +15,8 @@ import soundfile as sf
 import torch
 import yaml
 
-import audio_df.pipelines.run_a2 as run_a2
+import audio_df.pipelines.a2 as run_a2
+from audio_df.models.a2_ssl_head import SslHeadDetector
 from audio_df.models.ssl_head import SSLHead
 
 NORMAL_STATUS = {
@@ -128,7 +129,7 @@ def test_train_head_reduces_dev_loss_and_selects_best_dev_epoch():
     assert result.pos_weight == pytest.approx(1.0)  # balanced synthetic data
 
 
-def test_score_testset_writes_expected_columns_and_orientation(tmp_path):
+def test_score_cached_writes_expected_columns_and_orientation(tmp_path):
     head = SSLHead(n_layers=2, hidden_dim=3, proj_dim=4, mlp_hidden=4, dropout=0.0)
     with torch.no_grad():
         # Force a large positive bias so every clip scores strongly bona fide, then rely on
@@ -153,7 +154,16 @@ def test_score_testset_writes_expected_columns_and_orientation(tmp_path):
             "attack_id": ["-", "A01", "-"],
         }
     )
-    df = run_a2.score_testset(head, cache_dir, manifest, torch.device("cpu"))
+    detector = SslHeadDetector(
+        head,
+        model={"id": "tiny", "n_layers": 2, "hidden_dim": 3},
+        head_config={},
+        preprocessing={"sample_rate": 16000},
+        threshold=0.0,
+        model_version="test",
+        device=torch.device("cpu"),
+    )
+    df = run_a2.score_cached(detector, cache_dir, manifest)
     assert list(df.columns) == ["clip_id", "label", "score", "attack_id"]
     assert list(df["clip_id"]) == ["u1", "u2", "u3"]
     assert np.isfinite(df["score"]).all()

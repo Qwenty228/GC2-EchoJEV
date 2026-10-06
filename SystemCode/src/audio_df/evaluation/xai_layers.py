@@ -7,7 +7,7 @@ layer mixture fixed to a one-hot; nothing in `ssl_head.py` or `train_head` chang
 Leave-one-layer-out acts on an already-trained 13-layer head: that layer's logit is set to
 -inf, so softmax gives it weight 0 and renormalises the rest. No retraining.
 
-All training goes through `run_a2.train_head`. Caches stay fp16 in memory and are converted
+All training goes through `training.head.train_head`. Caches stay fp16 in memory and are converted
 to float32 per batch (`score_head`) or per training set (`train_layer_head`).
 Metrics are NOT computed here; callers use `audio_df.evaluation.scoring` (this module only builds
 tables from its output).
@@ -24,8 +24,8 @@ import pandas as pd
 import torch
 
 from audio_df.models.ssl_head import SSLHead
-from audio_df.pipelines.run_a2 import train_head
 from audio_df.runtime.seeding import make_generator
+from audio_df.training.head import train_head
 
 __all__ = [
     "leave_one_layer_out",
@@ -75,7 +75,7 @@ def train_layer_head(
 ) -> SSLHead:
     """Train the A2 head on all layers (`layer=None`) or on one layer, same recipe as A2.
 
-    Seeding order mirrors `run_a2.cmd_train` (global seed, then head init, then loader
+    Seeding order mirrors `pipelines.a2.cmd_train` (global seed, then head init, then loader
     generator from the same seed), so `seed=1337, layer=None` reproduces the E1 recipe.
     """
     torch.manual_seed(seed)

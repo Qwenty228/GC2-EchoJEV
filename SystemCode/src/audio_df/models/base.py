@@ -40,6 +40,7 @@ __all__ = [
     "decide",
     "Detector",
     "read_bundle_meta",
+    "run_threshold",
     "write_bundle_meta",
 ]
 
@@ -156,3 +157,16 @@ def dev_threshold_from_run(run_dir: str | Path) -> float:
     if source is not None:
         return float(source)
     raise ValueError(f"{metrics_path} records no dev EER threshold")
+
+
+def run_threshold(run_dir: str | Path) -> float:
+    """`dev_threshold_from_run`, or NaN for a run that has not been scored yet.
+
+    Writing score files needs no threshold, so a pipeline may rebuild a detector from an
+    unscored run; a bundle for the application must not (`scripts/export_bundle.py`
+    refuses a NaN threshold).
+    """
+    try:
+        return dev_threshold_from_run(run_dir)
+    except FileNotFoundError:
+        return float("nan")

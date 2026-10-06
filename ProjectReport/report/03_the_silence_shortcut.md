@@ -8,7 +8,7 @@ proves nothing, so measure it on every clip.
 For each clip we compute **the fraction of the clip that is silent before the first sound**.
 The clip is cut into frames of 2,048 samples (128 milliseconds), one every 512 samples; a frame
 is silent if its energy is more than 30 decibels (dB) below the clip's loudest frame
-([`silence_ratio`](../../SystemCode/src/audio_df/features/audio.py#L142), following the `librosa` audio library).
+([`silence_ratio`](../../SystemCode/src/audio_df/features/audio.py#L156), following the `librosa` audio library).
 So "silent" means "much quieter than this clip's speech", not "digital zero": room hiss counts.
 
 Here it is for all 121,461 clips of ASVspoof 2019 LA (the Automatic Speaker Verification
@@ -123,11 +123,11 @@ The audit's verdict ([notebook 01](../../SystemCode/notebooks/01_dataset_audit.i
 run) is that the data "should NOT be modelled on as-is until the flagged feature(s) are
 investigated". We did not rebuild the dataset; every result is reported on **raw** audio and on
 **trimmed** audio, with leading and trailing silence removed
-([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L229), same 30 dB rule; inner pauses kept).
+([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L243), same 30 dB rule; inner pauses kept).
 
 When a detector needs fixed-length input (A2, chapter 7), short clips are padded by
 **repeating** them, never with zeros, which would add back the silence
-([`preprocess`](../../SystemCode/src/audio_df/features/audio.py#L290)).
+([`preprocess`](../../SystemCode/src/audio_df/features/audio.py#L304)).
 
 Chapter 8 measures what trimming does to our detectors, next to what [27] saw. What we do
 **not** know yet: our detectors were trained on raw audio only, so a drop when we

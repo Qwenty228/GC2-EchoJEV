@@ -21,10 +21,13 @@ agent that owns `pyproject.toml` for that task — everyone else requests it in 
   |---|---|---|
   | `data/` | manifests, protocol parsing, splits, subsets, degradations, synthetic fixtures | train anything |
   | `features/` | audio load and preprocessing, LFCC-B02, cepstral grid, SSL extraction, caches | know labels or thresholds |
-  | `models/` | detector architectures (GMM, SSL head, JEV client and state) | do run bookkeeping |
+  | `models/` | detectors behind one interface (`base.Detector`): A1, A2, the JEV wrapper; their architectures | do run bookkeeping |
+  | `training/` | fitting: A1 frame cache and chunked EM, A2 head training | write score files |
   | `evaluation/` | metrics, scoring from score files, statistics, leakage audit, figures, XAI | choose thresholds from eval |
   | `runtime/` | device, seeding, resource limits, run directories, registry | know what a model is |
-  | `pipelines/` | command-line runners that wire the above into runs | hold reusable logic |
+  | `pipelines/` | the `adf` command: one module per system wiring the above into runs | hold reusable logic |
+  | `inference.py` | `load_detector(bundle)`, the entry point for applications | know about runs |
+  | `config.py` | load YAML configs | interpret them |
 
 ## Reproducibility (every run, no exceptions)
 Seed numpy/torch/python; record git commit, config path + hash, dataset split hash, seed,

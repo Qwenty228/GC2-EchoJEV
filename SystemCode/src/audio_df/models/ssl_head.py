@@ -30,7 +30,7 @@ and is free to be nonlinear.
 `forward` returns one raw logit per clip, oriented so that a **higher logit means more
 bona fide** (`sigmoid(logit) ~ P(bonafide)`), matching this project's ASVspoof/`metrics.py`
 convention (`higher_is_spoof=False`) rather than `training.py`'s local
-`higher_is_spoof=True` convention for its own generic `train_model` loop. `run_a2.py` does
+`higher_is_spoof=True` convention for its own generic `train_model` loop. `training/head.py` does
 not use `training.py`'s loop for this reason — see its own training-loop docstring for how
 it maps this head's orientation onto `nn.BCEWithLogitsLoss`.
 

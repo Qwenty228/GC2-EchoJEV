@@ -21,6 +21,9 @@ dependencies = [
     "rich>=13.7",
 ]
 
+[project.scripts]
+adf = "audio_df.pipelines.run:main"
+
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]
 

@@ -24,7 +24,7 @@ client:
 # Detector-level and acoustic-evidence thresholds, applied in code (never learned).
 #
 # `detector.eer_threshold` is an EXPLICIT OVERRIDE ONLY — its default is `null`, meaning
-# "read it from <a2_experiment>/metrics.json instead" (audio_df.pipelines.run_a3.
+# "read it from <a2_experiment>/metrics.json instead" (audio_df.pipelines.a3.
 # resolve_eer_threshold: prefers testsets.dev.eer_threshold, falls back to
 # threshold_source.value). The runner refuses to start with an actionable
 # "score the A2 experiment first" message if that metrics.json does not exist yet. Only

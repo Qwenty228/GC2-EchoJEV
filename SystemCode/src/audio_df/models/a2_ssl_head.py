@@ -3,7 +3,7 @@
 Two scoring paths share one head:
 
 - `score_pooled(pooled)` scores per-layer pooled hidden states (`[B, L, D]`, the layout of
-  `data/cache/ssl/...`). It is the exact computation `pipelines/run_a2.py` used to write its
+  `data/cache/ssl/...`). It is the exact computation the original A2 runner used to write its
   score files, and the one experiments use.
 - `score_waveform(x)` runs the backbone first (`features.ssl.extract_pooled_hidden_states`),
   for single clips in the application. The cache stores pooled states in fp16, so the two
@@ -27,8 +27,8 @@ from audio_df.features.audio import preprocess
 from audio_df.features.ssl import extract_pooled_hidden_states, load_backbone
 from audio_df.models.base import (
     Detector,
-    dev_threshold_from_run,
     read_bundle_meta,
+    run_threshold,
     write_bundle_meta,
 )
 from audio_df.models.ssl_head import SSLHead
@@ -166,7 +166,7 @@ class SslHeadDetector(Detector):
             model=cfg["model"],
             head_config=cfg["head"],
             preprocessing=preprocessing,
-            threshold=dev_threshold_from_run(run_dir),
+            threshold=run_threshold(run_dir),
             model_version=run_dir.name,
             device=device,
         )

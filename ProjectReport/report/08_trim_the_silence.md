@@ -7,7 +7,7 @@ built A1 (9.56 % equal error rate (EER, chapter 2) on eval) and A2 (0.96 %), bot
 audio, silence and all.
 
 The stress test: same trained detectors, same eval clips, with leading and trailing silence cut
-([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L229), chapter 3's 30 decibel (dB) rule; inner
+([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L243), chapter 3's 30 decibel (dB) rule; inner
 pauses stay). Nothing is retrained; the threshold stays the raw-dev one.
 
 | detector | eval EER, raw | eval EER, trimmed |

@@ -89,7 +89,7 @@ def load_backbone(model_id: str, revision: str | None = None) -> tuple[nn.Module
 
     This function makes a real network call and is never exercised by this project's test
     suite (tests build a tiny `transformers` config locally instead, per
-    `CONVENTIONS.md`); it is only invoked by `run_a2.py`'s runner, and only against a
+    `CONVENTIONS.md`); it is only invoked by the A2 pipeline (`pipelines/a2.py`), and only against a
     real, running machine.
     """
     from transformers import AutoFeatureExtractor, AutoModel
@@ -190,7 +190,7 @@ class WaveformDataset(Dataset):
     ready to hand straight to a backbone's own feature extractor. Center crop is used for
     every split, including train — a fixed on-disk cache cannot support per-epoch random
     crop augmentation, so A2 deliberately gives up train-time random cropping in exchange
-    for a cache that is built once (see `run_a2.py`'s module docstring for the tradeoff).
+    for a cache that is built once (see `pipelines/a2.py`'s module docstring for the tradeoff).
     """
 
     def __init__(
@@ -303,7 +303,7 @@ def load_cache(out_dir: str | Path) -> dict[str, np.ndarray]:
     order since `run_extraction` always processes chunks in index order with
     `shuffle=False`. Unlike reconstructing a `ChunkedJob` against the same `item_ids`, this
     does not need the caller to reproduce the original manifest/job_config; callers that do
-    care about a config mismatch (e.g. `run_a2.py`'s `train`/`score` commands) should keep
+    care about a config mismatch (e.g. the A2 `train`/`score` commands) should keep
     doing their own alignment against a manifest, not rely on this function to catch it.
     """
     out_dir = Path(out_dir)

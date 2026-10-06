@@ -1,7 +1,7 @@
-"""End-to-end test of the A1 runner (train + score) on a tiny synthetic dataset.
+"""End-to-end test of the A1 pipeline (train + score) on a tiny synthetic dataset.
 
 No real dataset, no network: audio is synthesised with numpy/soundfile in `tmp_path`,
-memory pressure is mocked to "normal" throughout via `run_a1._STATUS_FN`.
+memory pressure is mocked to "normal" throughout via `a1._STATUS_FN`.
 """
 
 from __future__ import annotations
@@ -14,7 +14,10 @@ import pandas as pd
 import soundfile as sf
 import yaml
 
-from audio_df.pipelines import run_a1
+from audio_df.config import load_config
+from audio_df.pipelines import a1
+from audio_df.pipelines.run import build_parser, resolve
+from audio_df.training.gmm import front_end_config_hash
 
 NORMAL_STATUS = {
     "pressure_level": 1,
@@ -126,14 +129,14 @@ def _build_config(tmp_path: Path, manifest_paths: dict[str, Path]) -> Path:
 
 def test_train_then_score_end_to_end(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(run_a1, "_STATUS_FN", lambda: NORMAL_STATUS)
+    monkeypatch.setattr(a1, "_STATUS_FN", lambda: NORMAL_STATUS)
 
     manifest_paths = _build_dataset(tmp_path, {"train": 8, "dev": 3, "eval": 3})
     config_path = _build_config(tmp_path, manifest_paths)
     resources_path = tmp_path / "resources.yaml"
     _write_resources_yaml(resources_path)
 
-    parser = run_a1.build_arg_parser()
+    parser = build_parser()
     train_args = parser.parse_args(
         [
             "--config",
@@ -145,7 +148,7 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
             "smoke",
         ]
     )
-    train_args.fn(train_args)
+    resolve(train_args)(train_args)
 
     exp_dirs = sorted((tmp_path / "runs").glob("E-*-smoke-a1-raw"))
     assert len(exp_dirs) == 1
@@ -193,7 +196,7 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
             "eval",
         ]
     )
-    score_args.fn(score_args)
+    resolve(score_args)(score_args)
 
     trimmed_dirs = sorted((tmp_path / "runs").glob("E-*-e3-a1-trimmed"))
     assert len(trimmed_dirs) == 1
@@ -213,14 +216,14 @@ def test_train_then_score_end_to_end(tmp_path, monkeypatch):
 
 def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(run_a1, "_STATUS_FN", lambda: NORMAL_STATUS)
+    monkeypatch.setattr(a1, "_STATUS_FN", lambda: NORMAL_STATUS)
 
     manifest_paths = _build_dataset(tmp_path, {"train": 4, "dev": 2, "eval": 2})
     config_path = _build_config(tmp_path, manifest_paths)
     resources_path = tmp_path / "resources.yaml"
     _write_resources_yaml(resources_path)
 
-    parser = run_a1.build_arg_parser()
+    parser = build_parser()
     args = parser.parse_args(
         [
             "--config",
@@ -232,7 +235,7 @@ def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
             "smoke",
         ]
     )
-    args.fn(args)
+    resolve(args)(args)
 
     exp_dir = next((tmp_path / "runs").glob("E-*-smoke-a1-raw"))
     n_frames_before = json.loads(
@@ -252,7 +255,7 @@ def test_resume_replays_no_completed_chunk(tmp_path, monkeypatch):
             "--resume",
         ]
     )
-    args_resume.fn(args_resume)
+    resolve(args_resume)(args_resume)
 
     n_frames_after = json.loads(
         (Path("data/cache/a1").glob("*/bonafide_frames.f32.json").__next__()).read_text()
@@ -267,22 +270,22 @@ def test_front_end_hash_unchanged_without_spacing_and_differs_for_mel():
         "preprocessing": {"sample_rate": SR, "crop_seconds": None, "silence_mode": "raw"},
         "seed": 1337,
     }
-    h0 = run_a1._front_end_config_hash(base)
+    h0 = front_end_config_hash(base)
     # Hash must not depend on the seed (frames are seed-independent; seeds share a cache).
-    assert run_a1._front_end_config_hash({**base, "seed": 2337}) == h0
+    assert front_end_config_hash({**base, "seed": 2337}) == h0
     mel = {**base, "features": {**base["features"], "spacing": "mel"}}
-    assert run_a1._front_end_config_hash(mel) != h0
+    assert front_end_config_hash(mel) != h0
 
 
 def test_existing_lfcc_config_hash_is_the_cached_one():
-    cfg = run_a1.load_config("configs/a1_lfcc_gmm.yaml")
+    cfg = load_config("configs/a1_lfcc_gmm.yaml")
     assert "spacing" not in cfg["features"]
-    assert run_a1._front_end_config_hash(cfg) == "06c95e9be4b94e0f"
+    assert front_end_config_hash(cfg) == "06c95e9be4b94e0f"
 
 
 def test_mfcc_config_differs_from_lfcc_only_in_spacing_and_name():
-    lfcc = run_a1.load_config("configs/a1_lfcc_gmm.yaml")
-    mfcc = run_a1.load_config("configs/a1_mfcc_b02.yaml")
+    lfcc = load_config("configs/a1_lfcc_gmm.yaml")
+    mfcc = load_config("configs/a1_mfcc_b02.yaml")
     assert mfcc["features"]["spacing"] == "mel"
     mfcc_feat = {k: v for k, v in mfcc["features"].items() if k != "spacing"}
     assert mfcc_feat == lfcc["features"]
@@ -292,7 +295,7 @@ def test_mfcc_config_differs_from_lfcc_only_in_spacing_and_name():
 
 def test_tag_and_seed_flags(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(run_a1, "_STATUS_FN", lambda: NORMAL_STATUS)
+    monkeypatch.setattr(a1, "_STATUS_FN", lambda: NORMAL_STATUS)
 
     manifest_paths = _build_dataset(tmp_path, {"train": 4, "dev": 2, "eval": 2})
     config_path = _build_config(tmp_path, manifest_paths)
@@ -300,11 +303,11 @@ def test_tag_and_seed_flags(tmp_path, monkeypatch):
     _write_resources_yaml(resources_path)
     common = ["--config", str(config_path), "--resources", str(resources_path)]
 
-    parser = run_a1.build_arg_parser()
+    parser = build_parser()
     args = parser.parse_args(
         [*common, "train", "--exp", "smoke", "--tag", "mfcc-s2337", "--seed", "2337"]
     )
-    args.fn(args)
+    resolve(args)(args)
     exp_dir = next((tmp_path / "runs").glob("E-*-smoke-a1-raw-mfcc-s2337"))
     saved = yaml.safe_load((exp_dir / "config.yaml").read_text())
     assert saved["seed"] == 2337
@@ -327,7 +330,7 @@ def test_tag_and_seed_flags(tmp_path, monkeypatch):
             "2337",
         ]
     )
-    args.fn(args)
+    resolve(args)(args)
     score_dir = next((tmp_path / "runs").glob("E-*-smoke-a1-trimmed-mfcc-s2337"))
     assert yaml.safe_load((score_dir / "config.yaml").read_text())["seed"] == 2337
 

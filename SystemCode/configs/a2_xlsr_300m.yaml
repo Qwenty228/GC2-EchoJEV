@@ -3,11 +3,11 @@
 # XLS-R 300M has 24 transformer layers plus the feature-encoder/embedding output = 25
 # hidden-state tensors under `output_hidden_states=True`, each of hidden size 1024 —
 # confirmed directly from the model's own `config.json`
-# (Miscellaneous/research/knowledge/methods/ssl-hidden-states.md). `run_a2.py` asserts the loaded model
+# (Miscellaneous/research/knowledge/methods/ssl-hidden-states.md). `pipelines/a2.py` asserts the loaded model
 # matches `model.n_layers`/`model.hidden_dim` before extracting anything.
 #
 # RAW ONLY: there is no trimmed training for XLS-R (nor for WavLM Base+ — see
-# run_a2.py's module docstring); this config states it explicitly because XLS-R's
+# pipelines/a2.py's module docstring); this config states it explicitly because XLS-R's
 # extraction is by far the more expensive of the two (302M vs 94M parameters) and is meant
 # to run overnight, unattended, and resumably (`extract --resume`) rather than be re-run
 # under a second silence mode "just in case".
@@ -24,7 +24,7 @@ model:
 preprocessing:
   sample_rate: 16000
   crop_seconds: 4.0      # 64000 samples -> 199 frames for this backbone's conv stride
-  crop_mode: center       # center crop for EVERY split, including train (see run_a2.py doc)
+  crop_mode: center       # center crop for EVERY split, including train (see pipelines/a2.py doc)
   silence_mode: raw       # RAW ONLY for XLS-R (see header note above)
 
 head:

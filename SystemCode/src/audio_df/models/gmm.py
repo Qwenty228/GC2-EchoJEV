@@ -11,7 +11,7 @@ sufficient statistics (`N_k`, `sum_k x`, `sum_k x**2`) accumulate in `float64` a
 chunks and are only combined into new means/variances once per EM iteration (the M-step).
 
 This module does no file IO of its own beyond `save`/`load` (small `.npz` parameter
-files) — reading LFCC frames into an on-disk memmap is `experiments/run_a1.py`'s job
+files) — reading LFCC frames into an on-disk memmap is `training/gmm.py`'s job
 (per `CONVENTIONS.md`'s module boundaries: `models/` is architecture only).
 """
 

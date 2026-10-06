@@ -1,81 +1,46 @@
-"""System A2 runner: frozen SSL -> per-layer hidden states -> learned layer-weighted head.
+"""A2 pipeline: frozen SSL -> per-layer pooled cache -> learned layer-weighted head.
 
-    timing  [--n 200]                                          builds no cache/experiment
-    extract --testsets train,dev,eval [--silence-mode] [--resume]   builds the pooled cache
-    train   --exp e1 [--resume]                                     trains the head, scores
-                                                                     dev+eval (raw)
-    score   --model-from <raw exp dir> --exp e1|e3
-            --silence-mode raw|trimmed --testsets eval[,itw,...]    scores extra test sets
+Commands (through `audio_df.pipelines.run`; `configs/a2_wavlm_base_plus.yaml` or
+`configs/a2_xlsr_300m.yaml`):
 
-Backbone is chosen by `--config` (`configs/a2_wavlm_base_plus.yaml` default,
-`configs/a2_xlsr_300m.yaml` for XLS-R; run XLS-R only after Base+ works end to end, and
-raw-only — see that config's own header comment).
+    adf --config <a2 config> timing [--n 200]                     builds nothing
+    adf --config <a2 config> prepare --testsets train,dev,eval [--silence-mode] [--resume]
+                                                                   builds the pooled cache
+    adf --config <a2 config> train --exp e1 [--resume]            trains the head, scores
+                                                                   dev and eval (raw)
+    adf --config <a2 config> score --model-from <raw run> --exp e1|e3 \
+        --silence-mode raw|trimmed --testsets eval[,itw,...]      scores more test sets
 
-## Why extraction is a cache-building job, not an `experiment_run`
+`prepare` only writes `data/cache/ssl/...`: no run directory and no registry row, but the
+full resource discipline (limits, disk check, heavy-job lock, memory guard, resumable
+chunks). `train` and `score` go through `runtime.lifecycle.experiment_run` and write
+`runs/<id>/scores/<testset>.csv`; metrics come later from `scripts/score_experiment.py`.
 
-`extract` only ever produces `data/cache/ssl/...` — no `runs/<id>/` directory, no
-registry row. It still goes through this project's full resource discipline
-(`apply_resource_limits`, `check_can_start`, `heavy_job_lock`, `MemoryGuard`, `ChunkedJob`)
-directly via `audio_df.runtime.resources`, because it is exactly the kind of long-running,
-resumable, memory-sensitive job that discipline exists for; it just isn't an "experiment"
-in this project's sense (a run that produces scored predictions).
+Fixed design decisions:
 
-## Why train/score DO go through `experiment_run`
-
-`train` (and `score`, against an already-trained head) produce `scores/<testset>.csv`
-files under `runs/<exp_id>/`, so they go through the shared lifecycle
-(`audio_df.runtime.lifecycle.experiment_run`): resource limits, seeding, disk/pressure
-checks, the heavy-job lock, a registry row, and `run_summary.json` on exit.
-
-## Fixed A2 design decisions (see the handoff spec this runner implements)
-
-- **Center crop for every split, including train.** A2's cache is built once, ahead of
-  training; a fixed on-disk cache cannot support per-epoch random-crop augmentation the way
-  an on-the-fly audio pipeline could. This is a deliberate loss of one kind of augmentation
-  in exchange for not having to re-run a ~0.4-1.8 TB-scale extraction job every epoch.
-- **No trimmed training, ever.** `train` always trains on the raw cache. `trimmed` only
-  ever appears as a diagnostic: the raw-trained head is scored against a *trimmed* eval (or
-  In-the-Wild) cache via `score --silence-mode trimmed`. `score_experiment.py`'s threshold
-  always comes from the *raw* dev scores (`--threshold-from <raw exp dir>`), never from a
-  trimmed dev (there is no trimmed dev cache to threshold on in the first place).
-- **Checkpoint selection is by dev LOSS, not dev EER.** Dev only contains the training
-  attacks A01-A06, so dev EER saturates near-perfect and stops being a useful early-stopping
-  signal long before dev loss does (project decision, recorded here since it deviates from
-  `training.py`'s usual dev-EER-based early stopping).
-- **Training's loss-sign convention.** `SSLHead.forward` returns a logit oriented so that
-  higher = more bona fide (`audio_df.models.ssl_head`'s own convention, matching
-  `metrics.py`'s `higher_is_spoof=False`). `train_head` below trains directly against that
-  orientation: target = `is_bonafide` (1 for bonafide, 0 for spoof), input = the head's raw
-  logit, with `pos_weight = n_spoof / n_bonafide` in `nn.BCEWithLogitsLoss` — `pos_weight`
-  only reweights the loss term where `target == 1`, so putting bona fide (the minority
-  class, per the train split's ~1:8.8 bonafide:spoof ratio) in that slot is what actually
-  corrects the imbalance; putting `is_spoof` there instead (the more common BCE framing,
-  used by `training.py`'s *own* local convention for its unrelated generic loop) would
-  reweight the already-majority class and get the correction backwards. No sign-flip of the
-  logit is needed under this framing, unlike a target=`is_spoof` framing would need.
-- **No metrics computed here.** Only `scores/<testset>.csv` files are written (via
-  `audio_df.runtime.exp_io.write_scores`); `scripts/score_experiment.py` is the only place EER/AUC/
-  minDCF are computed, run by the user afterward — this file prints the exact command.
+- **Center crop for every split, train included.** The cache is built once, so per-epoch
+  random-crop augmentation is not possible; that is the price of not re-running extraction.
+- **No trimmed training.** `train` always uses the raw cache; `trimmed` is a diagnostic,
+  scoring the raw-trained head on a trimmed cache with the raw dev threshold.
+- **Checkpoint by dev loss, not dev EER**, and the loss orientation: see
+  `audio_df.training.head`.
 """
 
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import sys
-from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import torch
-import yaml
 from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
 
+from audio_df.config import load_config
 from audio_df.features.audio import load_audio, preprocess
 from audio_df.features.ssl import (
     build_job_config,
@@ -85,7 +50,8 @@ from audio_df.features.ssl import (
     load_cache,
     run_extraction,
 )
-from audio_df.models.ssl_head import SSLHead
+from audio_df.models.a2_ssl_head import SslHeadDetector, head_from_config
+from audio_df.pipelines import Command
 from audio_df.runtime.device import resolve_device
 from audio_df.runtime.exp_io import make_exp_id, write_scores
 from audio_df.runtime.lifecycle import experiment_run
@@ -105,19 +71,19 @@ from audio_df.runtime.resources import (
 )
 from audio_df.runtime.seeding import make_generator
 from audio_df.runtime.seeding import worker_init_fn as seed_worker_init_fn
+from audio_df.training.head import align_cache_with_manifest, train_head
 
 __all__ = [
+    "COMMANDS",
+    "assert_backbone_matches",
+    "cmd_extract",
+    "cmd_score",
+    "cmd_timing",
+    "cmd_train",
     "load_config",
     "resolve_manifest",
-    "assert_backbone_matches",
-    "align_cache_with_manifest",
-    "TrainResult",
-    "train_head",
-    "score_testset",
-    "main",
+    "score_cached",
 ]
-
-DEFAULT_CONFIG = "configs/a2_wavlm_base_plus.yaml"
 
 # Extrapolation targets for `timing`. `in_the_wild` is an approximate, UNVERIFIED clip
 # count (Miscellaneous/research/fact-checks/FC-plan-2026-09-30.md item 3: only aggregate hours --
@@ -135,16 +101,6 @@ _MODEL_DOWNLOAD_GB = {
     "microsoft/wavlm-base-plus": 0.38,
     "facebook/wav2vec2-xls-r-300m": 1.27,
 }
-
-
-# ---------------------------------------------------------------------------
-# Config / manifest helpers
-# ---------------------------------------------------------------------------
-
-
-def load_config(path: str | Path) -> dict[str, Any]:
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def resolve_manifest(cfg: dict[str, Any], testset: str) -> str:
@@ -178,169 +134,24 @@ def assert_backbone_matches(model: nn.Module, cfg: dict[str, Any]) -> None:
         )
 
 
-def align_cache_with_manifest(
-    cache: dict[str, np.ndarray], manifest_df: pd.DataFrame
-) -> tuple[np.ndarray, pd.DataFrame]:
-    """Reorder `manifest_df` to match `cache["ids"]`'s order; raise on any missing id."""
-    ids = [str(i) for i in cache["ids"]]
-    indexed = manifest_df.set_index("utt_id")
-    missing = sorted(set(ids) - set(indexed.index.astype(str)))
-    if missing:
-        raise ValueError(
-            f"{len(missing)} cached id(s) not found in manifest, e.g. {missing[:5]}"
-        )
-    indexed.index = indexed.index.astype(str)
-    ordered = indexed.loc[ids].reset_index()
-    return cache["pooled"], ordered
-
-
-# ---------------------------------------------------------------------------
-# Training
-# ---------------------------------------------------------------------------
-
-
-HeadT = TypeVar("HeadT", bound=nn.Module)
-
-
-@dataclass
-class TrainResult(Generic[HeadT]):
-    head: HeadT
-    best_epoch: int
-    train_losses: list[float] = field(default_factory=list)
-    dev_losses: list[float] = field(default_factory=list)
-    pos_weight: float = 1.0
-
-
-def train_head(
-    head: HeadT,
-    x_train: torch.Tensor,
-    y_bonafide_train: torch.Tensor,
-    x_dev: torch.Tensor,
-    y_bonafide_dev: torch.Tensor,
-    *,
-    lr: float,
-    batch_size: int,
-    max_epochs: int,
-    patience: int,
-    pos_weight: float | None = None,
-    device: torch.device | None = None,
-    generator: torch.Generator | None = None,
-) -> TrainResult[HeadT]:
-    """Train `head` with BCE, checkpoint-select by DEV LOSS (not dev EER — see module doc).
-
-    `y_bonafide_*` must be 1.0 for bonafide, 0.0 for spoof (matching `SSLHead`'s
-    higher-logit-means-bonafide orientation; see the module docstring for why this, and not
-    a `target=is_spoof` framing, is what makes `pos_weight` correct class-imbalance
-    reweighting rather than backwards reweighting).
-
-    `pos_weight=None` (the config's `"auto"`) computes `n_spoof / n_bonafide` from
-    `y_bonafide_train` itself. No metric (EER/AUC/etc.) is computed here — only losses.
-    """
-    if device is None:
-        device = torch.device("cpu")
-    if pos_weight is None:
-        n_bonafide = float((y_bonafide_train == 1).sum())
-        n_spoof = float((y_bonafide_train == 0).sum())
-        pos_weight = n_spoof / max(n_bonafide, 1.0)
-
-    head = head.to(device)
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(float(pos_weight), device=device))
-    opt = torch.optim.Adam(head.parameters(), lr=lr)
-
-    dataset = TensorDataset(x_train, y_bonafide_train)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=generator)
-
-    x_dev = x_dev.to(device)
-    y_bonafide_dev = y_bonafide_dev.to(device)
-
-    train_losses: list[float] = []
-    dev_losses: list[float] = []
-    best_dev_loss = float("inf")
-    best_state = copy.deepcopy(head.state_dict())
-    best_epoch = 0
-    epochs_since_improvement = 0
-
-    for epoch in range(max_epochs):
-        head.train()
-        running, n_batches = 0.0, 0
-        for xb, yb in loader:
-            xb, yb = xb.to(device), yb.to(device)
-            opt.zero_grad()
-            logit = head(xb)
-            loss = loss_fn(logit, yb)
-            loss.backward()
-            opt.step()
-            running += float(loss.detach())
-            n_batches += 1
-        train_losses.append(running / max(n_batches, 1))
-
-        head.eval()
-        with torch.no_grad():
-            dev_loss = float(loss_fn(head(x_dev), y_bonafide_dev))
-        dev_losses.append(dev_loss)
-
-        if dev_loss < best_dev_loss:
-            best_dev_loss = dev_loss
-            best_state = copy.deepcopy(head.state_dict())
-            best_epoch = epoch
-            epochs_since_improvement = 0
-        else:
-            epochs_since_improvement += 1
-            if epochs_since_improvement >= patience:
-                break
-
-    head.load_state_dict(best_state)
-    return TrainResult(
-        head=head,
-        best_epoch=best_epoch,
-        train_losses=train_losses,
-        dev_losses=dev_losses,
-        pos_weight=float(pos_weight),
-    )
-
-
-def score_testset(
-    head: nn.Module, cache_dir: str | Path, manifest_df: pd.DataFrame, device: torch.device
+def score_cached(
+    detector: SslHeadDetector, cache_dir: str | Path, manifest_df: pd.DataFrame
 ) -> pd.DataFrame:
     """Score every cached clip in `cache_dir`, aligned to `manifest_df`'s labels.
 
-    `score` = the head's raw logit (higher = more bona fide, matching this project's score
-    file convention, `exp_io`'s module docstring, `higher_is_spoof=False`).
+    `score` is the head's raw logit (higher = more bona fide, the score-file convention).
     """
-    cache = load_cache(cache_dir)
-    pooled, ordered = align_cache_with_manifest(cache, manifest_df)
-
-    head = head.to(device)
-    head.eval()
-    x = torch.tensor(pooled.astype(np.float32), device=device)
-    with torch.no_grad():
-        logit = head(x).cpu().numpy()
-
+    pooled, ordered = align_cache_with_manifest(load_cache(cache_dir), manifest_df)
     df = pd.DataFrame(
         {
             "clip_id": ordered["utt_id"].astype(str),
             "label": ordered["label"],
-            "score": logit.astype(np.float64),
+            "score": detector.score_pooled(pooled),
         }
     )
     if "attack_id" in ordered.columns:
         df["attack_id"] = ordered["attack_id"]
     return df
-
-
-def _load_head_from_config(cfg: dict[str, Any]) -> SSLHead:
-    return SSLHead(
-        n_layers=cfg["model"]["n_layers"],
-        hidden_dim=cfg["model"]["hidden_dim"],
-        proj_dim=cfg["head"]["proj_dim"],
-        mlp_hidden=cfg["head"]["mlp_hidden"],
-        dropout=cfg["head"]["dropout"],
-    )
-
-
-# ---------------------------------------------------------------------------
-# CLI commands
-# ---------------------------------------------------------------------------
 
 
 def cmd_timing(args: argparse.Namespace) -> None:
@@ -396,8 +207,7 @@ def cmd_timing(args: argparse.Namespace) -> None:
     )
     print(f"wrote {out_path}")
     print(
-        f"next: uv run python -m audio_df.pipelines.run_a2 extract "
-        f"--config {args.config} --testsets train,dev,eval"
+        f"next: uv run adf --config {args.config} prepare --testsets train,dev,eval"
     )
 
 
@@ -483,9 +293,7 @@ def cmd_extract(args: argparse.Namespace) -> None:
         print(f"[extract] memory pressure critical: {exc.args[0]}; rerun with --resume")
         sys.exit(3)
 
-    print(
-        f"next: uv run python -m audio_df.pipelines.run_a2 train --config {args.config} --exp e1"
-    )
+    print(f"next: uv run adf --config {args.config} train --exp e1")
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -520,13 +328,11 @@ def cmd_train(args: argparse.Namespace) -> None:
         pooled_dev, dev_aligned = align_cache_with_manifest(load_cache(dev_cache_dir), dev_manifest)
 
         x_train = torch.tensor(pooled_train.astype(np.float32))
-        y_train = torch.tensor(
-            (train_aligned["label"] == "bonafide").astype(np.float32).to_numpy()
-        )
+        y_train = torch.tensor((train_aligned["label"] == "bonafide").astype(np.float32).to_numpy())
         x_dev = torch.tensor(pooled_dev.astype(np.float32))
         y_dev = torch.tensor((dev_aligned["label"] == "bonafide").astype(np.float32).to_numpy())
 
-        head = _load_head_from_config(cfg)
+        head = head_from_config(cfg["model"], cfg["head"])
         generator = make_generator(cfg["seed"])
         pw_cfg = cfg["head"]["pos_weight"]
         pos_weight = None if pw_cfg == "auto" else float(pw_cfg)
@@ -562,16 +368,23 @@ def cmd_train(args: argparse.Namespace) -> None:
             json.dumps(result.head.layer_weights().detach().cpu().numpy().tolist(), indent=2)
         )
 
-        dev_scores = score_testset(result.head, dev_cache_dir, dev_manifest, device)
-        write_scores(run.exp_dir, "dev", dev_scores)
-        eval_scores = score_testset(result.head, eval_cache_dir, eval_manifest, device)
-        write_scores(run.exp_dir, "eval", eval_scores)
+        detector = SslHeadDetector(
+            result.head,
+            model=cfg["model"],
+            head_config=cfg["head"],
+            preprocessing=cfg["preprocessing"],
+            threshold=float("nan"),  # set later by scripts/score_experiment.py
+            model_version=exp_id,
+            device=device,
+        )
+        write_scores(run.exp_dir, "dev", score_cached(detector, dev_cache_dir, dev_manifest))
+        write_scores(run.exp_dir, "eval", score_cached(detector, eval_cache_dir, eval_manifest))
 
         run.note(f"best dev loss at epoch {result.best_epoch} (dev loss checkpoint selection)")
 
     print(
         f"next: uv run python scripts/score_experiment.py {run.exp_dir} "
-        f"&& uv run python -m audio_df.pipelines.run_a2 score --model-from {run.exp_dir} "
+        f"&& uv run adf --config {args.config} score --model-from {run.exp_dir} "
         f"--exp {args.exp} --silence-mode raw --testsets itw"
     )
 
@@ -579,10 +392,7 @@ def cmd_train(args: argparse.Namespace) -> None:
 def cmd_score(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     model_from = Path(args.model_from)
-    head = _load_head_from_config(cfg)
-    head.load_state_dict(torch.load(model_from / "head_state_dict.pt", map_location="cpu"))
-    device = resolve_device("auto")
-    head = head.to(device)
+    detector = SslHeadDetector.from_run(model_from, silence_mode=args.silence_mode)
 
     exp_id = make_exp_id(date.today(), args.exp, cfg["system"], args.silence_mode)
     full_config = {
@@ -620,7 +430,7 @@ def cmd_score(args: argparse.Namespace) -> None:
             cache_dir = cache_dir_for(
                 cfg["model"]["tag"], args.silence_mode, testset, root=cfg["cache_dir"]
             )
-            df = score_testset(head, cache_dir, manifest_df, device)
+            df = score_cached(detector, cache_dir, manifest_df)
             write_scores(run.exp_dir, testset, df, force=args.resume)
         exp_dir = run.exp_dir
 
@@ -632,47 +442,9 @@ def cmd_score(args: argparse.Namespace) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# argparse wiring
-# ---------------------------------------------------------------------------
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="System A2: frozen SSL + layer-weighted head")
-    parser.add_argument("--config", default=DEFAULT_CONFIG)
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    p_timing = sub.add_parser("timing")
-    p_timing.add_argument("--n", type=int, default=None)
-    p_timing.set_defaults(func=cmd_timing)
-
-    p_extract = sub.add_parser("extract")
-    p_extract.add_argument("--testsets", required=True)
-    p_extract.add_argument("--silence-mode", default="raw", choices=["raw", "trimmed"])
-    p_extract.add_argument("--resume", action="store_true")
-    p_extract.set_defaults(func=cmd_extract)
-
-    p_train = sub.add_parser("train")
-    p_train.add_argument("--exp", required=True)
-    p_train.add_argument("--resume", action="store_true")
-    p_train.set_defaults(func=cmd_train)
-
-    p_score = sub.add_parser("score")
-    p_score.add_argument("--model-from", required=True)
-    p_score.add_argument("--exp", required=True)
-    p_score.add_argument("--silence-mode", required=True, choices=["raw", "trimmed"])
-    p_score.add_argument("--testsets", required=True)
-    p_score.add_argument("--resume", action="store_true")
-    p_score.set_defaults(func=cmd_score)
-
-    return parser
-
-
-def main(argv: list[str] | None = None) -> None:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    args.func(args)
-
-
-if __name__ == "__main__":
-    main()
+COMMANDS: dict[str, Command] = {
+    "timing": cmd_timing,
+    "prepare": cmd_extract,
+    "train": cmd_train,
+    "score": cmd_score,
+}

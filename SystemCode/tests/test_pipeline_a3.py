@@ -10,7 +10,7 @@ import pytest
 import soundfile as sf
 import yaml
 
-from audio_df.pipelines.run_a3 import resolve_eer_threshold, run_a3
+from audio_df.pipelines.a3 import resolve_eer_threshold, run_a3
 
 NORMAL_STATUS = {
     "pressure_level": 1,
@@ -228,7 +228,7 @@ def test_run_a3_budget_guard_aborts(tmp_path, monkeypatch):
     manifest_path, a2_dir = _build_fixture(tmp_path, n_clips=10)
     cfg = _cfg(manifest_path, a2_dir, tmp_path / "jev_cache", n=10)
 
-    import audio_df.pipelines.run_a3 as run_a3_mod
+    import audio_df.pipelines.a3 as run_a3_mod
     from audio_df.models.jev.client import DryRunJevClient, JevRequest
 
     class _ExpensiveClient(DryRunJevClient):

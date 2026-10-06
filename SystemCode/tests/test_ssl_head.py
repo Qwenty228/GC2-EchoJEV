@@ -59,7 +59,7 @@ def test_wrong_shape_raises():
 def test_training_reduces_dev_loss_and_orients_higher_is_bonafide():
     """Synthetic, linearly separable pooled cache: bonafide clips have a larger mean in one
     layer's features than spoof clips. A few epochs of gradient descent on BCE (with the
-    sign convention run_a2.py uses: target=is_spoof, input=-logit) should push mean logits
+    sign convention training/head.py uses: target=is_spoof, input=-logit) should push mean logits
     for bonafide clips above mean logits for spoof clips, and reduce loss."""
     torch.manual_seed(0)
     n_layers, hidden_dim = 3, 6

@@ -555,9 +555,9 @@ def cmd_generate(args: argparse.Namespace) -> None:
     print(run_resource_summary())
     testsets = ",".join(condition_names)
     print("Next: score these testsets, e.g.")
-    print(f"  uv run python -m audio_df.run_a1 score --testsets {testsets}")
-    print(f"  uv run python -m audio_df.run_a2 extract --testsets {testsets}")
-    print(f"  uv run python -m audio_df.run_a2 score --testsets {testsets}")
+    print(f"  uv run adf --config configs/a1_lfcc_gmm.yaml score --testsets {testsets} ...")
+    print(f"  uv run adf --config configs/a2_wavlm_base_plus.yaml prepare --testsets {testsets}")
+    print(f"  uv run adf --config configs/a2_wavlm_base_plus.yaml score --testsets {testsets} ...")
 
 
 def cmd_verify(args: argparse.Namespace) -> None:

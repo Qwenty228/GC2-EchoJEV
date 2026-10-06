@@ -3,7 +3,7 @@
 # Layer/hidden counts are a CHECK, not a guess: WavLM Base+ has 12 transformer layers plus
 # the feature-encoder/embedding output = 13 hidden-state tensors under
 # `output_hidden_states=True`, each of hidden size 768 — confirmed directly from the model's
-# own `config.json` (Miscellaneous/research/knowledge/methods/ssl-hidden-states.md). `run_a2.py` asserts
+# own `config.json` (Miscellaneous/research/knowledge/methods/ssl-hidden-states.md). `pipelines/a2.py` asserts
 # the loaded model matches `model.n_layers`/`model.hidden_dim` before extracting anything.
 system: a2
 
@@ -22,7 +22,7 @@ model:
 preprocessing:
   sample_rate: 16000
   crop_seconds: 4.0      # 64000 samples -> 199 frames for this backbone's conv stride
-  crop_mode: center       # center crop for EVERY split, including train (see run_a2.py doc)
+  crop_mode: center       # center crop for EVERY split, including train (see pipelines/a2.py doc)
   silence_mode: raw       # raw is the primary mode; trimmed is a diagnostic on eval/itw only
 
 head:

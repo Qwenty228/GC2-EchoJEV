@@ -1,7 +1,7 @@
-"""A3 runner: frozen A2 dev scores + the JEV API over a stratified dev subset (E5).
+"""A3 pipeline: frozen A2 dev scores + the JEV API over a stratified dev subset (E5).
 
 ```
-uv run python -m audio_df.pipelines.run_a3 run \\
+adf --config configs/a3_jev.yaml jev \\
     --state numbers|words --questions noul_only|all3 \\
     [--client dry-run|typesafe] [--n 500] [--max-cost-usd 0.5] [--resume]
 ```
@@ -34,8 +34,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
 
+from audio_df.config import load_config
 from audio_df.data.manifests import stratified_subset
 from audio_df.features.audio import load_audio
 from audio_df.models.jev.cache import JevCache
@@ -52,11 +52,12 @@ from audio_df.models.jev.questions import (
     noul_to_a3_score,
 )
 from audio_df.models.jev.state import build_state
+from audio_df.pipelines import Command
 from audio_df.runtime.exp_io import make_exp_id, write_scores
 from audio_df.runtime.lifecycle import RunContext, experiment_run
 from audio_df.runtime.resources import memory_status
 
-__all__ = ["run_a3", "build_arg_parser", "main", "resolve_eer_threshold"]
+__all__ = ["COMMANDS", "cmd_jev", "resolve_eer_threshold", "run_a3"]
 
 _TYPESAFE_FIRST_RUN_MAX_N = 20
 
@@ -135,11 +136,6 @@ class _CountingClient(JevClient):
 
 def _question_set_tag(question_set: str) -> str:
     return "noul" if question_set == "noul_only" else question_set
-
-
-def load_config(path: str | Path) -> dict[str, Any]:
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def run_a3(
@@ -222,9 +218,7 @@ def run_a3(
         status_fn=status_fn,
         resume=resume,
     ) as run:
-        run.note(
-            f"detector eer_threshold={eer_threshold!r} (source: {threshold_info['source']})"
-        )
+        run.note(f"detector eer_threshold={eer_threshold!r} (source: {threshold_info['source']})")
         if client_kind == "dry-run":
             run.note("DRY RUN — stub client, not a result")
 
@@ -386,27 +380,9 @@ def _run_a3_body(
     print("Then: uv run python scripts/make_tables.py")
 
 
-def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="cmd", required=True)
-
-    run_p = sub.add_parser("run", help="run one A3 configuration")
-    run_p.add_argument("--config", default="configs/a3_jev.yaml")
-    run_p.add_argument("--state", choices=["numbers", "words"], required=True)
-    run_p.add_argument("--questions", choices=sorted(QUESTION_SETS), required=True)
-    run_p.add_argument("--client", choices=["dry-run", "typesafe"], default=None)
-    run_p.add_argument("--n", type=int, default=None)
-    run_p.add_argument("--resume", action="store_true")
-    run_p.add_argument("--max-cost-usd", type=float, default=0.50)
-
-    return parser
-
-
-def main(argv: list[str] | None = None) -> Path:
-    args = build_arg_parser().parse_args(argv)
-    cfg = load_config(args.config)
+def cmd_jev(args: argparse.Namespace) -> Path:
     return run_a3(
-        cfg,
+        load_config(args.config),
         state_variant=args.state,
         question_set=args.questions,
         client_kind=args.client,
@@ -416,5 +392,4 @@ def main(argv: list[str] | None = None) -> Path:
     )
 
 
-if __name__ == "__main__":
-    main()
+COMMANDS: dict[str, Command] = {"jev": cmd_jev}

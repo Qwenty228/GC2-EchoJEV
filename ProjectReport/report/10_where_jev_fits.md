@@ -79,7 +79,7 @@ subset; the accept/escalate split is applied at analysis.*
 Experiment E5 would compare A2 and A3 on a stratified 500-clip dev subset
 ([configs/a3_jev.yaml](../../SystemCode/configs/a3_jev.yaml): `subset.n: 500`): does a typed classifier over
 interpretable evidence improve the uncertain middle? The runner
-([run_a3.py](../../SystemCode/src/audio_df/pipelines/run_a3.py)) writes both scores, every answer and a cost
+([pipelines/a3.py](../../SystemCode/src/audio_df/pipelines/a3.py)) writes both scores, every answer and a cost
 summary; answers are cached by a hash of config and clip ([cache.py](../../SystemCode/src/audio_df/models/jev/cache.py)),
 so a rerun never pays twice.
 
@@ -97,7 +97,7 @@ so a rerun never pays twice.
   so the dry run builds its evidence from real A2 scores; only JEV's answers are stand-ins.
   Notebook 12 also prints the exact inputs to try in the JEV web playground by hand.
 - A budget guard refuses real runs of more than 20 clips until the cost per call is known
-  (run_a3.py docstring); the first real step is measuring latency and cost within that.
+  (`pipelines/a3.py` docstring); the first real step is measuring latency and cost within that.
 
 ## What would have to change
 
