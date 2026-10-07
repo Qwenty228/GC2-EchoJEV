@@ -1,223 +1,132 @@
-# Audio Deepfake Detection — GC2
+﻿### [ Practice Module ] Project Submission Template: Github Repository & Zip File
 
-A reproducible benchmark of spoofed-speech detectors on standardised ASVspoof protocols, with
-generalisation, robustness and silence-shortcut checks built in.
+**[ Naming Convention ]** CourseCode-StartDate-BatchCode-TeamName-ProjectName.zip
 
-**Research question.** Given an utterance *x* and label *y* ∈ {bonafide, spoof}, can we learn
-a detector that captures **synthesis-related evidence** rather than dataset or generator
-shortcuts? The working assumption is that for some observable representation *Z*,
-`P(Z | real) ≠ P(Z | fake)`. The project investigates **where** that difference is visible
-and **whether it survives unseen attacks and domains**.
+* **[ MTech Thru-Train Group Project Naming Example ]** IRS-PM-2020-01-18-IS02PT-GRP-AwsomeSG-HDB_BTO_Recommender.zip
 
-## Read this first
+* **[ MTech Stackable Group Project Naming Example ]** IRS-PM-2020-01-18-STK02-GRP-AwsomeSG-HDB_BTO_Recommender.zip
 
-- **[The report](docs/report/README.md)**: the main document. It covers the question, the data,
-  the three detectors and every result, as one argument in twelve short chapters.
-- **[Technical reference](docs/technical-reference.md)**: full method, maths, implementation
-  pointers and result tables.
-- **[Research notes](research/README.md)**: page-referenced notes on papers and methods,
-  fact-checks and architecture decision records (ADRs).
-
-## Results
-
-| equal error rate (EER), lower is better | 2019 LA eval, raw | 2019 LA eval, silence trimmed | In-the-Wild, raw |
-|---|---|---|---|
-| **A1** LFCC + GMM (official B02 recipe) | 9.56 % | 19.84 % | 58.04 % |
-| **A2** frozen WavLM Base+, layer-weighted head | **0.96 %** | 13.27 % | **14.70 %** |
-
-Tables: [`reports/tables/`](reports/tables/) · run log: [`experiments/REGISTRY.md`](experiments/REGISTRY.md).
-In short: leading silence alone predicts the label with an area under the curve (AUC) of 0.837,
-and trimming it costs both detectors heavily. Both detectors also detect genuine vocoder
-artefacts. On real-world audio, A2's ranking holds but its decision threshold does not, and A1
-falls to chance. The [report](docs/report/README.md) gives the full argument.
-
-## The systems and experiments
-
-1. **Data:** ASVspoof 2019 logical access (LA), official train/dev/eval splits; 16 kHz audio.
-   In-the-Wild is the cross-domain test set and is never used for training.
-2. **A1:** linear-frequency cepstral coefficients (LFCC) with Gaussian mixture models (GMM), the
-   official ASVspoof 2019 B02 recipe: 60-dimensional LFCC, two 512-component GMMs, a
-   log-likelihood-ratio score, whole utterances.
-3. **A2:** a frozen self-supervised (SSL) model (WavLM Base+; XLS-R 300M is configured) →
-   learned layer weights → mean pooling → a small multilayer perceptron (MLP). Only the head
-   trains, on a 4 s centre crop.
-4. **A3:** A2 plus JEV, a typed classifier service (not a large language model), asked typed
-   questions over a label-free evidence state per clip. Scaffold with a dry-run client.
-5. **Experiments:** E1 benchmark (2019 LA eval) · E2 ablation (analyses X4 and X6 done) · E3
-   generalisation (In-the-Wild and unseen attacks A07–A19) · E4 robustness (MP3 32k, Opus 16k,
-   noise at 10 dB, 8 kHz resample on a 10k stratified eval subset) · E5 A2 against A3 · E6
-   efficiency.
-6. **Silence:** raw audio is the main condition; trimmed audio is a diagnostic on every test set.
-7. **Protocol:** thresholds are fixed on dev, and metrics are computed only from score files.
-8. **Machine:** a fanless MacBook Air M4 (16 GB), so resource limits and resumable jobs are built in.
-
-| Area | Status |
-|---|---|
-| Data manifests, checksums, In-the-Wild loader, stratified subsets, leakage audit | done |
-| Exploratory analysis (notebooks 01–03) | done |
-| A1 (`run_a1`, notebooks 09–10) | run: E1, E3, raw and trimmed; X4 with 3 seeds per arm |
-| A2 with WavLM Base+ (`run_a2`, notebook 11) | run: E1, E3, raw and trimmed; X6 layer analysis |
-| A2 with XLS-R 300M | configured, not run |
-| A3 (`run_a3`, notebook 12) | scaffold with a dry-run client; waiting for the JEV API documentation |
-| E4 degradations (`make_degraded.py`, notebook 13) | generator ready, not scored |
-| E6 efficiency | not built |
+[Online editor for this README.md markdown file](https://pandao.github.io/editor.md/en.html "pandao")
 
 ---
 
-## 1. Set up the environment
-
-Requires [uv](https://docs.astral.sh/uv/). Everything runs through it — no `pip`, no manual
-venv activation.
-
-```bash
-uv sync                 # locked env: Python 3.11, torch 2.14, ~1.3 GB
-uv run pytest           # no dataset needed
-uv run ruff check src tests
-```
-
-Target device is Apple Silicon **MPS** or CPU. `device: auto` resolves cuda → mps → cpu, and
-an explicitly requested but unavailable backend raises rather than silently falling back —
-a quiet CPU fallback would make the registry's timing columns meaningless.
-
-```bash
-uv run python -c "from audio_df.device import describe_env; print(describe_env())"
-```
-
-## 2. Get the dataset
-
-**ASVspoof 2019 LA** is what the configs target. Hosted on Edinburgh DataShare — no login or
-registration needed (the "Log In" on that page is for depositing, not downloading).
-
-- Landing page: https://datashare.ed.ac.uk/handle/10283/3336
-- `LA.zip` — **7.12 GB** ← the one you want
-- `PA.zip` — 16.45 GB (replay attacks; not used here)
-
-The handle URL redirects twice, so a naive download of the landing page gets you a 4 KB HTML
-stub. Use the resolved link:
-
-```bash
-mkdir -p data/raw/ASVspoof2019
-curl -L -o /tmp/LA.zip \
-  "https://datashare.ed.ac.uk/server/api/core/bitstreams/a9f87c35-f055-4015-80e2-2fdff0d46269/content"
-unzip -q /tmp/LA.zip -d data/raw/ASVspoof2019/
-```
-
-That produces the layout [`configs/data.yaml`](configs/data.yaml) expects:
-
-```text
-data/raw/ASVspoof2019/LA/
-├── ASVspoof2019_LA_train/flac/          # *.flac
-├── ASVspoof2019_LA_dev/flac/
-├── ASVspoof2019_LA_eval/flac/
-└── ASVspoof2019_LA_cm_protocols/        # *.trn.txt / *.trl.txt
-```
-
-This layout is *verified*, not assumed — checked against the official AASIST and RawNet2
-loaders ([`research/knowledge/datasets/asvspoof-2019-la.md`](research/knowledge/datasets/asvspoof-2019-la.md)).
-`data/raw/` is gitignored, so none of it can reach the repo.
-
-**In-the-Wild** (the cross-domain test set, never used for training) is the Hugging Face
-dataset `mueller91/In-The-Wild` (an 8.16 GB zip), extracted to `data/raw/InTheWild`. See
-[`research/knowledge/datasets/in-the-wild.md`](research/knowledge/datasets/in-the-wild.md).
-
-## 3. Build manifests and run the leakage audit
-
-Run this before any modelling. It checks whether the labels can be predicted from properties
-that have nothing to do with synthesis.
-
-```bash
-uv run python scripts/prepare_data.py --config configs/data.yaml
-```
-
-Writes `data/manifests/<split>.csv` with utterance id, path, label, speaker, attack id,
-sample rate, duration, codec, split and language; prints per-class / per-attack / per-speaker
-counts. Missing dataset produces an actionable error naming the expected path, not a bare
-traceback.
-
-```bash
-uv run python scripts/audit_leakage.py --config configs/data.yaml
-```
-
-Fits tiny classifiers (logistic regression, depth-2 tree) on **metadata only** — duration,
-sample rate, codec, RMS, leading/trailing/total silence, source corpus, speaker identity —
-each alone and all combined, scored strictly out-of-fold. Writes
-`reports/tables/leakage_audit.csv` with AUC and EER plus bootstrap CIs, and **exits 2** if
-any nuisance feature predicts the label above the threshold.
-
-If it fires, stop and read the table before training anything. A detector that learns
-`microphone noise → real` or `clean WAV → fake` is not solving the intended problem.
-
-> The 0.65 threshold is a **project-local convention with no literature source** — the audit
-> says so in its own warning text rather than implying a citation it does not have.
-
-## 4. Run the systems
-
-Each runner starts with a 200-clip timing run, applies the limits in
-[`configs/resources.yaml`](configs/resources.yaml), and writes `experiments/<run id>/` plus a
-row in [`experiments/REGISTRY.md`](experiments/REGISTRY.md). Metrics come only from the shared
-scorer:
-
-```bash
-uv run python -m audio_df.experiments.run_a1 train --exp e1
-uv run python scripts/score_experiment.py experiments/E-20261001-e1-a1-raw
-uv run python scripts/make_tables.py          # regenerates reports/tables/E1…E6
-```
-
-The [technical reference §14](docs/technical-reference.md#14-where-each-step-lives) lists the
-command, code and notebook for every step. Run outputs under `experiments/<run id>/` stay
-local and are not tracked in git; the registry and the tables are.
-
-## 5. Notebooks
-
-```text
-notebooks/01_dataset_audit.ipynb      manifest summary and the leakage audit
-notebooks/02_spectral_eda.ipynb       spectral summaries and effect sizes, real against fake
-notebooks/03_cepstral_eda.ipynb       the feat_a…feat_f feature grid
-notebooks/09_a1_playground.ipynb      A1 by hand: the B02 pipeline and a small GMM
-notebooks/10_a1_lfcc_gmm.ipynb        A1 runs and scores
-notebooks/11_a2_ssl_head.ipynb        A2 extraction, training and scores
-notebooks/12_a3_jev.ipynb             A3 evidence state and dry run
-notebooks/13_e4_degradations.ipynb    E4 subset and degradations
-notebooks/20_report_figures.ipynb      every figure in the report
-```
-
-Notebooks hold questions, plots and interpretation; any function used twice lives in
-`src/audio_df/`. Open them in VS Code with the project's `.venv` kernel.
+### <<<<<<<<<<<<<<<<<<<< Start of Template >>>>>>>>>>>>>>>>>>>>
 
 ---
 
-## Scientific ground rules
+## SECTION 1 : PROJECT TITLE
+## Singapore Housing & Deveoplment Board - BTO Recommender System
 
-These are enforced in code and in review, not just documented:
+<img src="SystemCode/clips/static/hdb-bto.png"
+     style="float: left; margin-right: 0px;" />
 
-- Thresholds are chosen on dev, **never** on eval.
-- Unseen-attack tests hold out **whole generator families**, never random utterances.
-- Every result is reported on raw audio and, as a diagnostic, with leading and trailing silence
-  trimmed.
-- Per-attack EER is reported alongside pooled EER — a pooled number can hide a generator that
-  reverses. (On a synthetic easy/hard pair: A02=0.004, A03=0.456, pooled=0.304.)
-- EER matches the official ASVspoof algorithm exactly, verified bit-for-bit against the
-  official scoring package.
-- t-SNE/UMAP are exploratory pictures, never evidence of separability.
-- Literature EERs are labelled as literature and never compared directly with our runs.
-- Every run records git commit, config hash, split hash, seed, device, params and timing.
+---
 
-## Repository layout
+## SECTION 2 : EXECUTIVE SUMMARY / PAPER ABSTRACT
+Singapore ranks amongst countries with the highest population density in the world. In a bid to have firm control over long term urban planning, the Singapore government came up with the “Built to Order” (abbreviated BTO) initiative back in 2001. These are new Housing Development Board (HDB) flats tightly controlled by their eligibility and quantity released every year. In more recent years, the modern BTO scheme in Singapore requires a waiting period of 3-4 years, and is generally targeted at young Singaporean couples looking to purchase their first property and set up a family. Nationality and income ceilings are some of the broad filters that determine one’s eligibility for the highly sought after projects. 
 
-```text
-configs/      data · features · resources · scoring · machine · one per system and experiment
-data/         raw/ (gitignored) · manifests/ (CSVs gitignored, SHA256SUMS tracked) · metadata/
-docs/         report/ (main document) · technical-reference.md
-experiments/  REGISTRY.md (tracked) · <run id>/ (local only: config, scores, metrics.json, notes)
-notebooks/    exploration, one notebook per system, report figures
-reports/      tables/ (regenerated by make_tables.py)
-research/     knowledge notes, fact-checks, ADRs
-scripts/      prepare_data · audit_leakage · score_experiment · make_tables · make_degraded · get_musan
-src/audio_df/ audio · features · lfcc_b02 · stats · metrics · scoring · leakage · data · models/ ·
-              experiments/ · jev/ · xai/ · resources · exp_io · device · seeding
-tests/        run without any dataset
-tasks/        CONVENTIONS.md (binding coding conventions)
-```
 
-[`tasks/CONVENTIONS.md`](tasks/CONVENTIONS.md) is binding: uv only, tests without data,
-dev-only thresholds, module boundaries, no silent stubs.
+Our team, comprising of 6 young Singaporeans, all hope to be property owners one day. Many of our peers opt for BTO flats due to their affordability, existence of financial aid from the government, as well as their resale value. However, there often exists a knowledge gap for these young couples during the decision making process and they end up making potentially regretful decisions. We would like to bridge this knowledge gap, and have hence chosen to base our project on creating a recommender system for BTO flats, utilizing the data from recent launches in Tampines, Eunos, Sengkang and Punggol. 
+
+
+Using the techniques imparted to us in lectures, our group first set out to build a sizeable knowledge base via conducting an interview and administering a survey. While building the system, we utilized tools such as Java to scrape real time data from HDB website and transform it into a database, CLIPS to synthesize the rule based reasoning process, and Python to integrate it into an easy to use UI for the everyday user. To add icing on the cake, we even hosted the system on a website so that the everyday user can access it through the click of a link.
+
+
+Our team had an amazing time working on this project, and hope to share our insights with everyone. Despite a focus on BTO flats, we would recommend it for everybody interested in understanding property market trends for residence or investment purposes. There truly are a wide array of factors behind the decision to invest in a property, and we only wish there was more time to work on the scope and scale of the project. 
+
+---
+
+## SECTION 3 : CREDITS / PROJECT CONTRIBUTION
+
+| Official Full Name  | Student ID (MTech Applicable)  | Work Items (Who Did What) | Email (Optional) |
+| :------------ |:---------------:| :-----| :-----|
+| Desmond Chua | A1234567A | xxxxxxxxxx yyyyyyyyyy zzzzzzzzzz| A1234567A@nus.edu.sg |
+| Chang Ye Han | A1234567B | xxxxxxxxxx yyyyyyyyyy zzzzzzzzzz| A1234567B@gmail.com |
+| Chee Jia Wei | A1234567C | xxxxxxxxxx yyyyyyyyyy zzzzzzzzzz| A1234567C@outlook.com |
+| Ganesh Kumar | A1234567D | xxxxxxxxxx yyyyyyyyyy zzzzzzzzzz| A1234567D@yahoo.com |
+| Jeanette Lim | A1234567E | xxxxxxxxxx yyyyyyyyyy zzzzzzzzzz| A1234567E@qq.com |
+
+---
+
+## SECTION 4 : VIDEO OF SYSTEM MODELLING & USE CASE DEMO
+
+[![Sudoku AI Solver](http://img.youtube.com/vi/-AiYLUjP6o8/0.jpg)](https://youtu.be/-AiYLUjP6o8 "Sudoku AI Solver")
+
+Note: It is not mandatory for every project member to appear in video presentation; Presentation by one project member is acceptable. 
+More reference video presentations [here](https://telescopeuser.wordpress.com/2018/03/31/master-of-technology-solution-know-how-video-index-2/ "video presentations")
+
+---
+
+## SECTION 5 : USER GUIDE
+
+`Refer to appendix <Installation & User Guide> in project report at Github Folder: ProjectReport`
+
+### [ 1 ] To run the system using iss-vm
+
+> download pre-built virtual machine from http://bit.ly/iss-vm
+
+> start iss-vm
+
+> open terminal in iss-vm
+
+> $ git clone https://github.com/telescopeuser/Workshop-Project-Submission-Template.git
+
+> $ source activate iss-env-py2
+
+> (iss-env-py2) $ cd Workshop-Project-Submission-Template/SystemCode/clips
+
+> (iss-env-py2) $ python app.py
+
+> **Go to URL using web browser** http://0.0.0.0:5000 or http://127.0.0.1:5000
+
+### [ 2 ] To run the system in other/local machine:
+### Install additional necessary libraries. This application works in python 2 only.
+
+> $ sudo apt-get install python-clips clips build-essential libssl-dev libffi-dev python-dev python-pip
+
+> $ pip install pyclips flask flask-socketio eventlet simplejson pandas
+
+---
+## SECTION 6 : PROJECT REPORT / PAPER
+
+`Refer to project report at Github Folder: ProjectReport`
+
+**Recommended Sections for Project Report / Paper:**
+- Executive Summary / Paper Abstract
+- Sponsor Company Introduction (if applicable)
+- Business Problem Background
+- Market Research
+- Project Objectives & Success Measurements
+- Project Solution (To detail domain modelling & system design.)
+- Project Implementation (To detail system development & testing approach.)
+- Project Performance & Validation (To prove project objectives are met.)
+- Project Conclusions: Findings & Recommendation
+- Appendix of report: Project Proposal
+- Appendix of report: Mapped System Functionalities against knowledge, techniques and skills of modular courses: MR, RS, CGS
+- Appendix of report: Installation and User Guide
+- Appendix of report: 1-2 pages individual project report per project member, including: Individual reflection of project journey: (1) personal contribution to group project (2) what learnt is most useful for you (3) how you can apply the knowledge and skills in other situations or your workplaces
+- Appendix of report: List of Abbreviations (if applicable)
+- Appendix of report: References (if applicable)
+
+---
+## SECTION 7 : MISCELLANEOUS
+
+`Refer to Github Folder: Miscellaneous`
+
+### HDB_BTO_SURVEY.xlsx
+* Results of survey
+* Insights derived, which were subsequently used in our system
+
+---
+
+### <<<<<<<<<<<<<<<<<<<< End of Template >>>>>>>>>>>>>>>>>>>>
+
+---
+
+**This [Machine Reasoning (MR)](https://www.iss.nus.edu.sg/executive-education/course/detail/machine-reasoning "Machine Reasoning") course is part of the Analytics and Intelligent Systems and Graduate Certificate in [Intelligent Reasoning Systems (IRS)](https://www.iss.nus.edu.sg/stackable-certificate-programmes/intelligent-systems "Intelligent Reasoning Systems") series offered by [NUS-ISS](https://www.iss.nus.edu.sg "Institute of Systems Science, National University of Singapore").**
+
+**Lecturer: [GU Zhan (Sam)](https://www.iss.nus.edu.sg/about-us/staff/detail/201/GU%20Zhan "GU Zhan (Sam)")**
+
+[![alt text](https://www.iss.nus.edu.sg/images/default-source/About-Us/7.6.1-teaching-staff/sam-website.tmb-.png "Let's check Sam' profile page")](https://www.iss.nus.edu.sg/about-us/staff/detail/201/GU%20Zhan)
+
+**zhan.gu@nus.edu.sg**

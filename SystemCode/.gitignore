@@ -1,0 +1,49 @@
+# --- large / generated assets (never push these) ---
+*.wav
+*.flac
+*.mp3
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# --- data ---
+data/raw/*
+data/cache/*
+!data/**/.gitkeep
+data/manifests/*.csv
+data/metadata/*.csv
+# per-clip nuisance features behind the leakage audit (ProjectReport/technical-reference.md §3, report chapter 3)
+!data/metadata/nuisance_features.csv
+!data/manifests/SHA256SUMS
+
+# --- experiment artifacts ---
+# saved model bundles served by the app
+artifacts/
+checkpoints/
+wandb/
+reports/figures/*
+!reports/**/.gitkeep
+
+# --- python / uv ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- notebooks ---
+.ipynb_checkpoints/
+# executed copies from scripts/run_notebooks.py
+notebooks/_executed/
+
+# --- runs ---
+# run outputs stay local (scores, metrics, checkpoints, caches); only the layout README and
+# the run log are tracked
+runs/*
+!runs/README.md
+!runs/REGISTRY.md

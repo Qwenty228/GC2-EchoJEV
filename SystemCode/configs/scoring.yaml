@@ -1,0 +1,28 @@
+# Scoring parameters shared by scripts/score_experiment.py and src/audio_df/evaluation/scoring.py.
+#
+# Nothing in scoring.py hard-codes these numbers: they are read from this file so a
+# change here (e.g. a different min-DCF prior) is auditable in one place and applies
+# identically to every experiment scored afterwards.
+
+min_dcf:
+  c_miss: 1
+  c_fa: 10
+  p_spoof: 0.05
+  # Verified against the primary source (arXiv:2601.03944v1, Eq. 1, fetched and
+  # read directly by the researcher agent -- see Miscellaneous/research/knowledge/methods/min-dcf.md).
+  # DCF(tau) = beta*P_miss(tau) + P_fa(tau), beta = c_miss*(1-p_spoof)/(c_fa*p_spoof);
+  # audio_df.evaluation.metrics.min_dcf normalises unconditionally by c_fa*p_spoof (the paper's
+  # own fixed normaliser), NOT by min(c_miss*(1-p_spoof), c_fa*p_spoof) -- the two
+  # coincide only for these specific parameter values (beta ~= 1.90 >= 1).
+  source: "ASVspoof 5 evaluation paper, arXiv 2601.03944, Eq. 1"
+
+threshold:
+  # EER threshold computed once on the experiment's dev scores (or on another
+  # experiment's dev scores, via --threshold-from, for dev-less subset runs),
+  # then reused unchanged on every test set. Never re-fit on eval/itw/etc.
+  selected_on: dev
+  rule: eer
+
+f1:
+  # F1/precision/recall treat spoof as the positive class throughout this project.
+  positive_class: spoof

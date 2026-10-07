@@ -1,1 +1,0 @@
-run_id,timestamp,git_commit,dataset,split,preprocessing,representation,backbone,ssl_checkpoint,ssl_layers,ssl_frozen,pooling,loss_weights,augmentation,seed,trainable_params,total_params,eer,roc_auc,pr_auc,f1,per_attack_eer_json,train_wall_s,peak_mem_mb,rtf,artifact_path,notes
