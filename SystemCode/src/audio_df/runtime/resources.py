@@ -11,13 +11,11 @@ transformers) has a chance to touch MPS — see the docstring on `apply_resource
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import hashlib
 import json
 import os
 import platform
 import re
-import resource
 import shutil
 import statistics
 import subprocess
@@ -29,10 +27,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import sys
+
 import numpy as np
+import psutil
 import torch
 import yaml
 from tqdm import tqdm
+
+_HAS_FCNTL = sys.platform != "win32"
 
 __all__ = [
     "DiskBudgetError",
@@ -76,6 +79,11 @@ _PRESSURE_LEVEL_TO_NAME = {v: k for k, v in _PRESSURE_NAME_TO_LEVEL.items()}
 
 _DEFAULT_CONFIG_PATH = "configs/resources.yaml"
 _DEFAULT_HEAVY_JOB_LOCK_PATH = "data/cache/.heavy_job.lock"
+
+
+def _rss_mb() -> float:
+    """Current process RSS in MB, cross-platform."""
+    return psutil.Process().memory_info().rss / (1024**2)
 
 
 class DiskBudgetError(RuntimeError):
@@ -292,7 +300,7 @@ def memory_status() -> dict[str, Any]:
     swap fields are `None` and a `warnings.warn` fires once (not on every call) — callers
     must treat `None` as "unknown, do not block on this", never as "normal".
     """
-    rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024**2)
+    rss_mb = _rss_mb()
     pressure_level: int | None = None
     pressure_name = "unknown"
     swap_used_gb: float | None = None
@@ -439,7 +447,7 @@ def run_resource_summary(guard: MemoryGuard | None = None) -> dict[str, Any]:
 
     Intended for runner scripts to log alongside a training/extraction job's registry row.
     """
-    peak_rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024**2)
+    peak_rss_mb = _rss_mb()
     summary: dict[str, Any] = {
         "peak_rss_mb": peak_rss_mb,
         "swap_start_gb": None,
@@ -491,39 +499,41 @@ def heavy_job_lock(
     lock_path: str | Path = _DEFAULT_HEAVY_JOB_LOCK_PATH,
     wait: bool = True,
 ) -> Iterator[None]:
-    """Process-wide mutex so only one heavy job (SSL extraction, GMM training, audio
-    degradation, ...) runs at a time on this machine.
+    """Process-wide mutex so only one heavy job runs at a time on this machine.
 
-    Uses `fcntl.flock` on `lock_path`. The default path is under `data/cache/`, which is
-    already gitignored — this function does not edit `.gitignore`.
-
-    On contention: if `wait` (default), prints who currently holds the lock and then
-    blocks on a **blocking** `flock` call — the kernel wakes this process when the holder
-    releases or exits, so this never busy-polls. If `wait=False`, raises `HeavyJobBusy`
-    immediately, naming the holder.
-
-    Staleness note: POSIX `flock` locks are released by the kernel automatically when the
-    holding process exits, even on a crash — so a lock file whose *recorded content* names
-    a dead pid is, in practice, already unlocked at the OS level, and the first
-    non-blocking acquire attempt below simply succeeds and overwrites that stale content.
-    This function additionally re-checks pid liveness on contention so dead-pid content is
-    never mistaken for evidence of a live holder before deciding whether to wait or raise.
+    On POSIX uses `fcntl.flock` (kernel-released on crash). On Windows uses atomic
+    O_EXCL file creation with PID liveness checking — same semantics, no busy-poll.
     """
     lock_path = Path(lock_path)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if _HAS_FCNTL:
+        yield from _heavy_job_lock_posix(name, lock_path, wait)
+    else:
+        yield from _heavy_job_lock_pidfile(name, lock_path, wait)
+
+
+def _heavy_job_lock_posix(name: str, lock_path: Path, wait: bool) -> Iterator[None]:
+    import fcntl  # local: only called on POSIX where this always exists
+
+    # Extract constants once; `# type: ignore` because Pylance lacks fcntl stubs on Windows.
+    _flock = fcntl.flock  # type: ignore[attr-defined]
+    LOCK_EX: int = fcntl.LOCK_EX  # type: ignore[attr-defined]
+    LOCK_NB: int = fcntl.LOCK_NB  # type: ignore[attr-defined]
+    LOCK_UN: int = fcntl.LOCK_UN  # type: ignore[attr-defined]
+
     fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
     try:
         acquired = False
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _flock(fd, LOCK_EX | LOCK_NB)
             acquired = True
         except BlockingIOError:
             holder = _read_lock_holder(lock_path)
             holder_alive = holder is not None and _pid_alive(holder.get("pid", -1))
             if holder is not None and not holder_alive:
-                # Recorded holder is dead; the real flock is very likely already free.
                 try:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    _flock(fd, LOCK_EX | LOCK_NB)
                     acquired = True
                 except BlockingIOError:
                     pass
@@ -536,28 +546,65 @@ def heavy_job_lock(
                     ) from None
                 print(
                     f"[heavy_job_lock] {name!r} waiting: lock at {lock_path} held by "
-                    f"{_describe_holder(holder)}. Blocking until released "
-                    f"(no busy-polling; the kernel wakes this process on release)."
+                    f"{_describe_holder(holder)}. Blocking until released."
                 )
-                fcntl.flock(fd, fcntl.LOCK_EX)
+                _flock(fd, LOCK_EX)
                 acquired = True
 
         os.lseek(fd, 0, os.SEEK_SET)
         os.ftruncate(fd, 0)
         payload = json.dumps(
-            {
-                "name": name,
-                "pid": os.getpid(),
-                "started": datetime.now(UTC).isoformat(),
-            }
+            {"name": name, "pid": os.getpid(), "started": datetime.now(UTC).isoformat()}
         ).encode("utf-8")
         os.write(fd, payload)
         os.fsync(fd)
         yield
     finally:
         with contextlib.suppress(OSError):
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            _flock(fd, LOCK_UN)
         os.close(fd)
+
+
+def _heavy_job_lock_pidfile(name: str, lock_path: Path, wait: bool) -> Iterator[None]:
+    """Windows fallback: write-our-PID + liveness check polling.
+
+    On release we write pid=0 (rather than unlink) so the file persists with the last
+    holder's name — matches the POSIX behaviour where the file outlives the lock.
+    """
+    my_pid = os.getpid()
+    payload = json.dumps(
+        {"name": name, "pid": my_pid, "started": datetime.now(UTC).isoformat()}
+    ).encode("utf-8")
+
+    while True:
+        holder = _read_lock_holder(lock_path)
+        holder_pid = holder.get("pid", 0) if holder else 0
+
+        if holder_pid == 0 or not _pid_alive(holder_pid):
+            lock_path.write_bytes(payload)
+            verify = _read_lock_holder(lock_path)
+            if verify and verify.get("pid") == my_pid:
+                break
+            # Race: retry immediately.
+            continue
+
+        if not wait:
+            raise HeavyJobBusy(
+                f"heavy job lock at {lock_path} is held by {_describe_holder(holder)}; "
+                f"refusing to start {name!r} (wait=False)"
+            ) from None
+        print(
+            f"[heavy_job_lock] {name!r} waiting: lock at {lock_path} held by "
+            f"{_describe_holder(holder)}. Polling every 5 s."
+        )
+        time.sleep(5)
+
+    try:
+        yield
+    finally:
+        released = json.dumps({"name": name, "pid": 0, "started": ""}).encode("utf-8")
+        with contextlib.suppress(OSError):
+            lock_path.write_bytes(released)
 
 
 def _config_hash(job_config: dict[str, Any], item_ids: list[str]) -> str:
@@ -738,8 +785,7 @@ def timing_run(
 
     `n` defaults to `cfg["resources"]["timing_run_clips"]` (loading the default config if
     `cfg` is not given). Returns per-item median/p90/mean wall time, items/sec, peak RSS in
-    MB (via `resource.getrusage`; macOS reports `ru_maxrss` in bytes, unlike Linux which
-    reports KB — this function assumes macOS and divides by 1024**2), peak MPS memory in MB
+    MB (via psutil, cross-platform), peak MPS memory in MB
     (`mps_peak_mb`, via `torch.mps.driver_allocated_memory`/`current_allocated_memory`,
     `None` if MPS is unavailable), swap used at start/end (`swap_start_gb`/`swap_end_gb`,
     via `memory_status`, `None` if unavailable), memory pressure level at start/end
@@ -777,7 +823,7 @@ def timing_run(
         p90_s = mean_s
 
     items_per_sec = (1.0 / mean_s) if mean_s > 0 else float("nan")
-    peak_rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024**2)
+    peak_rss_mb = _rss_mb()
 
     result: dict[str, Any] = {
         "n_items_timed": n_run,

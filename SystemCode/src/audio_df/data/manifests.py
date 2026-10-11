@@ -194,7 +194,7 @@ def build_manifest(cfg: dict) -> pd.DataFrame:
             records.append(
                 {
                     "utt_id": row.utt_id,
-                    "path": str(audio_path),
+                    "path": audio_path.as_posix(),
                     "label": row.label,
                     "speaker_id": row.speaker_id,
                     "attack_id": row.attack_id,
@@ -399,7 +399,7 @@ def build_itw_manifest(cfg: dict) -> pd.DataFrame:
         records.append(
             {
                 "utt_id": f"ITW_{Path(file_name).stem}",
-                "path": str(audio_path),
+                "path": audio_path.as_posix(),
                 "label": label,
                 "speaker_id": str(row.speaker),
                 "attack_id": attack_id,
@@ -549,16 +549,16 @@ def manifest_checksums(
     `file` is written relative to `base_dir` (default: current working directory), matching
     how `shasum -a 256 -c` expects the second column when invoked from `base_dir`.
     """
-    base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
+    base_dir = (Path(base_dir) if base_dir is not None else Path.cwd()).resolve()
     entries = []
     for raw_path in paths:
-        path = Path(raw_path)
+        path = Path(raw_path).resolve()
         data = path.read_bytes()
         sha256 = hashlib.sha256(data).hexdigest()
         df = pd.read_csv(path)
         entries.append(
             {
-                "file": os.path.relpath(path, base_dir),
+                "file": path.relative_to(base_dir).as_posix(),
                 "sha256": sha256,
                 "rows": len(df),
                 "split_hash": split_hash(df),

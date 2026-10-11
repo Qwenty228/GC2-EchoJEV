@@ -228,4 +228,4 @@ def test_run_extraction_writes_cache_and_resume_skips_completed_chunks(tmp_path)
 
 def test_cache_dir_for_layout():
     path = cache_dir_for("wavlm-base-plus", "raw", "eval", root="data/cache/ssl")
-    assert str(path) == "data/cache/ssl/wavlm-base-plus/raw/eval"
+    assert path.as_posix() == "data/cache/ssl/wavlm-base-plus/raw/eval"

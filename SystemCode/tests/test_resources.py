@@ -1,6 +1,6 @@
-import fcntl
 import json
 import os
+import sys
 import threading
 import time
 from types import SimpleNamespace
@@ -8,6 +8,15 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
+
+try:
+    import fcntl as _fcntl_mod
+
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
+_posix_only = pytest.mark.skipif(not _HAS_FCNTL, reason="fcntl not available on Windows")
 
 import audio_df.runtime.resources as resources_mod
 from audio_df.runtime.resources import (
@@ -507,10 +516,11 @@ class TestHeavyJobLock:
             assert content["name"] == "job-a"
             assert content["pid"] == os.getpid()
 
+    @_posix_only
     def test_contention_wait_false_raises_busy(self, tmp_path):
         lock_path = tmp_path / "job.lock"
         fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        _fcntl_mod.flock(fd, _fcntl_mod.LOCK_EX)  # type: ignore[attr-defined]
         os.write(fd, json.dumps({"name": "job-a", "pid": os.getpid(), "started": "now"}).encode())
         try:
             with (
@@ -519,13 +529,14 @@ class TestHeavyJobLock:
             ):
                 pass
         finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            _fcntl_mod.flock(fd, _fcntl_mod.LOCK_UN)  # type: ignore[attr-defined]
             os.close(fd)
 
+    @_posix_only
     def test_contention_wait_true_blocks_until_released(self, tmp_path):
         lock_path = tmp_path / "job.lock"
         fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        _fcntl_mod.flock(fd, _fcntl_mod.LOCK_EX)  # type: ignore[attr-defined]
         os.write(fd, json.dumps({"name": "job-a", "pid": os.getpid(), "started": "now"}).encode())
 
         released_at = []
@@ -533,7 +544,7 @@ class TestHeavyJobLock:
         def release_later():
             time.sleep(0.2)
             released_at.append(time.monotonic())
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            _fcntl_mod.flock(fd, _fcntl_mod.LOCK_UN)  # type: ignore[attr-defined]
             os.close(fd)
 
         t = threading.Thread(target=release_later)

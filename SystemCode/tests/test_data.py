@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -157,6 +158,7 @@ def test_build_manifest_row_values(tmp_path):
     assert (df["split"] == "train").all()
     assert (df["sample_rate"] == 16000).all()
     assert (df["duration_s"] > 0).all()
+    assert all("\\" not in p for p in df["path"]), "paths must use forward slashes"
 
 
 # --------------------------------------------------------------------------- split_hash
@@ -297,6 +299,7 @@ def test_build_itw_manifest_flat_layout(tmp_path):
     assert set(df["split"]) == {"itw"}
     assert set(df["language"]) == {"en"}
     assert all(u.startswith("ITW_") for u in df["utt_id"])
+    assert all("\\" not in p for p in df["path"]), "paths must use forward slashes"
 
 
 def test_build_itw_manifest_nested_release_layout(tmp_path):
@@ -459,6 +462,8 @@ def test_checksum_tamper_detection(tmp_path):
 
 
 def test_sha256sums_format_verified_by_shasum_binary(tmp_path):
+    if sys.platform == "win32":
+        pytest.skip("shasum/sha256sum binaries on Windows PATH don't accept Windows paths")
     shasum_bin = shutil.which("shasum") or shutil.which("sha256sum")
     if shasum_bin is None:
         pytest.skip("no shasum/sha256sum binary available on this machine")
