@@ -47,3 +47,6 @@ notebooks/_executed/
 runs/*
 !runs/README.md
 !runs/REGISTRY.md
+
+# local job logs
+logs/
