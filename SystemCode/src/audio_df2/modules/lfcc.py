@@ -301,11 +301,32 @@ def extract_lfcc_b02(
     return np.concatenate([static, delta, delta2], axis=1).astype(np.float32)
 
 
-class LFCC:
-    """Reusable B02 extractor; takes a 1-D waveform at sample_rate."""
-    def __init__(self, sample_rate=16000, **config):
-        self.sample_rate = sample_rate
-        self.config = config
+from dataclasses import asdict, dataclass
 
-    def __call__(self, audio):
+from audio_df2.helpers.config import load_config
+
+
+@dataclass(frozen=True)
+class LFCCConfig:
+    sample_rate: int
+    window_ms: int
+    hop_ms: int
+    n_fft: int
+    n_filters: int
+    fmin: float
+    fmax: float | None
+    preemph: float
+    delta_window: int
+    spacing: str
+
+
+class LFCC:
+    """Standalone B02 feature extractor with typed YAML configuration."""
+
+    def __init__(self, config: LFCCConfig | None = None):
+        self.settings = config if config is not None else load_config(LFCCConfig)
+        self.sample_rate = self.settings.sample_rate
+        self.config = asdict(self.settings)
+
+    def __call__(self, audio: np.ndarray) -> np.ndarray:
         return extract_lfcc_b02(audio, sr=self.sample_rate, cfg=self.config)

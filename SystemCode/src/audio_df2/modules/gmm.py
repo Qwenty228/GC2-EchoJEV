@@ -44,6 +44,19 @@ def _logsumexp(a: np.ndarray, axis: int) -> np.ndarray:
     return (m_safe + np.log(s)).squeeze(axis)
 
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class GMMConfig:
+    components: int
+    iterations: int
+    chunk_frames: int
+    variance_floor: float
+    init_sample_size: int
+    seed: int
+
+
 class DiagGMM:
     """Diagonal-covariance Gaussian mixture, fit by chunked EM.
 
