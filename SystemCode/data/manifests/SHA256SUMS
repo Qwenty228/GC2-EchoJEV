@@ -1,2 +1,8 @@
+dd3a29c0d1f971e96b97acfb9b9fa5501d4fef8bce0f988df651a8ae1967c572  data/manifests/dev.csv
+# file=data/manifests/dev.csv rows=24844 split_hash=1d40b33f4d90861f3cd14561ae97fa007e828798ff684faf9df88dd7ccc77a64
+335f8d9a7e9899b0fdd6b84ebca166ffd2c0ba3ff13d65947fab90d35fa9d0f0  data/manifests/eval.csv
+# file=data/manifests/eval.csv rows=71237 split_hash=ec77f50548e190a3607bcba7d3448cf42a583a9e4f21dd64092ffd248a3f61d4
 740136e343ccfbf8ba1809c72ff99ddb3ece0425908e78ca32636d488086c351  data/manifests/itw.csv
 # file=data/manifests/itw.csv rows=31779 split_hash=3f1043b3a50dd7c6d5882c69cc00728ec518c04af5b0c4381fb6004ea0e2e7e1
+390284060f379fb1c3fa7ee14eb4c69c1cf0fafb6ab7143f4fa07bea2b1877af  data/manifests/train.csv
+# file=data/manifests/train.csv rows=25380 split_hash=c1be22da0896b5ca9561adbf4c0de6a13c8a86025072eefe4de4e34202cc0bf9
