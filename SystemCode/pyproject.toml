@@ -1,7 +1,7 @@
 [project]
 name = "audio-df"
 version = "0.1.0"
-description = "Audio deepfake detection workshop: handcrafted + self-supervised representations, benchmarked on ASVspoof protocols"
+description = "EchoJEV: acoustic and SSL speech deepfake detection with evidence-based decision policies"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -26,6 +26,8 @@ dependencies = [
 
 [project.scripts]
 adf = "audio_df.pipelines.run:main"
+data-check = "audio_df.data_check:main" # --verify --paths
+data-prepare = "audio_df.data_cli:prepare"
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]
@@ -41,14 +43,20 @@ dev = [
     "httpx>=0.28.1",
 ]
 
+# CUDA wheels on Windows/Linux; macOS uses the standard PyPI builds.
+# uv resolves the platform-specific sources into one lockfile.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+torchaudio = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
 [[tool.uv.index]]
 name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
 explicit = true
-
-[tool.uv.sources]
-torch = { index = "pytorch-cu130" }
-torchaudio = { index = "pytorch-cu130" }
 
 [build-system]
 requires = ["hatchling"]
