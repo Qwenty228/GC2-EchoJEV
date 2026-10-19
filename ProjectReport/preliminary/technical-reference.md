@@ -7,8 +7,8 @@ implementation pointers and every result table in one place.
 **How numbers are labelled.** **Measured** means an output of one of this project's runs, named
 by its run ID (for example `E-20261001-e1-a2-raw`). Run outputs live in `runs/<run id>/`,
 which is local and not tracked in git; the headline tables are tracked in
-[`reports/tables/`](../SystemCode/reports/tables) and every run is logged in
-[`runs/REGISTRY.md`](../SystemCode/runs/REGISTRY.md). **Literature** means another paper's
+[`reports/tables/`](../../SystemCode/reports/tables) and every run is logged in
+[`runs/REGISTRY.md`](../../SystemCode/runs/REGISTRY.md). **Literature** means another paper's
 number under another protocol: context only, never a like-for-like comparison. **Hypothesis**
 means our reading, not yet tested. Citations `[n]` refer to the
 [reference list](report/references.md); abbreviations are in the
@@ -38,7 +38,7 @@ The main findings, in order of importance:
    [15], using the exact B02 recipe read from the official MATLAB code.
 2. **Frozen self-supervised learning (SSL) beats the baseline in domain and generalises far better.** On In-the-Wild, A1
    collapses to chance (58 %) and A2 holds 14.7 %. The collapse repeats the central finding of
-   [13]: models trained on ASVspoof fall apart on real-world deepfakes. That frozen SSL survives
+   [13]: ../models trained on ASVspoof fall apart on real-world deepfakes. That frozen SSL survives
    is less expected than it sounds. Under [8]'s protocol (last layer only, logistic regression),
    the *same* frozen WavLM Base+ gets 38.6 % [8, Table 3]. A frozen wav2vec 2.0 with a large
    fusion head gets 12.48 % [22, Table II]. The layer analysis X6 shows that layer choice does
@@ -82,7 +82,7 @@ The main findings, in order of importance:
 
 ## 1. The question
 
-From the project [README](../SystemCode/README.md): given an utterance *x* with label
+From the project [README](../../SystemCode/README.md): given an utterance *x* with label
 *y* ∈ {bona fide, spoof}, can we learn a detector that picks up **synthesis evidence** rather
 than **dataset or generator shortcuts**? The working assumption is that for some observable
 representation *Z*,
@@ -120,8 +120,8 @@ flowchart LR
 
 Hard rule: **no metric is ever computed inside training code.** Runners write
 `scores/<testset>.csv`, with higher meaning more bona fide, and
-[scripts/score_experiment.py](../SystemCode/scripts/score_experiment.py) turns those into `metrics.json`
-([experiments/README.md](../SystemCode/runs/README.md)).
+[scripts/score_experiment.py](../../SystemCode/scripts/score_experiment.py) turns those into `metrics.json`
+([experiments/README.md](../../SystemCode/runs/README.md)).
 
 ---
 
@@ -131,13 +131,13 @@ Hard rule: **no metric is ever computed inside training code.** Runners write
 
 - **Source:** Edinburgh DataShare `LA.zip` (7.12 GB), unpacked under `data/raw/ASVspoof2019/LA/`
   (gitignored). The layout was checked against the official RawNet2 and AASIST loaders.
-  See [research/knowledge/datasets/asvspoof-2019-la.md](../Miscellaneous/research/knowledge/datasets/asvspoof-2019-la.md).
+  See [research/knowledge/datasets/asvspoof-2019-la.md](../../Miscellaneous/research/knowledge/datasets/asvspoof-2019-la.md).
 - **Origin:** all bona fide speech is Voice Cloning Toolkit corpus (VCTK): 107 English speakers, studio-quality, one
   recording chain. Spoofs are text-to-speech (TTS) or voice conversion (VC) outputs built on the same VCTK material [14].
 - **Protocol format:** `SPEAKER_ID UTT_ID - SYSTEM_ID KEY`, five whitespace-separated fields,
-  parsed by [`parse_asvspoof_protocol`](../SystemCode/src/audio_df/data/manifests.py#L122).
+  parsed by [`parse_asvspoof_protocol`](../../SystemCode/src/audio_df/data/manifests.py#L122).
 
-Counts from our own manifest ([notebooks/01_dataset_audit.ipynb](../SystemCode/notebooks/01_dataset_audit.ipynb),
+Counts from our own manifest ([notebooks/01_dataset_audit.ipynb](../../SystemCode/notebooks/01_dataset_audit.ipynb),
 cells 3–6, real-data mode):
 
 | split | bona fide | spoof | attacks | speakers |
@@ -154,7 +154,7 @@ Two properties drive the design:
    per-attack EER, and the A2 loss is reweighted (§7.3).
 2. **Eval attacks never appear in train or dev.** The official eval split is therefore already
    an *unseen-generator* test, at no extra cost
-   (architecture decision record [ADR-001](../Miscellaneous/research/decisions/ADR-001-generalization-data-strategy.md), option C). A gap
+   (architecture decision record [ADR-001](../../Miscellaneous/research/decisions/ADR-001-generalization-data-strategy.md), option C). A gap
    between dev and eval is expected. It is not a sign of ordinary overfitting.
    - **Only 11 of the 13 eval attacks are unseen.** The database paper says so directly: "Note that A04 and A16 use same waveform concatenation TTS algorithm, and A06
      and A19 use same VC algorithm" [14, Table 1 caption, p.6]. It also says "A07 to A19 (apart
@@ -164,7 +164,7 @@ Two properties drive the design:
 Integrity checks that pass:
 
 - No speaker overlap between train and dev, enforced by
-  [`assert_no_speaker_overlap`](../SystemCode/src/audio_df/data/manifests.py#L253) (notebook 01, NB01, cell 10).
+  [`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data/manifests.py#L253) (notebook 01, NB01, cell 10).
 - `split_hash` is independent of row order, so every run can prove which split it used
   (NB01 cell 12).
 - Manifests are gitignored; their Secure Hash Algorithm, 256-bit (SHA-256) sums are committed under `data/manifests/`.
@@ -186,17 +186,17 @@ Integrity checks that pass:
   19,963 / 11,816.
 - The licence is in conflict: the Hugging Face (HF) card says Creative Commons Attribution-ShareAlike (CC-BY-SA) 4.0 and the authors' page says
   Apache-2.0. See
-  [research/knowledge/datasets/in-the-wild.md](../Miscellaneous/research/knowledge/datasets/in-the-wild.md).
-- Loaded by [`build_itw_manifest`](../SystemCode/src/audio_df/data/manifests.py#L348).
+  [research/knowledge/datasets/in-the-wild.md](../../Miscellaneous/research/knowledge/datasets/in-the-wild.md).
+- Loaded by [`build_itw_manifest`](../../SystemCode/src/audio_df/data/manifests.py#L348).
 
 ### 2.3 E4 robustness inputs (generator ready, not yet run)
 
 - **A 10,000-clip stratified eval subset**, seed 1337, stratified by `(label, attack_id)` with
-  largest-remainder allocation ([`stratified_subset`](../SystemCode/src/audio_df/data/manifests.py#L434)). It
+  largest-remainder allocation ([`stratified_subset`](../../SystemCode/src/audio_df/data/manifests.py#L434)). It
   contains 1,032 bona fide clips and 689–690 clips per attack, matching the full eval mix to
-  0.01 % ([notebooks/13_e4_degradations.ipynb](../SystemCode/notebooks/13_e4_degradations.ipynb) cell 4).
-  The clip IDs are frozen in [configs/e4_degradations.yaml](../SystemCode/configs/e4_degradations.yaml).
-- **Four test-time degradations** in [src/audio_df/data/degrade.py](../SystemCode/src/audio_df/data/degrade.py):
+  0.01 % ([notebooks/13_e4_degradations.ipynb](../../SystemCode/notebooks/13_e4_degradations.ipynb) cell 4).
+  The clip IDs are frozen in [configs/e4_degradations.yaml](../../SystemCode/configs/e4_degradations.yaml).
+- **Four test-time degradations** in [src/audio_df/data/degrade.py](../../SystemCode/src/audio_df/data/degrade.py):
   MP3 at 32 kbps, Opus at 16 kbps, Music, Speech and Noise corpus (MUSAN) `noise/` at 10 dB signal-to-noise ratio (SNR), and a 16→8→16 kHz resample.
   The motivation is [1]: what a detector meets in practice is speech after a channel (codecs,
   noise, narrowband audio), and ASVspoof 5 [2, 5] builds codec conditions into its evaluation
@@ -209,7 +209,7 @@ Integrity checks that pass:
   claim "presentation robustness". [1] gives no per-codec numbers, so it cannot predict E4's
   magnitudes. [1] also uses one pooled threshold across conditions [1, p.3]; reusing the clean
   dev threshold in E4 follows the same logic.
-- MUSAN (Open Speech and Language Resources, OpenSLR, corpus 17) is fetched by [scripts/get_musan.py](../SystemCode/scripts/get_musan.py), which keeps
+- MUSAN (Open Speech and Language Resources, OpenSLR, corpus 17) is fetched by [scripts/get_musan.py](../../SystemCode/scripts/get_musan.py), which keeps
   only `noise/`, about 929 files.
 
 ### 2.4 Considered but not used
@@ -256,7 +256,7 @@ eval together). None of them should matter for whether speech is synthetic.
 
 A frame (2,048 samples, hop 512) counts as **silent** if its RMS energy is more than 30 dB below
 the loudest frame in the clip, the convention of `librosa.effects.split`
-([`silence_ratio`](../SystemCode/src/audio_df/features/audio.py#L156)). Silence is decided per frame, not per
+([`silence_ratio`](../../SystemCode/src/audio_df/features/audio.py#L156)). Silence is decided per frame, not per
 sample, so zero-crossings inside speech never count as silence.
 
 Spectral features such as bandwidth are **not** here. They describe the sound itself, so they
@@ -264,8 +264,8 @@ belong to §4.
 
 ### 3.3 How: probe classifiers, not detectors
 
-Code: [src/audio_df/evaluation/leakage.py](../SystemCode/src/audio_df/evaluation/leakage.py),
-[scripts/audit_leakage.py](../SystemCode/scripts/audit_leakage.py); notebook 01 (NB01), cells 14–21.
+Code: [src/audio_df/evaluation/leakage.py](../../SystemCode/src/audio_df/evaluation/leakage.py),
+[scripts/audit_leakage.py](../../SystemCode/scripts/audit_leakage.py); notebook 01 (NB01), cells 14–21.
 
 For each feature on its own:
 
@@ -310,7 +310,7 @@ above 0.65. That threshold is a project convention, not a literature value.
 
 ### 3.5 Result
 
-On all 121,461 clips ([reports/tables/leakage_audit.csv](../SystemCode/reports/tables/leakage_audit.csv)):
+On all 121,461 clips ([reports/tables/leakage_audit.csv](../../SystemCode/reports/tables/leakage_audit.csv)):
 
 | feature | AUC [95 % CI] | EER | flagged |
 |---|---|---|---|
@@ -358,8 +358,8 @@ It is also **attack-specific**. Median leading-silence fraction per attack:
 | A17, A18, A19 | 0.32, 0.30, 0.27 |
 
 These are recomputed on 150 clips per attack
-([lfcc-vs-mfcc-explained.md](../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5;
-notebook [09](../SystemCode/notebooks/09_a1_playground.ipynb) §5 plots them). The database paper explains
+([lfcc-vs-mfcc-explained.md](../../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5;
+notebook [09](../../SystemCode/notebooks/09_a1_playground.ipynb) §5 plots them). The database paper explains
 the split. A17–A19 are the three VC systems that convert **human** recordings, so they keep the
 source's lead-in. A13–A15 convert TTS output, which starts immediately [14, Table 1, p.6]. The
 per-attack results in §10.3 follow this split.
@@ -370,8 +370,8 @@ The audit's verdict is "do not model as-is". Instead of re-cutting the corpus, t
 
 - keeps **raw audio as the main condition**;
 - makes **trimmed audio** (leading and trailing silence removed,
-  [`trim_silence`](../SystemCode/src/audio_df/features/audio.py#L243)) **a mandatory diagnostic** on every test set
-  ([`preprocess(silence_mode=...)`](../SystemCode/src/audio_df/features/audio.py#L304)).
+  [`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L243)) **a mandatory diagnostic** on every test set
+  ([`preprocess(silence_mode=...)`](../../SystemCode/src/audio_df/features/audio.py#L304)).
 
 The shortcut is therefore *measured* in every headline number instead of hidden. One more
 protection: `preprocess` **repeat-pads, never zero-pads**, short clips, because zero padding
@@ -381,7 +381,7 @@ would add the very silence we are trying to control.
 
 ## 4. Analyze: where do the classes differ?
 
-### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../SystemCode/notebooks/02_spectral_eda.ipynb))
+### 4.1 Spectral exploratory data analysis (EDA) ([notebooks/02_spectral_eda.ipynb](../../SystemCode/notebooks/02_spectral_eda.ipynb))
 
 **In one line.** §3 tested properties that *should not* matter. §4.1 looks at the sound itself
 (how its energy is spread across frequencies) to find where real and fake audio differ, and
@@ -409,7 +409,7 @@ points, so the acoustic features can be compared with them on the same clips.
 
 For each feature there are 120 numbers for real clips and 120 for fake clips. The question is:
 **how different are the two groups?** No classifier is fitted here. Three numbers answer it,
-all computed as fake against real ([`cohens_d`, `cliffs_delta`](../SystemCode/src/audio_df/evaluation/stats.py#L78)):
+all computed as fake against real ([`cohens_d`, `cliffs_delta`](../../SystemCode/src/audio_df/evaluation/stats.py#L78)):
 
 - **Cohen's *d*: the gap between the two averages, in units of spread.**
 
@@ -508,11 +508,11 @@ lack high frequencies", fails on this data.
     loudness-and-silence difference looks like.
 
 Details are in
-[lfcc-vs-mfcc-explained.md](../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §4.2–4.3.
+[lfcc-vs-mfcc-explained.md](../../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §4.2–4.3.
 
-### 4.2 Cepstral EDA ([notebooks/03_cepstral_eda.ipynb](../SystemCode/notebooks/03_cepstral_eda.ipynb), 90-clip sample)
+### 4.2 Cepstral EDA ([notebooks/03_cepstral_eda.ipynb](../../SystemCode/notebooks/03_cepstral_eda.ipynb), 90-clip sample)
 
-This compares six representations from [configs/features.yaml](../SystemCode/configs/features.yaml):
+This compares six representations from [configs/features.yaml](../../SystemCode/configs/features.yaml):
 linear vs mel filters, with or without the discrete cosine transform (DCT), truncated or not, with or without deltas.
 The key measured fact (cell 11):
 
@@ -543,7 +543,7 @@ reproduce B02. We also **measured** LFCC against MFCC (X4, §5.1.5): identical
 pipeline, only the filter spacing changed, 3 seeds each. In domain LFCC wins, as the literature
 predicts; on In-the-Wild MFCC wins by a wide margin. §5.1.1–5.1.4 give the maths and the
 literature; §5.1.5 gives our measurement and what it means. The full derivation, with a per-filter table, is in
-[lfcc-vs-mfcc-explained.md](../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md).
+[lfcc-vs-mfcc-explained.md](../../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md).
 
 #### 5.1.1 The only difference is where the filters sit
 
@@ -630,7 +630,7 @@ fixed weighted sum, so each has a direct physical reading:
 
 ASVspoof made LFCC-GMM the official baseline in 2019 [15] and kept an LFCC baseline in 2021
 with a finer 70-filter recipe
-([b02-lfcc-gmm.md](../Miscellaneous/research/knowledge/methods/b02-lfcc-gmm.md)).
+([b02-lfcc-gmm.md](../../Miscellaneous/research/knowledge/methods/b02-lfcc-gmm.md)).
 
 #### 5.1.4 What our own data adds, and what it does not
 
@@ -640,7 +640,7 @@ with a finer 70-filter recipe
   detail is smoother in synthetic speech" and [28]'s finding that dynamics help.
 - **Does not support:** there is no large high-band *energy* gap (`band_high_ratio` d = −0.13,
   interval includes zero), and the tilt is partly silence (ρ = 0.57).
-- **Playground only:** in [notebook 09](../SystemCode/notebooks/09_a1_playground.ipynb) §7d, going from 20
+- **Playground only:** in [notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb) §7d, going from 20
   to 40 linear filters cut a mini-A1's eval EER from 16.6 % to 9.1 % (300 clips per class,
   32 components, 650 eval clips, single run, not registered). It points the same way, but it is
   confounded: doubling the filters also doubles the feature dimension (60 → 120).
@@ -652,11 +652,11 @@ with a finer 70-filter recipe
 #### 5.1.5 Measured: LFCC against MFCC (X4)
 
 **Set-up.** The A1 pipeline was rerun with only the filter edges moved from linear to mel
-(`features.spacing: mel`, [configs/a1_mfcc_b02.yaml](../SystemCode/configs/a1_mfcc_b02.yaml)). Everything
+(`features.spacing: mel`, [configs/a1_mfcc_b02.yaml](../../SystemCode/configs/a1_mfcc_b02.yaml)). Everything
 else is unchanged: pre-emphasis, window, 20 coefficients, Δ/ΔΔ, no CMVN, 2 × 512 GMMs, 10 EM
 iterations. Each arm was trained with 3 EM seeds: LFCC is E1 (seed 1337) plus 2337 and 3337;
 MFCC uses 1337, 2337 and 3337. Runs are `E-20261004-e2-a1-*` in
-[REGISTRY.md](../SystemCode/runs/REGISTRY.md), scored by `score_experiment.py`.
+[REGISTRY.md](../../SystemCode/runs/REGISTRY.md), scored by `score_experiment.py`.
 
 | mean ± sd over 3 seeds | LFCC | MFCC |
 |---|---|---|
@@ -713,8 +713,8 @@ captures synthesis detail and recording-chain detail alike. This is a measured r
 project, and it qualifies the literature in §5.1.3, which only tested in domain.
 
 **Why the other B02 choices:** each is pinned to a line of the official MATLAB in
-[src/audio_df/features/lfcc_b02.py](../SystemCode/src/audio_df/features/lfcc_b02.py) and
-[configs/a1_lfcc_gmm.yaml](../SystemCode/configs/a1_lfcc_gmm.yaml).
+[src/audio_df/features/lfcc_b02.py](../../SystemCode/src/audio_df/features/lfcc_b02.py) and
+[configs/a1_lfcc_gmm.yaml](../../SystemCode/configs/a1_lfcc_gmm.yaml).
 
 | choice | reason |
 |---|---|
@@ -792,7 +792,7 @@ classes.
   learned weights. [7] uses only the last layer. [22] repeats a "layer 5 beats the last layer"
   result second-hand. Richer aggregations such as Sensitive Layer Selection (SLS) [29] or MSLA [30] (another multi-layer aggregation method) exist, but our research note could
   not read their mechanisms from primary sources, so they are not scheduled
-  ([multi-layer-ssl-aggregation.md](../Miscellaneous/research/knowledge/methods/multi-layer-ssl-aggregation.md)).
+  ([multi-layer-ssl-aggregation.md](../../Miscellaneous/research/knowledge/methods/multi-layer-ssl-aggregation.md)).
 - **Time-averaged SSL states carry generator identity.** A plain 21-nearest-neighbour classifier
   on time-averaged hidden states of a frozen SSL model names the generator checkpoint of a fake
   clip with macro F1 0.93 across 243 checkpoints [19, pp.1, 4]. That supports our time-mean cache
@@ -833,15 +833,15 @@ out-of-domain score [19, §3.3, p.3]. [19] tested it only fake-against-fake.
 
 ## 6. A1 in detail: LFCC + GMM
 
-Code: [src/audio_df/features/lfcc_b02.py](../SystemCode/src/audio_df/features/lfcc_b02.py),
-[src/audio_df/models/gmm.py](../SystemCode/src/audio_df/models/gmm.py),
-[src/audio_df/training/gmm.py](../SystemCode/src/audio_df/training/gmm.py),
-[src/audio_df/models/a1_lfcc_gmm.py](../SystemCode/src/audio_df/models/a1_lfcc_gmm.py),
-[src/audio_df/pipelines/a1.py](../SystemCode/src/audio_df/pipelines/a1.py). For a hands-on
-walk-through on real clips, read [notebooks/09_a1_playground.ipynb](../SystemCode/notebooks/09_a1_playground.ipynb)
+Code: [src/audio_df/features/lfcc_b02.py](../../SystemCode/src/audio_df/features/lfcc_b02.py),
+[src/audio_df/models/gmm.py](../../SystemCode/src/audio_df/models/gmm.py),
+[src/audio_df/training/gmm.py](../../SystemCode/src/audio_df/training/gmm.py),
+[src/audio_df/models/a1_lfcc_gmm.py](../../SystemCode/src/audio_df/models/a1_lfcc_gmm.py),
+[src/audio_df/pipelines/a1.py](../../SystemCode/src/audio_df/pipelines/a1.py). For a hands-on
+walk-through on real clips, read [notebooks/09_a1_playground.ipynb](../../SystemCode/notebooks/09_a1_playground.ipynb)
 first. Cell 9 rebuilds the front end by hand and asserts it matches the library exactly.
 
-### 6.1 Front end ([`extract_lfcc_b02`](../SystemCode/src/audio_df/features/lfcc_b02.py#L239))
+### 6.1 Front end ([`extract_lfcc_b02`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L239))
 
 For frame *m*, FFT bin *k*, filter *r* (J = 20) and coefficient *q*:
 
@@ -858,7 +858,7 @@ $$
 
 The output is $[c, \Delta c, \Delta^2 c] \in \mathbb{R}^{T\times 60}$. The orthonormal scaling
 $\sqrt{1/J}$, $\sqrt{2/J}$ is derived in
-[lfcc-mfcc-dct.md](../Miscellaneous/research/knowledge/methods/lfcc-mfcc-dct.md). Without it the DCT is not
+[lfcc-mfcc-dct.md](../../Miscellaneous/research/knowledge/methods/lfcc-mfcc-dct.md). Without it the DCT is not
 orthonormal.
 
 **What each step throws away:** power discards phase; the filterbank discards detail finer than a
@@ -866,7 +866,7 @@ filter; the log only rescales; DCT truncation would discard fine filterbank shap
 all 20 coefficients. The phase loss matters because some vocoder artifacts are phase artifacts,
 which LFCC cannot see. That is one reason the waveform-level SSL model can do better.
 
-### 6.2 Back end: two diagonal GMMs ([`DiagGMM`](../SystemCode/src/audio_df/models/gmm.py#L47))
+### 6.2 Back end: two diagonal GMMs ([`DiagGMM`](../../SystemCode/src/audio_df/models/gmm.py#L47))
 
 Each class $c \in \{\text{bona}, \text{spoof}\}$ gets a density over frames:
 
@@ -877,10 +877,10 @@ p(\mathbf{x}\mid c) = \sum_{k=1}^{512} \pi_k^{c}\ \mathcal{N}\big(\mathbf{x};\bo
 $$
 
 **expectation-maximisation (EM)** with 10 iterations, random-frame initialisation, a global-variance start and equal
-weights ([`fit_em`](../SystemCode/src/audio_df/models/gmm.py#L136)):
+weights ([`fit_em`](../../SystemCode/src/audio_df/models/gmm.py#L136)):
 
 - E-step: $\gamma_{tk} = \dfrac{\pi_k \mathcal N(\mathbf x_t;\mu_k,\sigma_k^2)}{\sum_j \pi_j \mathcal N(\mathbf x_t;\mu_j,\sigma_j^2)}$,
-  computed in log space with log-sum-exp ([`_e_step_chunk`](../SystemCode/src/audio_df/models/gmm.py#L101)).
+  computed in log space with log-sum-exp ([`_e_step_chunk`](../../SystemCode/src/audio_df/models/gmm.py#L101)).
 - M-step: $N_k=\sum_t\gamma_{tk}$, $\pi_k = N_k/N$, $\mu_k = \tfrac{1}{N_k}\sum_t \gamma_{tk}\mathbf x_t$,
   $\sigma_k^2 = \max\!\big(\tfrac{1}{N_k}\sum_t\gamma_{tk}\mathbf x_t^2 - \mu_k^2,\ 10^{-3}\big)$.
 
@@ -905,7 +905,7 @@ log-filterbanks that is badly wrong (mean |ρ| = 0.85). After the DCT it is roug
 (0.17). A mixture of 512 diagonal components can still model correlation *between* components.
 Full covariances would need 512 × 1,830 parameters per class, which is fragile and slow.
 
-### 6.4 Score: mean log-likelihood ratio ([`score_llr`](../SystemCode/src/audio_df/models/gmm.py#L245))
+### 6.4 Score: mean log-likelihood ratio ([`score_llr`](../../SystemCode/src/audio_df/models/gmm.py#L245))
 
 $$
 s(X) = \frac{1}{T}\sum_{t=1}^{T}\Big[\log p(\mathbf x_t\mid\text{bona}) - \log p(\mathbf x_t\mid\text{spoof})\Big].
@@ -948,14 +948,14 @@ frames (**hypothesis**). Attack A09 has 5 % exact-zero frames, and A12 has 1.7 %
 
 ## 7. A2 in detail: frozen SSL with a layer-weighted head
 
-Code: [src/audio_df/features/ssl.py](../SystemCode/src/audio_df/features/ssl.py),
-[src/audio_df/models/ssl_head.py](../SystemCode/src/audio_df/models/ssl_head.py),
-[src/audio_df/training/head.py](../SystemCode/src/audio_df/training/head.py),
-[src/audio_df/models/a2_ssl_head.py](../SystemCode/src/audio_df/models/a2_ssl_head.py),
-[src/audio_df/pipelines/a2.py](../SystemCode/src/audio_df/pipelines/a2.py). Notebook:
-[notebooks/11_a2_ssl_head.ipynb](../SystemCode/notebooks/11_a2_ssl_head.ipynb). Configs:
-[configs/a2_wavlm_base_plus.yaml](../SystemCode/configs/a2_wavlm_base_plus.yaml) and
-[configs/a2_xlsr_300m.yaml](../SystemCode/configs/a2_xlsr_300m.yaml).
+Code: [src/audio_df/features/ssl.py](../../SystemCode/src/audio_df/features/ssl.py),
+[src/audio_df/models/ssl_head.py](../../SystemCode/src/audio_df/models/ssl_head.py),
+[src/audio_df/training/head.py](../../SystemCode/src/audio_df/training/head.py),
+[src/audio_df/models/a2_ssl_head.py](../../SystemCode/src/audio_df/models/a2_ssl_head.py),
+[src/audio_df/pipelines/a2.py](../../SystemCode/src/audio_df/pipelines/a2.py). Notebook:
+[notebooks/11_a2_ssl_head.ipynb](../../SystemCode/notebooks/11_a2_ssl_head.ipynb). Configs:
+[configs/a2_wavlm_base_plus.yaml](../../SystemCode/configs/a2_wavlm_base_plus.yaml) and
+[configs/a2_xlsr_300m.yaml](../../SystemCode/configs/a2_xlsr_300m.yaml).
 
 ### 7.1 Input and backbone
 
@@ -964,14 +964,14 @@ Code: [src/audio_df/features/ssl.py](../SystemCode/src/audio_df/features/ssl.py)
   is an accepted loss.
 - The seven-layer convolutional encoder has total stride 320, giving **199 frames** at about
   50 Hz for both backbones, as derived in
-  [ssl-hidden-states.md](../Miscellaneous/research/knowledge/methods/ssl-hidden-states.md).
+  [ssl-hidden-states.md](../../Miscellaneous/research/knowledge/methods/ssl-hidden-states.md).
 - With `output_hidden_states=True` we get **13** tensors for WavLM Base+ (embedding plus 12
   layers, each 199 × 768) and 25 for XLS-R (199 × 1,024).
 - **Input normalisation differs by model:** WavLM Base+ uses `do_normalize=false` and XLS-R uses
   `true`. We always load each model's own feature extractor
-  ([`load_backbone`](../SystemCode/src/audio_df/features/ssl.py#L80)).
+  ([`load_backbone`](../../SystemCode/src/audio_df/features/ssl.py#L80)).
 
-### 7.2 Why pooling before caching loses nothing ([`extract_pooled_hidden_states`](../SystemCode/src/audio_df/features/ssl.py#L105))
+### 7.2 Why pooling before caching loses nothing ([`extract_pooled_hidden_states`](../../SystemCode/src/audio_df/features/ssl.py#L105))
 
 Caching every frame of every layer would take 25 × 199 × 1,024 × 2 bytes ≈ 10 MB per clip, about
 1.24 TB in total. Instead we cache only the **time mean of each layer**,
@@ -995,7 +995,7 @@ ruled out for the same reason. [4]'s MaskedFeature masks frame-level latents [4,
 which a time-mean cache cannot do, and frame-level spectral-SSL fusion as in [6] needs frames
 too.
 
-### 7.3 Head and loss ([`SSLHead`](../SystemCode/src/audio_df/models/ssl_head.py#L62), [`train_head`](../SystemCode/src/audio_df/training/head.py#L56))
+### 7.3 Head and loss ([`SSLHead`](../../SystemCode/src/audio_df/models/ssl_head.py#L62), [`train_head`](../../SystemCode/src/audio_df/training/head.py#L56))
 
 $$
 \begin{aligned}
@@ -1112,19 +1112,19 @@ of the full head does not reproduce the original GPU run exactly. Eval is 1.10�
 
 ## 8. A3: A2 + JEV (scaffold only)
 
-Code: [src/audio_df/models/jev/](../SystemCode/src/audio_df/models/jev/), [jev/wrapper.py](../SystemCode/src/audio_df/models/jev/wrapper.py), [pipelines/a3.py](../SystemCode/src/audio_df/pipelines/a3.py),
-config [configs/a3_jev.yaml](../SystemCode/configs/a3_jev.yaml), notebook
-[notebooks/12_a3_jev.ipynb](../SystemCode/notebooks/12_a3_jev.ipynb).
+Code: [src/audio_df/models/jev/](../../SystemCode/src/audio_df/models/jev), [jev/wrapper.py](../../SystemCode/src/audio_df/models/jev/wrapper.py), [pipelines/a3.py](../../SystemCode/src/audio_df/pipelines/a3.py),
+config [configs/a3_jev.yaml](../../SystemCode/configs/a3_jev.yaml), notebook
+[notebooks/12_a3_jev.ipynb](../../SystemCode/notebooks/12_a3_jev.ipynb).
 
-- **State** ([`build_state`](../SystemCode/src/audio_df/models/jev/state.py#L114)) comes in two variants. "numbers"
+- **State** ([`build_state`](../../SystemCode/src/audio_df/models/jev/state.py#L114)) comes in two variants. "numbers"
   passes raw floats. "words" passes fixed threshold buckets, for example detector level and
   confidence from the margin to A2's dev EER threshold, and `silence: little/some/a lot`. The
   state never contains the label, attack, speaker, path or clip ID.
-- **Score** ([`noul_to_a3_score`](../SystemCode/src/audio_df/models/jev/questions.py#L90)) is
+- **Score** ([`noul_to_a3_score`](../../SystemCode/src/audio_df/models/jev/questions.py#L90)) is
   $s_{A3} = \log\frac{p(\text{no})}{p(\text{yes})}$, oriented the same way as every other score
   file.
 - Responses are cached on disk and keyed by a hash of the configuration and clip
-  ([jev/cache.py](../SystemCode/src/audio_df/models/jev/cache.py)), so a rerun never pays for the same call
+  ([jev/cache.py](../../SystemCode/src/audio_df/models/jev/cache.py)), so a rerun never pays for the same call
   twice. The cache folder `data/jev_cache/` holds only a placeholder until real calls are made.
 - **Status:** `TypesafeJevClient.ask` raises `NotImplementedError` until the JEV API docs arrive.
   Notebook 12 runs end to end on a **dry-run client** over real A2 scores: `a2_experiment`
@@ -1137,16 +1137,16 @@ config [configs/a3_jev.yaml](../SystemCode/configs/a3_jev.yaml), notebook
 
 ## 9. How we score
 
-All of this lives in [src/audio_df/evaluation/metrics.py](../SystemCode/src/audio_df/evaluation/metrics.py) and
-[src/audio_df/evaluation/scoring.py](../SystemCode/src/audio_df/evaluation/scoring.py), with parameters in
-[configs/scoring.yaml](../SystemCode/configs/scoring.yaml). It is documented in
-[eer-and-metrics.md](../Miscellaneous/research/knowledge/methods/eer-and-metrics.md) and
-[min-dcf.md](../Miscellaneous/research/knowledge/methods/min-dcf.md).
+All of this lives in [src/audio_df/evaluation/metrics.py](../../SystemCode/src/audio_df/evaluation/metrics.py) and
+[src/audio_df/evaluation/scoring.py](../../SystemCode/src/audio_df/evaluation/scoring.py), with parameters in
+[configs/scoring.yaml](../../SystemCode/configs/scoring.yaml). It is documented in
+[eer-and-metrics.md](../../Miscellaneous/research/knowledge/methods/eer-and-metrics.md) and
+[min-dcf.md](../../Miscellaneous/research/knowledge/methods/min-dcf.md).
 
 **Convention:** higher score means bona fide. A *miss* is a bona fide clip rejected; a *false
 alarm* is a spoof clip accepted.
 
-**EER** ([`compute_eer`](../SystemCode/src/audio_df/evaluation/metrics.py#L217)), the official ASVspoof
+**EER** ([`compute_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L217)), the official ASVspoof
 nearest-neighbour version with no interpolation, matched bit-for-bit against the official package:
 
 $$
@@ -1156,7 +1156,7 @@ P_\text{fa}(\theta)=\frac{|\{s_j>\theta\}|}{|S|},\quad
 \text{EER}=\tfrac12\big(P_\text{miss}(\theta^*)+P_\text{fa}(\theta^*)\big).
 $$
 
-**minDCF** ([`min_dcf`](../SystemCode/src/audio_df/evaluation/metrics.py#L382)) uses the ASVspoof 5 Track 1
+**minDCF** ([`min_dcf`](../../SystemCode/src/audio_df/evaluation/metrics.py#L382)) uses the ASVspoof 5 Track 1
 definition [2]:
 
 $$
@@ -1168,11 +1168,11 @@ $$
 **This is not the 2019 tandem detection cost function (t-DCF).** t-DCF needs a fixed automatic speaker verification (ASV) system's scores, which we do not have, so
 B02's published t-DCF of 0.2116 cannot sit in the same column as our minDCF.
 
-**Per-attack EER** ([`per_attack_eer`](../SystemCode/src/audio_df/evaluation/metrics.py#L461)) scores each attack's
+**Per-attack EER** ([`per_attack_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L461)) scores each attack's
 spoofs against the **whole** shared bona fide pool, following AASIST's `evaluation.py`. We report
 it next to the pooled number because a pooled EER can hide a generator that reverses.
 
-**Thresholds** ([`_dev_threshold`](../SystemCode/src/audio_df/evaluation/scoring.py#L145)) are set to the EER threshold
+**Thresholds** ([`_dev_threshold`](../../SystemCode/src/audio_df/evaluation/scoring.py#L145)) are set to the EER threshold
 on the *raw* dev set and reused unchanged on eval, trimmed sets, In-the-Wild and E4. F1,
 precision and recall at that threshold are reported with spoof as the positive class. EER and
 minDCF choose their own thresholds, so they measure **separability**. F1 and the rejection rates
@@ -1182,10 +1182,10 @@ in §10.4 measure **calibration transfer**.
 
 ## 10. Results and interpretation
 
-Source: [reports/tables/E1.md](../SystemCode/reports/tables/E1.md),
-[E3_itw.md](../SystemCode/reports/tables/E3_itw.md), [E3_per_attack.md](../SystemCode/reports/tables/E3_per_attack.md),
+Source: [reports/tables/E1.md](../../SystemCode/reports/tables/E1.md),
+[E3_itw.md](../../SystemCode/reports/tables/E3_itw.md), [E3_per_attack.md](../../SystemCode/reports/tables/E3_per_attack.md),
 and the `metrics.json` of each run. Every run is listed in
-[experiments/REGISTRY.md](../SystemCode/runs/REGISTRY.md).
+[experiments/REGISTRY.md](../../SystemCode/runs/REGISTRY.md).
 
 ### 10.1 E1: in-domain benchmark (2019 LA, raw)
 
@@ -1332,7 +1332,7 @@ loudest frame. Pauses inside the clip stay.
   them, rather than inside the clip. X3 settles this.
 
 Full table and method:
-[lfcc-vs-mfcc-explained.md](../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5.
+[lfcc-vs-mfcc-explained.md](../../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §5.
 
 This **replicates Müller et al. [27]**. Their strong models never did better than 19 % EER once
 silence access was removed, and RawNet2 went from 3.61 % to 15.50 %. Our A2 degrades *relatively*
@@ -1522,14 +1522,14 @@ Each has a cheap test in §13.
 | A2 with XLS-R 300M | config ready | `adf --config configs/a2_xlsr_300m.yaml timing`, then a resumable overnight `prepare --testsets train,dev,eval,itw` |
 | E4 robustness | generator ready | `scripts/get_musan.py` → `scripts/make_degraded.py timing/generate` → score A1 and A2 on the four sets |
 | A3 / E5 | scaffold, dry run | needs JEV API docs; then measure latency and cost on ≤20 clips before choosing the subset size |
-| A3 margins (open) | placeholder values `[0.05, 0.2]` in `configs/a3_jev.yaml` | A2 scores span about −40 to +30, so only 0.10 % of dev clips fall in the "unsure" band and A3 would almost never consult JEV. Rescale the margins (for example from dev score percentiles) before E5, and decide whether E5 should include In-the-Wild clips, since an ASVspoof-dev-only E5 cannot test the calibration problem ([report chapter 10](report/10_where_jev_fits.md)) |
+| A3 margins (open) | placeholder values `[0.05, 0.2]` in `configs/a3_jev.yaml` | A2 scores span about −40 to +30, so only 0.10 % of dev clips fall in the "unsure" band and A3 would almost never consult JEV. Rescale the margins (for example from dev score percentiles) before E5, and decide whether E5 should include In-the-Wild clips, since an ASVspoof-dev-only E5 cannot test the calibration problem ([report chapter 10](../report/10_where_jev_fits.md)) |
 | E2 ablation | later | open decision. X4 (LFCC vs MFCC) and X6 (layers) are done and could be reported as E2. If E2 is a fusion, it must be **score-level** A1+A2 with weights fitted on dev only, because frame-level fusion as in [6] needs the ~37 GB frame cache. First check complementarity on the existing score CSVs (score correlation, oracle selection, per-attack error overlap): no new runs needed, and [6] gives no such analysis. A multi-task arm [17] could only add a speaker-ID head to A2's pooled vector. Attack-ID heads stay out of scope |
 | E6 efficiency | not built | code to measure parameters, ms/clip and real-time factor (RTF) on 1,000 eval clips |
 
 **Explainability analyses.** X4 and X6 are done (§5.1.5, §7.5); the rest are proposed. Each
 uses existing models or caches. Expectations are written down *before* running, so surprises stay visible.
 The full specs are in
-[lfcc-vs-mfcc-explained.md](../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §6 and the
+[lfcc-vs-mfcc-explained.md](../../Miscellaneous/research/knowledge/methods/lfcc-vs-mfcc-explained.md) §6 and the
 Cheng et al. [21]. [21]
 shows why controls matter: its saliency maps are single examples with no faithfulness test, so
 each analysis here has a control.
@@ -1572,19 +1572,19 @@ Every system is trained and scored through one command, `uv run adf --config <co
 
 | step | command | code | notebook |
 |---|---|---|---|
-| manifests | `uv run python scripts/prepare_data.py` | [data.py](../SystemCode/src/audio_df/data/manifests.py) | [01](../SystemCode/notebooks/01_dataset_audit.ipynb) |
-| leakage audit | `uv run python scripts/audit_leakage.py` | [leakage.py](../SystemCode/src/audio_df/evaluation/leakage.py), [audio.py](../SystemCode/src/audio_df/features/audio.py) | [01](../SystemCode/notebooks/01_dataset_audit.ipynb) cells 14–21 |
-| spectral and cepstral EDA | — | [features.py](../SystemCode/src/audio_df/features/cepstral.py), [stats.py](../SystemCode/src/audio_df/evaluation/stats.py) | [02](../SystemCode/notebooks/02_spectral_eda.ipynb), [03](../SystemCode/notebooks/03_cepstral_eda.ipynb) |
-| learn A1 by hand | — | [lfcc_b02.py](../SystemCode/src/audio_df/features/lfcc_b02.py), [gmm.py](../SystemCode/src/audio_df/models/gmm.py) | [09](../SystemCode/notebooks/09_a1_playground.ipynb) |
-| A1 train and score | `adf --config configs/a1_lfcc_gmm.yaml train --exp e1`; `… score --model-from … --silence-mode trimmed --testsets eval,itw` | [a1.py](../SystemCode/src/audio_df/pipelines/a1.py) ([`cmd_train`](../SystemCode/src/audio_df/pipelines/a1.py#L137), [`score_manifest`](../SystemCode/src/audio_df/pipelines/score_audio.py#L23)), [training/gmm.py](../SystemCode/src/audio_df/training/gmm.py) | [10](../SystemCode/notebooks/10_a1_lfcc_gmm.ipynb) |
-| A2 extract, train, score | `adf --config configs/a2_wavlm_base_plus.yaml timing / prepare / train / score` | [ssl.py](../SystemCode/src/audio_df/features/ssl.py), [a2_ssl_head.py](../SystemCode/src/audio_df/models/a2_ssl_head.py), [training/head.py](../SystemCode/src/audio_df/training/head.py), [a2.py](../SystemCode/src/audio_df/pipelines/a2.py) | [11](../SystemCode/notebooks/11_a2_ssl_head.ipynb) |
-| A3 | `adf --config configs/a3_jev.yaml jev` (dry run) | [jev/](../SystemCode/src/audio_df/models/jev/), [a3.py](../SystemCode/src/audio_df/pipelines/a3.py) | [12](../SystemCode/notebooks/12_a3_jev.ipynb) |
-| E4 degradations | `scripts/get_musan.py`, `scripts/make_degraded.py` | [degrade.py](../SystemCode/src/audio_df/data/degrade.py) | [13](../SystemCode/notebooks/13_e4_degradations.ipynb) |
-| metrics | `uv run python scripts/score_experiment.py runs/<id> [--threshold-from <raw id>]` | [scoring.py](../SystemCode/src/audio_df/evaluation/scoring.py), [metrics.py](../SystemCode/src/audio_df/evaluation/metrics.py) | — |
-| tables | `uv run python scripts/make_tables.py` | [make_tables.py](../SystemCode/scripts/make_tables.py) | — |
-| run lifecycle and resource guard | (used by every pipeline) | [lifecycle.py](../SystemCode/src/audio_df/runtime/lifecycle.py), [resources.py](../SystemCode/src/audio_df/runtime/resources.py), [exp_io.py](../SystemCode/src/audio_df/runtime/exp_io.py) | — |
+| manifests | `uv run python scripts/prepare_data.py` | [data.py](../../SystemCode/src/audio_df/data/manifests.py) | [01](../../SystemCode/notebooks/01_dataset_audit.ipynb) |
+| leakage audit | `uv run python scripts/audit_leakage.py` | [leakage.py](../../SystemCode/src/audio_df/evaluation/leakage.py), [audio.py](../../SystemCode/src/audio_df/features/audio.py) | [01](../../SystemCode/notebooks/01_dataset_audit.ipynb) cells 14–21 |
+| spectral and cepstral EDA | — | [features.py](../../SystemCode/src/audio_df/features/cepstral.py), [stats.py](../../SystemCode/src/audio_df/evaluation/stats.py) | [02](../../SystemCode/notebooks/02_spectral_eda.ipynb), [03](../../SystemCode/notebooks/03_cepstral_eda.ipynb) |
+| learn A1 by hand | — | [lfcc_b02.py](../../SystemCode/src/audio_df/features/lfcc_b02.py), [gmm.py](../../SystemCode/src/audio_df/models/gmm.py) | [09](../../SystemCode/notebooks/09_a1_playground.ipynb) |
+| A1 train and score | `adf --config configs/a1_lfcc_gmm.yaml train --exp e1`; `… score --model-from … --silence-mode trimmed --testsets eval,itw` | [a1.py](../../SystemCode/src/audio_df/pipelines/a1.py) ([`cmd_train`](../../SystemCode/src/audio_df/pipelines/a1.py#L137), [`score_manifest`](../../SystemCode/src/audio_df/pipelines/score_audio.py#L23)), [training/gmm.py](../../SystemCode/src/audio_df/training/gmm.py) | [10](../../SystemCode/notebooks/10_a1_lfcc_gmm.ipynb) |
+| A2 extract, train, score | `adf --config configs/a2_wavlm_base_plus.yaml timing / prepare / train / score` | [ssl.py](../../SystemCode/src/audio_df/features/ssl.py), [a2_ssl_head.py](../../SystemCode/src/audio_df/models/a2_ssl_head.py), [training/head.py](../../SystemCode/src/audio_df/training/head.py), [a2.py](../../SystemCode/src/audio_df/pipelines/a2.py) | [11](../../SystemCode/notebooks/11_a2_ssl_head.ipynb) |
+| A3 | `adf --config configs/a3_jev.yaml jev` (dry run) | [jev/](../../SystemCode/src/audio_df/models/jev), [a3.py](../../SystemCode/src/audio_df/pipelines/a3.py) | [12](../../SystemCode/notebooks/12_a3_jev.ipynb) |
+| E4 degradations | `scripts/get_musan.py`, `scripts/make_degraded.py` | [degrade.py](../../SystemCode/src/audio_df/data/degrade.py) | [13](../../SystemCode/notebooks/13_e4_degradations.ipynb) |
+| metrics | `uv run python scripts/score_experiment.py runs/<id> [--threshold-from <raw id>]` | [scoring.py](../../SystemCode/src/audio_df/evaluation/scoring.py), [metrics.py](../../SystemCode/src/audio_df/evaluation/metrics.py) | — |
+| tables | `uv run python scripts/make_tables.py` | [make_tables.py](../../SystemCode/scripts/make_tables.py) | — |
+| run lifecycle and resource guard | (used by every pipeline) | [lifecycle.py](../../SystemCode/src/audio_df/runtime/lifecycle.py), [resources.py](../../SystemCode/src/audio_df/runtime/resources.py), [exp_io.py](../../SystemCode/src/audio_df/runtime/exp_io.py) | — |
 
-Every heavy pipeline applies the limits in [configs/resources.yaml](../SystemCode/configs/resources.yaml):
+Every heavy pipeline applies the limits in [configs/resources.yaml](../../SystemCode/configs/resources.yaml):
 MPS watermark 0.3, 4 threads, one heavy job at a time, a memory-pressure guard between chunks,
 resumable chunks, and a 200-clip timing run first. Every run writes `config.yaml`, `env.json`,
 `notes.md`, `scores/` and `run_summary.json`, and adds a registry row.
@@ -1593,4 +1593,4 @@ resumable chunks, and a 200-clip timing run first. Every run writes `config.yaml
 
 ## 15. References
 
-See the [reference list](report/references.md).
+See the [reference list](../report/references.md).

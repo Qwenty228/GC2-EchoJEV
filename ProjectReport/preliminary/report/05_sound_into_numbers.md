@@ -7,14 +7,14 @@ Chapter 4's single summaries throw away almost everything. Chapter 1 told us wha
 
 This chapter builds A1's recipe: the official 2019 challenge baseline (B02), transcribed line
 by line from the official code into
-[`lfcc_b02.py`](../../SystemCode/src/audio_df/features/lfcc_b02.py). Its output is **linear-frequency
+[`lfcc_b02.py`](../../../SystemCode/src/audio_df/features/lfcc_b02.py). Its output is **linear-frequency
 cepstral coefficients (LFCC)**.
 
-[Notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 9 rebuilds the recipe by hand on one
+[Notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 9 rebuilds the recipe by hand on one
 real clip and checks it is "identical to the library: True"; cell 10 draws it.
 
 ![The B02 pipeline on one real clip: pre-emphasis, 20 linear filters, power spectrogram, 20 static LFCCs](img/ch05_lfcc_pipeline_nb09.png)
-*Source: [notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 10. Default notebook colours.*
+*Source: [notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 10. Default notebook colours.*
 
 ## Step 1: cut the sound into short frames
 
@@ -37,7 +37,7 @@ this is the short-time Fourier transform (STFT); stacked, it is chapter 0's spec
 overlapping triangular **filters**, each giving the energy in its band.
 
 ![Twenty triangular filters with linear spacing (top) and mel spacing (bottom)](img/ch05_filter_placement.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 13 (geometry from our filterbank code, no data).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 13 (geometry from our filterbank code, no data).*
 
 The B02 recipe spaces the filters **evenly in Hz** from 0 to 8,000 Hz: the "linear" in LFCC.
 The top row shows twenty identical triangles, each 762 Hz wide at the base, half of them above
@@ -56,10 +56,10 @@ Take log10 of each band energy, for two reasons:
 The 20 log energies per frame are very redundant: if one band is loud, its neighbours usually
 are too. Across 45 real clips, the average absolute correlation (strength, ignoring sign) between
 two different bands is 0.85 (left panel below, redrawn from
-[notebook 03](../../SystemCode/notebooks/03_cepstral_eda.ipynb), cell 11).
+[notebook 03](../../../SystemCode/notebooks/03_cepstral_eda.ipynb), cell 11).
 
 ![Correlation matrices before and after the discrete cosine transform (DCT)](img/ch05_dct_decorrelation.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 17, recomputed on notebook 03's exact 45-clip sample (it reproduces notebook 03 cell 11's printed 0.851 and 0.166).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 17, recomputed on notebook 03's exact 45-clip sample (it reproduces notebook 03 cell 11's printed 0.851 and 0.166).*
 
 So describe their **shape** instead:
 
@@ -74,7 +74,7 @@ Panel 1 below draws those weights: flat for c0, a slope from +0.32 to −0.32 fo
 c2 and c4.
 
 ![DCT weights for c0, c1, c2, c4; c0 along one clip before and after a 10 decibel (dB) gain drop; average change per coefficient](img/ch05_lfcc_coefficients_gain.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 15. Panel 1 has no data; panels 2–3 are recomputed on one real eval clip (LA_E_5849185).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 15. Panel 1 has no data; panels 2–3 are recomputed on one real eval clip (LA_E_5849185).*
 
 These weighted sums are the **discrete cosine transform (DCT)**. With *L*[r] the log energy of
 band *r* and *J* = 20 bands:
@@ -105,13 +105,13 @@ Panels 2 and 3 check this on a real eval clip, **recomputed in notebook 20**: c0
 So **loudness, recording gain and silence all live in c0** (a silent frame is a very low c0).
 B02 keeps c0 and does not subtract each recording's average (no cepstral mean and variance
 normalisation, CMVN; absent from the official code, per the
-[`lfcc_b02.py`](../../SystemCode/src/audio_df/features/lfcc_b02.py) docstring). So A1 sees level and silence
+[`lfcc_b02.py`](../../../SystemCode/src/audio_df/features/lfcc_b02.py) docstring). So A1 sees level and silence
 directly. Remember chapter 3.
 
 ## Step 6: add movement
 
 Finally, add each coefficient's frame-to-frame change (the "delta", Δ: next frame minus previous)
-and the change of that change (ΔΔ), following the official code ([`official_deltas`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L136)).
+and the change of that change (ΔΔ), following the official code ([`official_deltas`](../../../SystemCode/src/audio_df/features/lfcc_b02.py#L136)).
 20 static + 20 Δ + 20 ΔΔ = **60 numbers per 10 ms frame**. That is A1's input.
 
 ## What this recipe cannot see
@@ -126,7 +126,7 @@ and the change of that change (ΔΔ), following the official code ([`official_de
 Most speech systems use a different filter placement: the **mel scale**, designed to mimic the
 ear for speech recognition: narrow filters at low frequencies, wide at high ones (bottom row of
 the filter figure). Mel filters give **mel-frequency cepstral coefficients (MFCC)**: same
-recipe, only the filter edges move ([`lfcc_b02_filterbank`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L194),
+recipe, only the filter edges move ([`lfcc_b02_filterbank`](../../../SystemCode/src/audio_df/features/lfcc_b02.py#L194),
 `spacing="mel"`). With 20 filters on 0–8 kHz, from our own filterbank code:
 
 | | linear (LFCC) | mel (MFCC) |
@@ -161,9 +161,9 @@ asks again on real-world audio.
 > **Checkpoint**
 >
 > - The recipe: frames of 20 ms → FFT power → 20 filters → log → DCT → add Δ and ΔΔ = 60 numbers
->   per frame ([notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cells 9–10;
->   [`extract_lfcc_b02`](../../SystemCode/src/audio_df/features/lfcc_b02.py#L239)).
-> - The DCT cuts the average absolute correlation from 0.85 to 0.17 ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb),
+>   per frame ([notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cells 9–10;
+>   [`extract_lfcc_b02`](../../../SystemCode/src/audio_df/features/lfcc_b02.py#L239)).
+> - The DCT cuts the average absolute correlation from 0.85 to 0.17 ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb),
 >   cell 17, redrawing notebook 03, cell 11).
 > - c0 is level, c1 is tilt, higher c<sub>q</sub> are ripple; a 10 dB gain change moves only c0, by
 >   −4.47 (notebook 20, cell 15, recomputed on one clip). A1 keeps c0 and has no CMVN, so it sees

@@ -7,7 +7,7 @@ built A1 (9.56 % equal error rate (EER, chapter 2) on eval) and A2 (0.96 %), bot
 audio, silence and all.
 
 The stress test: same trained detectors, same eval clips, with leading and trailing silence cut
-([`trim_silence`](../../SystemCode/src/audio_df/features/audio.py#L243), chapter 3's 30 decibel (dB) rule; inner
+([`trim_silence`](../../../SystemCode/src/audio_df/features/audio.py#L243), chapter 3's 30 decibel (dB) rule; inner
 pauses stay). Nothing is retrained; the threshold stays the raw-dev one.
 
 | detector | eval EER, raw | eval EER, trimmed |
@@ -23,7 +23,7 @@ The better detector lost far more.
 ## A2: the real clips move, the fakes do not
 
 ![A2 eval score histograms, raw (top) and silence trimmed (bottom), with the dev threshold](img/ch08_a2_raw_vs_trimmed_scores.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 33, from the A2 raw and trimmed eval scores.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 33, from the A2 raw and trimmed eval scores.*
 
 On raw audio, real clips score around **+14.90** (median) and fakes **−12.83**; 0.2 % of real
 clips fall below the dev threshold. Trimmed, the real median drops to **−4.18** (about 19
@@ -38,7 +38,7 @@ by repetition repeats it.
 ## Attack by attack
 
 ![Per-attack eval EER, raw (filled) and trimmed (open), for A1 and A2](img/ch08_per_attack_raw_vs_trimmed.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 35, from the per-attack EER in the four `metrics.json` files.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 35, from the per-attack EER in the four `metrics.json` files.*
 
 **A2 (right).** Almost every attack gets harder. Chapter 3's silence map explains much, not all:
 no-silence attacks collapse once the real clips lose theirs (A10 2.0 → **39.5 %**, A15 0.5 →
@@ -51,11 +51,11 @@ lead-ins still get somewhat worse (A18 0.9 → 4.6 %, A19 1.9 → 7.4 %), except
 ## A1: three things happen at once
 
 Per-attack EER compares each attack's fakes with the **same** real pool
-([`per_attack_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), so it can change because the real clips
+([`per_attack_eer`](../../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), so it can change because the real clips
 moved, the fakes moved, or both. Each group's median score before and after tells which.
 
 ![Change in A1's median score per group when silence is trimmed](img/ch08_a1_median_shift.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 37, from the A1 raw and trimmed eval scores, joined on clip id.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 37, from the A1 raw and trimmed eval scores, joined on clip id.*
 
 The shifts are **measured**. The three mechanisms below are **our guesses** that fit them
 ([technical reference §10.3](../technical-reference.md)); none has been tested directly.
@@ -117,7 +117,7 @@ Chapter 9 offers a guess why.
 >   about 14 (0.96 → 13.27 %) (`metrics.json`, E1 raw and trimmed runs).
 > - For A2, real clips' median falls from +14.90 to −4.18 while fakes move under 3 points; 62.1 %
 >   of real clips then fall below the dev threshold, against 0.2 %
->   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 33). No-silence attacks collapse
+>   ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 33). No-silence attacks collapse
 >   (A10 2.0 → 39.5 %; notebook 20, cell 35).
 > - A1 shows three patterns: the real pool drops (−0.31), very quiet fakes start looking real
 >   (A09, A12, A16), and fakes with real-looking silence get easier (A17, A19); the mechanisms are

@@ -13,7 +13,7 @@ We use **WavLM Base+**, pre-trained on 94,000 hours of speech: 60,000 hours of
 Libri-Light (audiobooks), 10,000 hours of GigaSpeech (podcasts and YouTube) and 24,000 hours of
 VoxPopuli (European Parliament recordings) (from paper [26, §I, p.2, and §IV.C, p.5]). It has a
 convolutional front end and 12 transformer layers, each producing 768 numbers per frame
-([configs/a2_wavlm_base_plus.yaml](../../SystemCode/configs/a2_wavlm_base_plus.yaml)).
+([configs/a2_wavlm_base_plus.yaml](../../../SystemCode/configs/a2_wavlm_base_plus.yaml)).
 
 We **freeze** it (its weights never change) and train only a small decision layer on top. That
 makes A2 possible on a laptop with 16 gigabytes (GB) of memory.
@@ -44,20 +44,20 @@ clip, and mixes those averages. Same answer? Mixing with fixed weights and avera
 their order does not matter, just as weighing coins then averaging equals averaging then weighing.
 
 The figure below checks this with A2's actual head code
-([`SSLHead.weighted_sum`](../../SystemCode/src/audio_df/models/ssl_head.py#L102)) on random numbers of A2's
+([`SSLHead.weighted_sum`](../../../SystemCode/src/audio_df/models/ssl_head.py#L102)) on random numbers of A2's
 exact shape: the two orders agree to about 0.0000001 (rounding). Insert LayerNorm (which rescales
 each vector by its own spread) *before* averaging, and they disagree. That is why A2 applies
 LayerNorm only *after* pooling; `tests/test_ssl_head.py` checks the same identity.
 
 ![Pool-then-mix against mix-then-pool (on the diagonal) and the same with LayerNorm per frame (off the diagonal)](img/ch07_pool_then_mix.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 27 (random numbers, A2's real head code).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 27 (random numbers, A2's real head code).*
 
 So the time-averaged cache is **exact**. The price: the head only sees the *average* frame, so a
 momentary click or glitch is diluted.
 
 ## The head
 
-On the 13 cached averages, A2 trains ([`SSLHead`](../../SystemCode/src/audio_df/models/ssl_head.py#L62))
+On the 13 cached averages, A2 trains ([`SSLHead`](../../../SystemCode/src/audio_df/models/ssl_head.py#L62))
 13 layer weights (a softmax, so positive and summing to 1, starting at 1/13), then LayerNorm, a
 projection from 768 to 256, a small two-layer network down to 128, and one output score (higher
 means more real).
@@ -67,7 +67,7 @@ That is about **231,000 trainable numbers**, against 94 million frozen ones in W
 to 2,580 in training
 (`training_curve.json` of run `E-20261001-e1-a2-raw`, `pos_weight`).
 The lowest dev loss came at epoch 8 (counting from 0); training and scoring took **16.9 seconds**
-([REGISTRY.md](../../SystemCode/runs/REGISTRY.md), row `E-20261001-e1-a2-raw`).
+([REGISTRY.md](../../../SystemCode/runs/REGISTRY.md), row `E-20261001-e1-a2-raw`).
 
 ## How well does it work?
 
@@ -91,7 +91,7 @@ Left panel below: the 13 learned weights
 (`layer_weights.json` of run `E-20261001-e1-a2-raw`).
 
 ![A2's 13 learned layer weights, and EER of each single-layer head on eval, trimmed eval and In-the-Wild](img/ch07_layer_weights_x6.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 29, from the layer_weights.json and X6 summary.csv.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 29, from the layer_weights.json and X6 summary.csv.*
 
 They barely move from the even 1/13 ≈ 0.077 (dotted line), tilting toward the bottom: layer 3
 gets the most (0.099), layers 7–12 get 0.061–0.069 (largest over smallest: 1.63). But a weight
@@ -119,7 +119,7 @@ darker is better). Look at A17–A19, which convert a real person's recording (c
 A10, a text-to-speech attack:
 
 ![Per-attack EER for the full head and each single-layer head, raw eval (left) and trimmed eval (right)](img/ch07_x6_heatmap.png)
-*Source: `per_attack_heatmap.png` of run `E-20261004-e2-a2-raw-layers`, drawn by the X6 run and shown unchanged ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 31).*
+*Source: `per_attack_heatmap.png` of run `E-20261004-e2-a2-raw-layers`, drawn by the X6 run and shown unchanged ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 31).*
 
 | attack | layer 1 | layer 7 | layer 12 |
 |---|---|---|---|
@@ -155,8 +155,8 @@ was that they read a different layer; X6 ruled that out. Chapter 9 shows the num
 >
 > - A2 freezes WavLM Base+, pre-trained on 94,000 hours of real speech (from paper [26, p.5]), and
 >   trains only a ~231,000-number head on time-averaged layer outputs, which is exact because
->   pooling and mixing only add and scale ([`SSLHead`](../../SystemCode/src/audio_df/models/ssl_head.py#L62);
->   [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 27; `tests/test_ssl_head.py`).
+>   pooling and mixing only add and scale ([`SSLHead`](../../../SystemCode/src/audio_df/models/ssl_head.py#L62);
+>   [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 27; `tests/test_ssl_head.py`).
 > - A2 gets 0.39 % EER on dev and 0.96 % on eval, against A1's 9.56 %
 >   (`metrics.json` of run `E-20261001-e1-a2-raw`); 1.32 ± 0.23 % over 3 CPU
 >   retrains (X6 summary).

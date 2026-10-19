@@ -5,7 +5,7 @@
 Here are two clips from our main dataset, side by side, as **spectrograms**.
 
 ![Spectrogram of a real clip (left) and a fake clip from attack A03 (right)](img/ch00_spectrogram_pair.png)
-*Source: [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27.*
+*Source: [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27.*
 
 A spectrogram is a picture of sound:
 
@@ -40,7 +40,7 @@ that does.
 
 ## The question, in plain words
 
-The [README](../../SystemCode/README.md) and [technical reference §1](../technical-reference.md) state the
+The [README](../../../SystemCode/README.md) and [technical reference §1](../technical-reference.md) state the
 project's question with a formula; in our words:
 
 **Is there something we can measure about a clip that is distributed differently for real and
@@ -73,7 +73,7 @@ but its decision threshold no longer fits.
 > **Checkpoint**
 >
 > - A spectrogram shows a sound's energy over time and frequency; a real and a fake clip look
->   alike at a glance (figure above; [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27).
+>   alike at a glance (figure above; [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27).
 > - In that one pair, the real clip has a longer silent lead-in (about 0.8 s against 0.35 s), a
 >   difference unrelated to how the fake was made (same figure; one example only, not evidence).
 > - Fake voices are realistic enough to be a social risk (from paper [13, §1, p.1]) and can

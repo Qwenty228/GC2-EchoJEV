@@ -13,7 +13,7 @@ We ask chapter 2's two questions: **ranking** (equal error rate, EER, and area u
 AUC) and **calibration** (does the dev threshold still work?). Away from home they differ.
 
 ![In-the-Wild score histograms for A1 and A2, with each system's dev threshold and its VCTK eval real scores for reference](img/ch09_itw_scores_threshold.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 39, from the In-the-Wild scores (`E-20261001-e3-a1-raw`, `E-20261001-e3-a2-raw`), each
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 39, from the In-the-Wild scores (`E-20261001-e3-a1-raw`, `E-20261001-e3-a2-raw`), each
 system's dev threshold, and its eval scores for the grey reference outline.*
 
 ## A2: the ranking survives, the threshold does not
@@ -81,7 +81,7 @@ Chapter 6 found that LFCC beat mel-frequency cepstral coefficients (MFCC) on the
 same six models on In-the-Wild:
 
 ![Eval EER and In-the-Wild EER for each of the six X4 models, LFCC (blue) and MFCC (magenta)](img/ch09_x4_home_vs_away.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 41, from the six X4 runs'
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 41, from the six X4 runs'
 metrics.json files (the seed-1337 LFCC model's In-the-Wild score is in `E-20261001-e3-a1-raw`).*
 
 | mean ± standard deviation over 3 seeds | LFCC (linear) | MFCC (mel) |
@@ -112,7 +112,7 @@ or normalise each recording's average coefficients, and see whether the gap clos
 >   ranking survives, calibration does not. Layer choice does not explain why it beats [8]'s
 >   frozen WavLM Base+ (their 38.6 %; our top-layer logistic regression 24.75 %)
 >   (`metrics.json` of run `E-20261001-e3-a2-raw`; X6 summary;
->   [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 39; from paper [8, Table 3]).
+>   [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 39; from paper [8, Table 3]).
 > - A1 is at chance on In-the-Wild (EER 58.04 %, AUC 0.398 for seed 1337; AUC 0.56 and 0.38 for the
 >   other two seeds), the same kind of collapse [13] reports for its models (from paper [13,
 >   Tables 1–2]).

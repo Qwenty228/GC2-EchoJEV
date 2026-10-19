@@ -18,7 +18,7 @@ below).
 JEV is an external **generalised classifier API** (application programming interface: a
 service other programs call). You send typed text or JSON (JavaScript Object Notation, a
 plain-text format for structured data) and a fixed question; it returns **typed probabilities**,
-for example p(yes) and p(no) ([client.py](../../SystemCode/src/audio_df/models/jev/client.py) module docstring;
+for example p(yes) and p(no) ([client.py](../../../SystemCode/src/audio_df/models/jev/client.py) module docstring;
 [9]–[12]). It is **text only**, never hearing the audio ([11]), and it is **not a large language
 model** doing open-ended reasoning.
 
@@ -28,7 +28,7 @@ API documentation**; [9] is a community summary. Treat this section as provision
 ## What A3 sends: a label-free evidence state
 
 For each clip, A3 builds a small JSON "evidence state" with
-[`build_state`](../../SystemCode/src/audio_df/models/jev/state.py#L114):
+[`build_state`](../../../SystemCode/src/audio_df/models/jev/state.py#L114):
 
 - **detector:** A2's verdict as one of five level words (strongly fake to strongly real, by
   distance from A2's dev threshold) and its confidence;
@@ -36,10 +36,10 @@ For each clip, A3 builds a small JSON "evidence state" with
   and duration.
 
 The "numbers" version passes raw values; "words" passes fixed buckets (silence "little / some /
-a lot"), with cut-offs in [configs/a3_jev.yaml](../../SystemCode/configs/a3_jev.yaml), never learned.
+a lot"), with cut-offs in [configs/a3_jev.yaml](../../../SystemCode/configs/a3_jev.yaml), never learned.
 
 Deliberately **not** in the state: label, attack, speaker, file path, clip id
-([`tests/test_jev_state.py`](../../SystemCode/tests/test_jev_state.py), `test_no_label_leakage`). Two more
+([`tests/test_jev_state.py`](../../../SystemCode/tests/test_jev_state.py), `test_no_label_leakage`). Two more
 rules ([technical reference §5.4](../technical-reference.md)):
 
 - no generator or attack attributes, because attributing fakes to generators does not transfer
@@ -49,14 +49,14 @@ rules ([technical reference §5.4](../technical-reference.md)):
 ## What A3 asks
 
 Three fixed, versioned questions
-([questions.py](../../SystemCode/src/audio_df/models/jev/questions.py)):
+([questions.py](../../../SystemCode/src/audio_df/models/jev/questions.py)):
 
 1. yes/no: "Does the evidence indicate synthetic speech?"
 2. a three-way choice: bona fide, spoof, or insufficient evidence;
 3. a 0–3 score: how consistent the evidence is with genuine speech.
 
 A3's score is log(p(no) / p(yes)) from the yes/no answer
-([`noul_to_a3_score`](../../SystemCode/src/audio_df/models/jev/questions.py#L90)); higher means more real.
+([`noul_to_a3_score`](../../../SystemCode/src/audio_df/models/jev/questions.py#L90)); higher means more real.
 
 ```mermaid
 flowchart LR
@@ -77,21 +77,21 @@ subset; the accept/escalate split is applied at analysis.*
 ## The experiment it is built for (E5)
 
 Experiment E5 would compare A2 and A3 on a stratified 500-clip dev subset
-([configs/a3_jev.yaml](../../SystemCode/configs/a3_jev.yaml): `subset.n: 500`): does a typed classifier over
+([configs/a3_jev.yaml](../../../SystemCode/configs/a3_jev.yaml): `subset.n: 500`): does a typed classifier over
 interpretable evidence improve the uncertain middle? The runner
-([pipelines/a3.py](../../SystemCode/src/audio_df/pipelines/a3.py)) writes both scores, every answer and a cost
-summary; answers are cached by a hash of config and clip ([cache.py](../../SystemCode/src/audio_df/models/jev/cache.py)),
+([pipelines/a3.py](../../../SystemCode/src/audio_df/pipelines/a3.py)) writes both scores, every answer and a cost
+summary; answers are cached by a hash of config and clip ([cache.py](../../../SystemCode/src/audio_df/models/jev/cache.py)),
 so a rerun never pays twice.
 
 ## Where it stands
 
 - **The real client is not implemented.** `TypesafeJevClient.ask` raises `NotImplementedError`
   until the JEV API documentation arrives (request format, authentication, response schema and
-  pricing are unknown; [client.py](../../SystemCode/src/audio_df/models/jev/client.py#L190)).
+  pricing are unknown; [client.py](../../../SystemCode/src/audio_df/models/jev/client.py#L190)).
 - **Only a dry-run client exists**, answering as a fixed function of A2's level word, labelled
   "DRY RUN stub answer, not a real JEV result".
 - **Notebook 12 runs end to end on synthetic scores and the dry-run client**
-  ([notebook 12](../../SystemCode/notebooks/12_a3_jev.ipynb), setup in cells 3–6, dry run in cells 12–14).
+  ([notebook 12](../../../SystemCode/notebooks/12_a3_jev.ipynb), setup in cells 3–6, dry run in cells 12–14).
   Nothing in it is a result.
 - The configuration points at the A2 run (`a2_experiment: runs/E-20261001-e1-a2-raw`),
   so the dry run builds its evidence from real A2 scores; only JEV's answers are stand-ins.
@@ -104,10 +104,10 @@ so a rerun never pays twice.
 **A3 as configured today cannot address chapter 9's calibration problem.** Two reasons:
 
 1. **The "uncertain middle" is almost empty.** The level words come from fixed margins of 0.05 and
-   0.2 around A2's dev threshold ([configs/a3_jev.yaml](../../SystemCode/configs/a3_jev.yaml),
+   0.2 around A2's dev threshold ([configs/a3_jev.yaml](../../../SystemCode/configs/a3_jev.yaml),
    `thresholds.detector.margins`), in A2's score units. But A2's scores span roughly −40 to +30
    (chapter 2). Recomputed from the A2 scores
-   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 43, which also shows that only 0.02 %
+   ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 43, which also shows that only 0.02 %
    fall within ±0.05): only **0.1 % of dev clips**
    fall within ±0.2 of the threshold, so almost every clip gets a "strong" level; and on
    In-the-Wild, **47.9 % of real clips** would be labelled "strongly spoof". The margins are
@@ -126,10 +126,10 @@ A2's own score does not already contain.
 >
 > - A3 = A2 plus a second opinion on uncertain clips (idea of [10]). JEV is a typed classifier
 >   API (text or JSON in, typed probabilities out), text only, not a large language model
->   ([client.py](../../SystemCode/src/audio_df/models/jev/client.py); sources [9]–[12] still to be checked).
+>   ([client.py](../../../SystemCode/src/audio_df/models/jev/client.py); sources [9]–[12] still to be checked).
 > - A3 sends a label-free evidence state (A2's level and confidence plus acoustic summaries) and
 >   asks three fixed questions; its score is log(p(no) / p(yes))
->   ([state.py](../../SystemCode/src/audio_df/models/jev/state.py#L114), [questions.py](../../SystemCode/src/audio_df/models/jev/questions.py#L90)).
+>   ([state.py](../../../SystemCode/src/audio_df/models/jev/state.py#L114), [questions.py](../../../SystemCode/src/audio_df/models/jev/questions.py#L90)).
 > - As configured, A3 cannot address chapter 9's calibration problem: its level margins are
 >   placeholders (0.1 % of dev clips fall in the uncertain band; 47.9 % of real In-the-Wild clips
 >   would read "strongly spoof"; notebook 20, cell 43), and E5 is planned on ASVspoof dev only.

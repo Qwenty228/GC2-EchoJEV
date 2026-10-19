@@ -25,7 +25,7 @@ speech) and "fake" means **spoof**.
   (from paper [14, §3, p.8]).
 
 ![Clips per split and attack: train, dev, eval and In-the-Wild](img/ch02_clips_per_split.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cells 5–6, from the local
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cells 5–6, from the local
 manifests checked against committed checksums.*
 
 **Train** (2,580 real, 22,800 fake, attacks A01–A06) fits the detectors; **dev**, the
@@ -42,7 +42,7 @@ Three things to notice:
 2. **The eval attacks never appear in training**, so the official test already uses unseen
    generators. That is why the
    project uses it as-is rather than building its own split
-   (architecture decision record [ADR-001](../../Miscellaneous/research/decisions/ADR-001-generalization-data-strategy.md)).
+   (architecture decision record [ADR-001](../../../Miscellaneous/research/decisions/ADR-001-generalization-data-strategy.md)).
 3. **Two of those "new" attacks are old algorithms in disguise.** The paper states that "A04
    and A16 use same waveform concatenation TTS algorithm, and A06 and A19 use same VC algorithm"
    (from paper [14, Table 1 caption, p.6]), and that A07–A19 "(apart from A16 and A19) are the
@@ -50,8 +50,8 @@ Three things to notice:
    generators and 2 known ones (hatched) on new speakers.
 
 No speaker appears in both train and dev
-([`assert_no_speaker_overlap`](../../SystemCode/src/audio_df/data/manifests.py#L253), run in
-[notebook 01](../../SystemCode/notebooks/01_dataset_audit.ipynb), cell 10).
+([`assert_no_speaker_overlap`](../../../SystemCode/src/audio_df/data/manifests.py#L253), run in
+[notebook 01](../../../SystemCode/notebooks/01_dataset_audit.ipynb), cell 10).
 
 ### The second dataset: In-the-Wild
 
@@ -70,7 +70,7 @@ and generators at once.
 
 Every detector here (A1 and A2 from chapter 0) outputs a **score** per clip, **higher means
 more real**, the official ASVspoof convention
-([eer-and-metrics.md](../../Miscellaneous/research/knowledge/methods/eer-and-metrics.md)). A **threshold**
+([eer-and-metrics.md](../../../Miscellaneous/research/knowledge/methods/eer-and-metrics.md)). A **threshold**
 turns scores into decisions: above it, real; below it, fake.
 
 Any threshold makes two kinds of mistake: a **miss** (a real clip below it, so a genuine
@@ -83,7 +83,7 @@ caught at once with a 100 % miss rate.
 ## Sliding the threshold
 
 ![A2 dev scores: two score piles, miss and false-alarm curves, and where they cross](img/ch02_threshold_sweep.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cells 8–9, from the A2 dev scores
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cells 8–9, from the A2 dev scores
 (`scores/dev.csv` of run `E-20261001-e1-a2-raw`).*
 
 The scores are **measured**; only the curves are drawn.
@@ -110,7 +110,7 @@ For A2 on dev, the EER is **0.39 %** at threshold **−2.43**
 
 With real data the curves move in steps and rarely meet exactly. We use the official rule:
 take the threshold where the two rates are *closest* and average them, with no interpolation.
-Our [`compute_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L217) reproduces the official scoring code.
+Our [`compute_eer`](../../../SystemCode/src/audio_df/evaluation/metrics.py#L217) reproduces the official scoring code.
 
 ## One number for every threshold: the area under the curve
 
@@ -128,14 +128,14 @@ clip the same score and gets 0.5.
 On dev, A2's AUC is 0.99995 and A1's is 0.9958
 (`metrics.json` of run `E-20261001-e1-a2-raw`,
 `metrics.json` of run `E-20261001-e1-a1-raw`, `roc_auc`; the
-function is [`roc_auc`](../../SystemCode/src/audio_df/evaluation/metrics.py#L303)).
+function is [`roc_auc`](../../../SystemCode/src/audio_df/evaluation/metrics.py#L303)).
 
 ## Where the threshold comes from
 
 EER picks its own best threshold on each test set. That is fair for comparing how well
 detectors *separate* real from fake, but a deployed detector must commit in advance. So we also
 fix the EER threshold **on the dev set** and reuse it unchanged on
-eval and on In-the-Wild ([`_dev_threshold`](../../SystemCode/src/audio_df/evaluation/scoring.py#L145)). For A2 that
+eval and on In-the-Wild ([`_dev_threshold`](../../../SystemCode/src/audio_df/evaluation/scoring.py#L145)). For A2 that
 is −2.43 (the `threshold_source` field in
 `metrics.json` of run `E-20261001-e3-a2-raw` shows In-the-Wild
 reuses it). Two questions, two kinds of number:
@@ -147,24 +147,24 @@ reuses it). Two questions, two kinds of number:
 Chapter 9 shows that these two questions can have very different answers.
 
 Finally, we report EER **per attack**: each attack's fakes against the whole pool of real clips
-([`per_attack_eer`](../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), because a pooled number can hide one
+([`per_attack_eer`](../../../SystemCode/src/audio_df/evaluation/metrics.py#L461)), because a pooled number can hide one
 generator the detector gets badly wrong.
 
 > **Checkpoint**
 >
 > - Our main data is ASVspoof 2019 LA: real clips are VCTK studio recordings, fakes come from TTS
 >   and VC systems, about 9 fakes per real clip in every split
->   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 6; from paper [14, Fig. 2, p.4]).
+>   ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 6; from paper [14, Fig. 2, p.4]).
 > - Eval uses attacks A07–A19, never seen in training; 11 are new generators and 2 (A16, A19)
 >   reuse training algorithms (from paper [14, Table 1 caption and §3, p.6]).
 > - In-the-Wild adds 31,779 real-world clips, mostly real, with no attack labels
 >   (`metrics.json` of run `E-20261001-e3-a2-raw`; from paper [13, §3, p.2]).
 > - Accuracy is useless at 1 : 9 ("always fake" scores 89.7 %); within-class miss and
 >   false-alarm rates are not. EER is where they are equal: 0.39 % for A2 on dev
->   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cells 8–9;
+>   ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cells 8–9;
 >   `metrics.json` of run `E-20261001-e1-a2-raw`).
 > - AUC measures ranking over all thresholds; a fixed dev threshold tests whether a decision rule
->   transfers ([`_dev_threshold`](../../SystemCode/src/audio_df/evaluation/scoring.py#L145)).
+>   transfers ([`_dev_threshold`](../../../SystemCode/src/audio_df/evaluation/scoring.py#L145)).
 >
 > **The question this leaves us with:** we can now score a detector fairly. But before building
 > one, could something stupid, with no idea what a voice is, already score well?

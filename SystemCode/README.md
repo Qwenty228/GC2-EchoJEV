@@ -14,9 +14,9 @@ and **whether it survives unseen attacks and domains**.
 
 ## Read this first
 
-- **[The report](../ProjectReport/report/README.md)**: the main document. It covers the question, the data,
+- **[The report](../ProjectReport/preliminary/report/README.md)**: the main document. It covers the question, the data,
   the three detectors and every result, as one argument in twelve short chapters.
-- **[Technical reference](../ProjectReport/technical-reference.md)**: full method, maths, implementation
+- **[Technical reference](../ProjectReport/preliminary/technical-reference.md)**: full method, maths, implementation
   pointers and result tables.
 - **[Research notes](../Miscellaneous/research/README.md)**: page-referenced notes on papers and methods,
   fact-checks and architecture decision records (ADRs).
@@ -32,7 +32,7 @@ Tables: [`reports/tables/`](reports/tables) · run log: [`runs/REGISTRY.md`](run
 In short: leading silence alone predicts the label with an area under the curve (AUC) of 0.837,
 and trimming it costs both detectors heavily. Both detectors also detect genuine vocoder
 artefacts. On real-world audio, A2's ranking holds but its decision threshold does not, and A1
-falls to chance. The [report](../ProjectReport/report/README.md) gives the full argument.
+falls to chance. The [report](../ProjectReport/preliminary/report/README.md) gives the full argument.
 
 ## The systems and experiments
 
@@ -177,7 +177,7 @@ uv run python scripts/make_tables.py          # regenerates reports/tables/E1…
 ```
 
 `uv run adf --help` lists the commands (`timing`, `prepare`, `train`, `score`, `jev`) and
-which systems have each. The [technical reference §14](../ProjectReport/technical-reference.md#14-where-each-step-lives)
+which systems have each. The [technical reference §14](../ProjectReport/preliminary/technical-reference.md#14-where-each-step-lives)
 lists the command, code and notebook for every step. Run outputs under `runs/<run id>/`
 stay local and are not tracked in git; the registry and the tables are.
 
@@ -295,7 +295,7 @@ tests/        run without any dataset
 CONVENTIONS.md  binding coding conventions
 ```
 
-The report lives in [`../ProjectReport/`](../ProjectReport/report/README.md) and the research
+The report lives in [`../ProjectReport/`](../ProjectReport/preliminary/report/README.md) and the research
 notes in [`../Miscellaneous/research/`](../Miscellaneous/research/README.md).
 
 [`CONVENTIONS.md`](CONVENTIONS.md) is binding: uv only, tests without data,

@@ -5,7 +5,7 @@
 Go back to the two spectrograms from chapter 0.
 
 ![Spectrogram of a real clip (left) and a fake clip from attack A03 (right)](img/ch00_spectrogram_pair.png)
-*Source: [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27.*
+*Source: [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 27.*
 
 Inside each word are **thin horizontal stripes**, stacked evenly and most visible below about
 3,000 Hz (hertz), and **broad bright bands** where several stripes light up together. The stripes
@@ -30,7 +30,7 @@ material, **not** in our reading list, so treat this section as background.
 Here is a toy with made-up numbers, built only for intuition:
 
 ![Toy source-filter example: source comb, filter curve, and their product at two pitches](img/ch01_source_filter_toy.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 3 (toy, no data).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 3 (toy, no data).*
 
 The source is a comb of harmonics every 120 Hz; the filter is a curve with three bumps (700,
 1,220 and 2,600 Hz); the output is each tooth scaled by the curve. Bottom right keeps the **same
@@ -105,7 +105,7 @@ will use silence.
 >
 > - A voice can be pictured as a buzz (the source: pitch and its harmonics) shaped by the throat
 >   and mouth (the filter: formants). Pitch and filter shape can change independently
->   ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 3; a toy, and a textbook idea
+>   ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 3; a toy, and a textbook idea
 >   not in our reading list). On a decibel scale, source times filter becomes source plus filter.
 > - Speech generators work in two stages: an acoustic model predicts pitch and a spectral
 >   description; a vocoder turns that into audio (from paper [14, §3, p.6], attack A01).

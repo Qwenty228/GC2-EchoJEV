@@ -4,7 +4,7 @@
 
 Chapter 3 looked at properties that *should not* matter. Now look at the sound itself.
 
-[Notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb) takes a small sample of the ASVspoof 2019
+[Notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb) takes a small sample of the ASVspoof 2019
 LA dataset (the Automatic Speaker Verification Spoofing and Countermeasures Challenge, logical
 access part): 240 clips, 40 real and 40 fake from each of train, dev and eval (cell 4). For
 each clip it computes one-number summaries of the spectrum (energy against frequency). Three
@@ -19,7 +19,7 @@ In **band_high_ratio** (the share of energy above 4 kHz, kilohertz) the piles li
 other.
 
 ![Real (green) and fake (orange) histograms of 13 one-number summaries](img/ch04_spectral_summaries.png)
-*Source: [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 7; 240-clip sample.*
+*Source: [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 7; 240-clip sample.*
 
 **How to read it.** Each panel is one feature, and asks: *do real and fake clips get different
 values for this one number?*
@@ -55,7 +55,7 @@ $$
 
 In words: how many "typical spreads" (pooled over both groups) apart the averages are. A rough
 scale often quoted, from Cohen's 1988 textbook (not in
-our reading list): 0.2 small, 0.5 medium, 0.8 large. The code is [`cohens_d`](../../SystemCode/src/audio_df/evaluation/stats.py#L78).
+our reading list): 0.2 small, 0.5 medium, 0.8 large. The code is [`cohens_d`](../../../SystemCode/src/audio_df/evaluation/stats.py#L78).
 
 ### Cliff's δ: who wins, pair by pair
 
@@ -65,7 +65,7 @@ fake–real pairs and ask: does the fake have the higher value or the lower? The
 - δ = (share of pairs where the fake is higher) − (share where it is lower).
 
 δ runs from −1 (every fake is lower than every real clip) through 0 (no tendency) to +1. The
-code is [`cliffs_delta`](../../SystemCode/src/audio_df/evaluation/stats.py#L105).
+code is [`cliffs_delta`](../../../SystemCode/src/audio_df/evaluation/stats.py#L105).
 
 The figure below draws *d* (top: the gap between means, with a grey ruler one pooled standard
 deviation long) and δ (bottom: every pair, orange where the fake wins, green where the real clip wins):
@@ -78,7 +78,7 @@ deviation long) and δ (bottom: every pair, orange where the fake wins, green wh
    (−0.07). They disagree even on the sign.
 
 ![Cohen's d (top) and Cliff's delta (bottom) drawn for bandwidth, leading silence and a made-up example](img/ch04_d_and_delta_drawn.png)
-*Source: [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 13.*
+*Source: [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 13.*
 
 The rule of thumb: **if *d* and δ agree, the difference is not the work of a few
 odd clips. If they disagree, look at the distribution.**
@@ -120,7 +120,7 @@ mid- and high-band shares, and the low-band share and duration (we have not show
 feature sits far off the trend, so no result is the work of a few extreme clips.
 
 ![Cohen's d against Cliff's delta, one dot per feature](img/ch04_d_vs_delta.png)
-*Source: [notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 15.*
+*Source: [notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 15.*
 
 So: **silence shows up again** as strong as anything acoustic (chapter 3); **bandwidth and
 rolloff are new and large** (fakes spread their energy less widely, and lower); and **"fakes lack
@@ -137,7 +137,7 @@ then it is a **candidate** (our guess).
 
 ## No single "fake" direction
 
-[Notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 24 prints the mean spectral centroid
+[Notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cell 24 prints the mean spectral centroid
 per attack. Treat it as a **hint**, not a finding: the 120 fakes in the sample are spread unevenly over the attacks, about
 9–19 clips each for the training attacks A01–A06 but only 1–8 for each eval attack, and A09 has
 none (counts from rebuilding notebook 02's sample with its own seed).
@@ -153,10 +153,10 @@ per-attack sample would turn this hint into a measurement.
 >
 > - Cohen's *d* measures the gap between averages in units of spread; Cliff's δ counts who wins
 >   each pair and resists outliers; they agree on every feature's direction
->   (notebook 02, cells 13 and 15; [`stats.py`](../../SystemCode/src/audio_df/evaluation/stats.py#L78)).
+>   (notebook 02, cells 13 and 15; [`stats.py`](../../../SystemCode/src/audio_df/evaluation/stats.py#L78)).
 > - Bandwidth separates strongly (d = −1.32, δ = −0.65), as does rolloff (d = −0.93, δ = −0.50);
 >   the share above 4 kHz does not (d = −0.13, interval includes zero)
->   ([notebook 02](../../SystemCode/notebooks/02_spectral_eda.ipynb), cells 7 and 10).
+>   ([notebook 02](../../../SystemCode/notebooks/02_spectral_eda.ipynb), cells 7 and 10).
 > - Whether bandwidth is just silence is untested; a low-silence recomputation would settle it.
 > - Hint: attacks may move the same summary in opposite directions: A11's centroid about
 >   1,400 Hz, A18's about 2,292 Hz, real speech about 1,733 Hz; 14 of 18 attacks sit below real

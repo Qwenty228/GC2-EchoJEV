@@ -5,12 +5,12 @@
 Chapter 5 turned every 10 milliseconds (ms) of audio into 60 numbers, the linear-frequency cepstral
 coefficients (LFCC) plus their changes over time. Do real and fake frames differ?
 
-For 150 real and 150 fake training clips, [notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb),
+For 150 real and 150 fake training clips, [notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb),
 cell 13 plots each static coefficient's average and spread. The bars overlap almost completely:
 "no single coefficient separates the classes" (cell 14).
 
 ![Mean and spread of the 20 static LFCCs for real and fake frames](img/ch06_lfcc_mean_std_nb09.png)
-*Source: [notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 13. Blue = bona fide, orange = spoof here (default colours).*
+*Source: [notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 13. Blue = bona fide, orange = spoof here (default colours).*
 
 So look at all 60 at once: each class is a **cloud** of points in 60 dimensions, one per frame.
 Do the clouds differ in shape?
@@ -34,19 +34,19 @@ The toy below has two dimensions and made-up points:
   nothing to flag it (chapter 9 shows A1 on such audio).
 
 ![Toy 2-D example: two clouds with a 3-component GMM each, and the log-likelihood-ratio map](img/ch06_gmm_toy.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 19 (toy, made-up data; fitted with the project's own DiagGMM).*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 19 (toy, made-up data; fitted with the project's own DiagGMM).*
 
 ### Fitting it: expectation-maximisation
 
 Start the ellipses at random frames, then repeat: **expectation**, work out each component's
 soft share of every point; **maximisation**, move each component to the weighted average of its
 points and reset its spread and weight. This is **expectation-maximisation (EM)**. Each round can only improve the fit or leave it
-unchanged ([notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 19).
+unchanged ([notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 19).
 
 ![Average log-likelihood per EM iteration for the two small GMMs](img/ch06_em_curve_nb09.png)
-*Source: [notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 19; a small 32-component version, not the real A1.*
+*Source: [notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 19; a small 32-component version, not the real A1.*
 
-Our [`DiagGMM.fit_em`](../../SystemCode/src/audio_df/models/gmm.py#L136) keeps a floor under every spread,
+Our [`DiagGMM.fit_em`](../../../SystemCode/src/audio_df/models/gmm.py#L136) keeps a floor under every spread,
 so a component cannot shrink onto a single point.
 
 ## Scoring a clip: the log-likelihood ratio
@@ -61,14 +61,14 @@ $$
 
 In words: the average, over the clip's *T* frames, of how much better the real model explains
 each frame. Averaging makes the score independent of clip length
-([`score_llr`](../../SystemCode/src/audio_df/models/gmm.py#L245)).
+([`score_llr`](../../../SystemCode/src/audio_df/models/gmm.py#L245)).
 
 The figure below does this frame by frame for three eval clips, using A1's two trained models.
 Each grey tick is a frame; the thick line is the clip's average, which the cell checks equals the
 clip's score in the run's score file.
 
 ![Per-frame log-likelihood ratio along a real, an A10 and an A11 eval clip](img/ch06_frame_llr.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 21, recomputed with A1's trained GMMs; each clip's mean equals its score in run `E-20261001-e1-a1-raw`.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 21, recomputed with A1's trained GMMs; each clip's mean equals its score in run `E-20261001-e1-a1-raw`.*
 
 The real clip scores +1.73 (75 % of frames lean "real"); the A10 clip (WaveRNN vocoder) +0.80
 (65 %), above A1's dev threshold of 0.687, so A1 accepts this fake; the A11 clip (Griffin-Lim)
@@ -85,7 +85,7 @@ rounds of EM, trained on **873,016 real and 7,809,362 fake frames**
 (`notes.md` of run `E-20261001-e1-a1-raw`). That is 2 × 512 × (60 + 60 + 1) =
 **123,904 numbers** (centre and spread per dimension, plus a weight, per component). It took
 **20.6 minutes** to train and score, peak memory 3.8 gigabytes (GB), on a 16 GB laptop
-([REGISTRY.md](../../SystemCode/runs/REGISTRY.md), row `E-20261001-e1-a1-raw`), streaming frames from
+([REGISTRY.md](../../../SystemCode/runs/REGISTRY.md), row `E-20261001-e1-a1-raw`), streaming frames from
 disk.
 
 ## How well does it work?
@@ -94,7 +94,7 @@ The left panel below shows A1's scores for all 71,237 eval clips (from the `scor
 the dashed dev threshold, fakes mostly left, with a long overlap.
 
 ![A1 eval score histograms: real against all fakes, and real against A10 and A11](img/ch06_a1_eval_scores_a10_a11.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 23, from the A1 eval scores.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 23, from the A1 eval scores.*
 
 - **Equal error rate (EER, chapter 2) on dev: 2.62 %; on eval: 9.56 %.** Area under the curve
   (AUC) on eval: 0.968 (`metrics.json` of run `E-20261001-e1-a1-raw`).
@@ -112,7 +112,7 @@ the dashed dev threshold, fakes mostly left, with a long overlap.
 
 A10 and A11 are the same text-to-speech system up to the vocoder (WaveRNN against Griffin-Lim;
 chapter 1, from paper [14, Table 1, p.6]), and both have a median leading-silence fraction of
-exactly 0 (chapter 3; [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 11). The silence
+exactly 0 (chapter 3; [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 11). The silence
 shortcut is off for both; only the vocoder differs.
 
 A1's per-attack EER (`metrics.json` of run `E-20261001-e1-a1-raw`,
@@ -130,9 +130,9 @@ may leave smearing in the frame-to-frame spectra that the Δ and ΔΔ see. Untes
 
 Chapter 5's question, run as analysis "X4": the A1 pipeline with only the filter edges moved
 to mel, giving mel-frequency cepstral coefficients (MFCC)
-([configs/a1_mfcc_b02.yaml](../../SystemCode/configs/a1_mfcc_b02.yaml)), **3 random seeds per arm**. Six
+([configs/a1_mfcc_b02.yaml](../../../SystemCode/configs/a1_mfcc_b02.yaml)), **3 random seeds per arm**. Six
 runs (`E-20261001-e1-a1-raw` and `E-20261004-e2-a1-raw-{lfcc,mfcc}-s*337`). Mean ±
-standard deviation over 3 seeds ([notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 25):
+standard deviation over 3 seeds ([notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 25):
 
 | | LFCC (linear) | MFCC (mel) |
 |---|---|---|
@@ -145,7 +145,7 @@ gap under 4 points, likely in LFCC's favour; that held. Its other half, both arm
 real-world audio, did not (chapter 9).
 
 ![Eval EER per attack for A1 with LFCC (blue circles) and MFCC (magenta squares), 3 seeds each](img/ch06_x4_lfcc_vs_mfcc.png)
-*Source: [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cell 25, from the six X4 runs' metrics.json files.*
+*Source: [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cell 25, from the six X4 runs' metrics.json files.*
 
 The winner depends on the attack (means over 3 seeds, LFCC against MFCC; in the figure, small
 markers are single seeds, large ones the mean): LFCC wins A19 (12.8 against 29.1 %),
@@ -168,9 +168,9 @@ training tasks, on the same 2019 eval split. A discriminative model on our LFCC 
 > **Checkpoint**
 >
 > - A1 models each class's cloud of frames with a 512-component diagonal GMM and scores a clip
->   by its average frame log-likelihood ratio ([notebook 09](../../SystemCode/notebooks/09_a1_playground.ipynb), cell 13;
->   [notebook 20](../../SystemCode/notebooks/20_report_figures.ipynb), cells 19 and 21;
->   [`gmm.py`](../../SystemCode/src/audio_df/models/gmm.py#L245)).
+>   by its average frame log-likelihood ratio ([notebook 09](../../../SystemCode/notebooks/09_a1_playground.ipynb), cell 13;
+>   [notebook 20](../../../SystemCode/notebooks/20_report_figures.ipynb), cells 19 and 21;
+>   [`gmm.py`](../../../SystemCode/src/audio_df/models/gmm.py#L245)).
 > - A1 gets 2.62 % EER on dev and 9.56 % on eval, against 8.09 % published for the official
 >   baseline (from paper [15, Table 1]); 9.12 ± 0.44 % over 3 seeds
 >   (`metrics.json` of run `E-20261001-e1-a1-raw`; notebook 20, cell 25).
