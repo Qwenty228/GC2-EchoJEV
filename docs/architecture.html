@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EchoJEV — Architecture & Developer Guide</title>
+    <style>
+      :root {
+        --ink: #241c37;
+        --muted: #665f78;
+        --purple: #7046c5;
+        --deep: #4d288f;
+        --pale: #f5f0ff;
+        --line: #e8e0f3;
+        --bg: #faf9fd;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        font:
+          15px/1.65 Inter,
+          "Segoe UI",
+          Arial,
+          sans-serif;
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: auto;
+        padding: 36px 24px 64px;
+      }
+      .hero {
+        padding: 35px 40px;
+        background: linear-gradient(120deg, #fff 45%, #eee4ff);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+      }
+      .eyebrow {
+        color: var(--purple);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-size: 39px;
+        line-height: 1.15;
+        letter-spacing: -1px;
+        margin: 10px 0;
+      }
+      h2 {
+        font-size: 23px;
+        margin: 0 0 8px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 18px 0 6px;
+      }
+      p {
+        margin: 8px 0 13px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 18px 0 28px;
+      }
+      nav a {
+        padding: 7px 13px;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 30px;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      a {
+        color: var(--deep);
+      }
+      section {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 27px 32px;
+        margin: 18px 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .tile {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fdfcff;
+        padding: 14px 17px;
+      }
+      .tile strong {
+        display: block;
+      }
+      code {
+        background: var(--pale);
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+      pre {
+        background: #f7f3ff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 17px;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.65;
+      }
+      pre code {
+        padding: 0;
+        background: none;
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 15px 0;
+      }
+      .node {
+        background: var(--pale);
+        border: 1px solid #d7c4f7;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .arrow {
+        color: var(--purple);
+        font-weight: 800;
+      }
+      .note {
+        background: #faf6ff;
+        border-left: 3px solid var(--purple);
+        padding: 12px 16px;
+        border-radius: 6px;
+      }
+      .tablewrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--pale);
+        color: var(--deep);
+      }
+      ol {
+        padding-left: 23px;
+      }
+      li {
+        margin: 8px 0;
+      }
+      .foot {
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 28px;
+      }
+      @media (max-width: 680px) {
+        .wrap {
+          padding: 16px 12px;
+        }
+        .hero {
+          padding: 25px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        section {
+          padding: 21px 17px;
+        }
+        h1 {
+          font-size: 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="hero">
+        <div class="eyebrow">GC2 · Developer reference</div>
+        <h1>EchoJEV<br />Architecture Guide</h1>
+        <p class="muted">
+          How to add data, implement detectors and decision policies, and
+          connect trained artifacts to the application.
+        </p>
+      </header>
+      <nav>
+        <a href="index.html">← Evaluation plan</a><a href="#data">Add data</a
+        ><a href="#code">Code structure</a
+        ><a href="#models">Detectors & policies</a
+        ><a href="#app">Application</a>
+      </nav>
+      <section id="data">
+        <h2>
+          1 · Add a dataset (Everything is done inside SystemCode/) [Chandu]
+        </h2>
+        <p>
+          Place datasets under <code>/data/raw/</code>. Models consume manifest
+          CSVs, not dataset directories directly. Follow
+          <a href="../SystemCode/data/README.md">data/README.md</a> for official
+          download links and expected layouts.
+          <i
+            >(TL;DR: Download the dataset, then ask Claude or ChatGPT to read
+            data/README.md and update configs/data.yaml,
+            src/audio_df/data/manifests.py, scripts/prepare_data.py, and
+            scripts/check_data.py so the commands below support the new
+            dataset.)
+          </i>
+        </p>
+        <ol>
+          <li>
+            <strong>Download / place</strong> the corpus in
+            <code>data/raw/&lt;dataset&gt;/</code>. Examples for future
+            integration: SpoofCeleb and PhonemeDF. Verify license, protocol
+            files and labels.
+          </li>
+          <li>
+            <strong>Configure</strong> paths and protocol metadata in
+            <code>configs/data.yaml</code> (or the active dataset
+            configuration).
+          </li>
+          <li>
+            <strong>Build</strong> a dataset-specific manifest builder in
+            <code>src/audio_df/data/manifests.py</code>; emit
+            <code>utt_id</code>, <code>path</code>, <code>label</code> and
+            available speaker/attack metadata. Keep train/dev/test partitions
+            disjoint.
+          </li>
+          <li>
+            <strong>Expose and validate</strong> the builder through
+            <code>scripts/prepare_data.py</code> and
+            <code>scripts/check_data.py</code>. Register the resulting manifest
+            with the runtime before using it as a test set.
+          </li>
+        </ol>
+        <pre><code>uv run data-prepare --help
+uv run data-check --verify --paths
+uv run data-degrade --conditions all --workers 4</code></pre>
+        <div class="note">
+          Current <code>Run</code> accepts ASVspoof 2019 LA as its training
+          dataset. Adding SpoofCeleb training or PhonemeDF evaluation requires
+          explicit runtime/manifest integration; downloading alone does not
+          enable them.
+        </div>
+      </section>
+      <section id="code">
+        <h2>2 · Where code belongs</h2>
+        <div class="grid">
+          <div class="tile">
+            <strong><code>modules/</code> · Model logic</strong>LFCC, GMM,
+            frozen WavLM, neural heads, fusion attention and detector
+            save/load/score behavior. Add new trainable heads here.
+          </div>
+          <div class="tile">
+            <strong><code>pipelines/</code> · Experiment wiring</strong>Small
+            architecture entry points (A1, A2, A4, D1–D3). Compose modules and
+            delegate train/evaluate/run to the shared runtime.
+          </div>
+          <div class="tile">
+            <strong><code>helpers/</code> · Reusable utilities</strong>Audio,
+            signal trimming, pooled/temporal feature caches, device selection,
+            training, metrics and notebook research functions.
+          </div>
+          <div class="tile">
+            <strong><code>data/</code> · Dataset logic</strong>Manifest
+            builders, synthetic data and controlled signal degradation;
+            command-line data operations live in <code>scripts/</code>.
+          </div>
+        </div>
+        <div class="flow">
+          <span class="node">pipeline</span><span class="arrow">→</span
+          ><span class="node">modules</span><span class="arrow">→</span
+          ><span class="node">runtime.py</span><span class="arrow">→</span
+          ><span class="node">evaluation.py + helpers/metrics.py</span>
+        </div>
+        <p>
+          <code>runtime.py</code> manages commands, artifact selection, dataset
+          manifests and evaluation runs. <code>evaluation.py</code> scores
+          results through one metrics implementation. Training artifacts live in
+          <code>artifacts/&lt;architecture&gt;/</code>; evaluation results live
+          in <code>runs/</code>.
+        </p>
+        <p class="small">
+          <b>Quick run:</b>
+          <code>uv run &lt;architecture&gt; {run|train|evaluate} [flags]</code>
+          — e.g. <code>uv run d2 evaluate --i 2019LA --testsets dev,eval</code>.
+          <code>run</code> trains + evaluates; <code>train</code> saves an
+          artifact; <code>evaluate</code> loads an artifact and scores. Use
+          <code>--help</code> for flags (<code>--i</code>, <code>--o</code>,
+          <code>--root</code>, <code>--seed</code>, <code>--testsets</code>,
+          <code>--model-from</code>).
+        </p>
+      </section>
+      <section id="models">
+        <h2>3 · Detectors and decision policies [Chakit - JEV and LAYA]</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Architecture</th>
+                <th>Implementation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A1</td>
+                <td>LFCC → GMM</td>
+                <td><code>pipelines/a1.py</code></td>
+              </tr>
+              <tr>
+                <td>A2</td>
+                <td>Frozen WavLM Base+ → neural head</td>
+                <td><code>pipelines/a2.py</code></td>
+              </tr>
+              <tr>
+                <td>A4</td>
+                <td>LFCC → neural head</td>
+                <td><code>pipelines/a4.py</code></td>
+              </tr>
+              <tr>
+                <td>D1</td>
+                <td>Pooled LFCC + WavLM → concatenation</td>
+                <td><code>pipelines/d1.py</code></td>
+              </tr>
+              <tr>
+                <td>D2</td>
+                <td>Temporal LFCC → WavLM cross-attention</td>
+                <td><code>pipelines/d2.py</code></td>
+              </tr>
+              <tr>
+                <td>D3</td>
+                <td>Bidirectional LFCC ↔ WavLM cross-attention</td>
+                <td><code>pipelines/d3.py</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          To add an architecture: implement the detector/head in
+          <code>modules/</code>, expose training/scoring/save/load behavior, add
+          a small <code>pipelines/&lt;name&gt;.py</code> using <code>Run</code>,
+          and register its CLI in <code>pyproject.toml</code>. Reuse existing
+          caches rather than extracting WavLM again.
+        </p>
+        <pre><code>uv run d2 train --i 2019LA
+uv run d2 evaluate --i 2019LA --testsets dev,eval
+uv run pytest -q</code></pre>
+        <h3>Phase 2 · Decision policies (planned, not yet implemented)</h3>
+        <div class="grid">
+          <div class="tile">
+            <strong>P1 · JEV</strong>Implement the JEV policy/head as a new
+            module consuming a <em>frozen detector's</em> score and label-free
+            evidence. A3 denotes A2 + P1.
+          </div>
+          <div class="tile">
+            <strong>P2 · LAYA</strong>Alternative policy on the same evidence
+            packet and frozen detector. Compare it fairly against P1 and the
+            unassisted detector.
+          </div>
+        </div>
+        <div class="flow">
+          <span class="node">A2 or best D1/D2/D3 (frozen)</span
+          ><span class="arrow">→</span
+          ><span class="node">scores + label-free evidence</span
+          ><span class="arrow">→</span><span class="node">P1 JEV / P2 LAYA</span
+          ><span class="arrow">→</span><span class="node">decision</span>
+        </div>
+        <p class="muted">
+          Implement policy logic in <code>modules/</code> and orchestration in
+          <code>pipelines/</code>. Do not retrain the detector for policy
+          comparisons. Do not pass ground-truth labels or dataset IDs into
+          evidence. Compare A2 vs A3 and the same fusion model with/without
+          P1/P2. Define the evidence schema and API before integration.
+        </p>
+      </section>
+      <section id="app">
+        <h2>4 · Connect the application</h2>
+        <div class="flow">
+          <span class="node">frontend/</span><span class="arrow">→</span
+          ><span class="node">FastAPI · backend/app.py</span
+          ><span class="arrow">→</span><span class="node">trained artifact</span
+          ><span class="arrow">→</span><span class="node">score / verdict</span>
+        </div>
+        <p>
+          The backend loads a completed artifact once, via the architecture's
+          <code>.load()</code>. It serves <code>/api/health</code>,
+          <code>/api/model</code>, and <code>/api/detect</code>; the static
+          frontend is served from <code>frontend/</code>.
+        </p>
+        <pre><code># Use the latest completed A1 artifact
+ADF_SYSTEM=a1 uv run uvicorn backend.app:app --reload
+
+# Pin a specific model and its dev-selected threshold
+ADF_SYSTEM=a2 ADF_MODEL_FROM=artifacts/a2/&lt;id&gt; \
+  ADF_THRESHOLD=&lt;threshold&gt; uv run uvicorn backend.app:app</code></pre>
+        <p>
+          <strong>Swap models without changing API code:</strong>
+          <code>ADF_SYSTEM</code> selects A1/A2/A4/D1/D2/D3;
+          <code>ADF_MODEL_FROM</code> selects a specific completed artifact.
+          <code>ADF_THRESHOLD</code> must match that artifact's development
+          calibration. Without a threshold, the API returns a score without a
+          verdict. P1/P2 integration is future work.
+        </p>
+      </section>
+      <p class="foot">
+        EchoJEV · Architecture reference · Phase 1 detectors implemented; Phase
+        2 decision policies planned
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,1182 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>EchoJEV — Evaluation Plan</title>
+    <style>
+      :root {
+        --ink: #241c37;
+        --muted: #665f78;
+        --purple: #7046c5;
+        --deep: #4d288f;
+        --pale: #f5f0ff;
+        --line: #e8e0f3;
+        --bg: #faf9fd;
+        --white: #fff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        font:
+          15px/1.65 Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: auto;
+        padding: 45px 25px 80px;
+      }
+      .hero {
+        padding: 38px 42px;
+        background: linear-gradient(120deg, #fff 45%, #eee4ff);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: 0 10px 35px #4b2d7610;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--purple);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .hero h1 {
+        font-size: 42px;
+        letter-spacing: -1.5px;
+        line-height: 1.1;
+        margin: 13px 0;
+      }
+      .hero p {
+        max-width: 740px;
+        color: var(--muted);
+        font-size: 17px;
+        margin-bottom: 0;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 32px;
+      }
+      nav a {
+        background: white;
+        border: 1px solid var(--line);
+        color: var(--deep);
+        border-radius: 99px;
+        padding: 8px 14px;
+        text-decoration: none;
+        font-weight: 650;
+        font-size: 13px;
+      }
+      section {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 30px 34px;
+        margin: 20px 0;
+        box-shadow: 0 4px 16px #4b2d7608;
+      }
+      h2 {
+        font-size: 24px;
+        letter-spacing: -0.5px;
+        margin: 0 0 8px;
+      }
+      h3 {
+        font-size: 17px;
+        margin: 23px 0 10px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      .rq {
+        border-left: 4px solid var(--purple);
+        padding: 12px 17px;
+        background: var(--pale);
+        border-radius: 0 9px 9px 0;
+        font-weight: 700;
+        font-size: 17px;
+        margin: 18px 0;
+      }
+      .pill {
+        display: inline-block;
+        background: #efe7ff;
+        color: #5b329f;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        padding: 3px 9px;
+        border-radius: 30px;
+        margin-right: 7px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .tile {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 18px;
+        background: #fdfcff;
+      }
+      .tile b {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .tile p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 9px 0;
+      }
+      .node {
+        border: 1px solid #d7c4f7;
+        background: #f6f0ff;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .arrow {
+        color: var(--purple);
+        font-weight: 900;
+      }
+      .tablewrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        margin: 14px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 650px;
+        font-size: 13px;
+      }
+      th {
+        background: #f2ecff;
+        color: #4d288f;
+        text-align: left;
+        font-weight: 800;
+      }
+      td,
+      th {
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:nth-child(even) {
+        background: #fcfaff;
+      }
+      .status {
+        font-weight: 750;
+        color: var(--deep);
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .note {
+        background: #faf6ff;
+        border: 1px solid #e3d7f7;
+        border-radius: 12px;
+        padding: 14px 17px;
+        margin: 15px 0;
+      }
+      .foot {
+        border-top: 1px solid var(--line);
+        padding: 15px 0;
+      }
+      .foot:first-of-type {
+        border-top: 0;
+      }
+      .mark {
+        font-weight: 900;
+        color: var(--purple);
+        font-size: 18px;
+        min-width: 36px;
+        display: inline-block;
+      }
+      .foot h3 {
+        display: inline;
+        font-size: 15px;
+      }
+      .foot p {
+        margin: 6px 0 0 36px;
+        color: #544c63;
+      }
+      .footer {
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+        margin: 35px 0;
+      }
+      a {
+        color: var(--deep);
+      }
+      sup a {
+        color: var(--purple);
+        font-weight: 900;
+        text-decoration: none;
+      }
+      .print {
+        float: right;
+        border: 1px solid #cdb9ec;
+        background: #fff;
+        color: var(--deep);
+        border-radius: 8px;
+        padding: 7px 12px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      @media (max-width: 650px) {
+        .wrap {
+          padding: 20px 12px;
+        }
+        .hero {
+          padding: 26px;
+        }
+        .hero h1 {
+          font-size: 31px;
+        }
+        section {
+          padding: 23px 17px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media print {
+        body {
+          background: #fff;
+        }
+        .wrap {
+          max-width: none;
+          padding: 0;
+        }
+        .hero,
+        section {
+          box-shadow: none;
+          break-inside: avoid;
+        }
+        nav,
+        .print {
+          display: none;
+        }
+        section {
+          margin: 12px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="hero">
+        <div class="eyebrow">GC2 · Research &amp; implementation</div>
+        <button class="print" onclick="window.print()">Print / PDF</button>
+        <h1>EchoJEV<br />Evaluation Plan</h1>
+        <p>
+          One ML pipeline. Two research questions. Classical and SSL baselines,
+          three dual-feature fusion variants, and optional decision-policy
+          comparisons.
+        </p>
+      </header>
+      <nav>
+        <a href="architecture.html">Architecture & Developer Guide</a>
+        <a href="#overview">Overview</a><a href="#rq1">RQ1 · Audio + SSL</a
+        ><a href="#rq2">RQ2 · Decision layer</a><a href="#data">Data protocol</a
+        ><a href="#notes">Research notes</a>
+        <a href="#literature">Literature map</a>
+      </nav>
+      <section id="overview">
+        <h2>Research at a glance</h2>
+        <div class="grid">
+          <div class="tile">
+            <b>RQ1 · Representation</b>
+            <p>
+              Do explainable acoustic features improve an SSL speech detector,
+              especially across domains and degradations?
+            </p>
+          </div>
+          <div class="tile">
+            <b>RQ2 · Decision support</b>
+            <p>
+              Does a JEV/LAYA decision layer improve detection or reliability
+              beyond the underlying model?
+            </p>
+          </div>
+        </div>
+
+        <h3>System naming</h3>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>System</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A1</td>
+                <td>LFCC → GMM</td>
+                <td>
+                  Official ASVspoof 2019 B02 classical baseline
+                  <sup><a href="#nbase">§</a></sup>
+                </td>
+              </tr>
+              <tr>
+                <td>A2</td>
+                <td>Frozen WavLM Base+ → trainable head</td>
+                <td>
+                  Established SSL representation baseline
+                  <sup><a href="#nbase">§</a></sup>
+                </td>
+              </tr>
+
+              <tr>
+                <td>A4</td>
+                <td>LFCC → neural head</td>
+                <td>
+                  Acoustic-only neural baseline; controls for classifier
+                  differences and supports feature attribution
+                  <sup><a href="#n2">**</a></sup>
+                </td>
+              </tr>
+              <tr>
+                <td>D1</td>
+                <td>LFCC + WavLM → concatenate → classifier</td>
+                <td>Simple feature fusion</td>
+              </tr>
+              <tr>
+                <td>D2</td>
+                <td>LFCC + WavLM → cross-attention → classifier</td>
+                <td>Cross-attention fusion</td>
+              </tr>
+              <tr>
+                <td>D3</td>
+                <td>LFCC ↔ WavLM → Bidirectional cross-attention → Head</td>
+                <td>Tests whether two-way interaction helps</td>
+              </tr>
+
+              <tr>
+                <td>P1</td>
+                <td>Any frozen detector → JEV</td>
+                <td>
+                  JEV decision policy; compare with its unassisted detector
+                </td>
+              </tr>
+              <tr>
+                <td>P2</td>
+                <td>Any frozen detector → LAYA</td>
+                <td>
+                  Alternative decision policy; compare on identical evidence
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small">
+          A = standalone detector baseline; D = dual-feature fusion
+          architecture; P = optional decision policy. Compare A2 vs A2 + P1, and
+          best D1/D2/D3 vs the same frozen detector + P1/P2.
+        </p>
+      </section>
+      <section id="rq1">
+        <span class="pill">QUESTION 01</span>
+        <h2>Can acoustic features improve SSL?</h2>
+        <div class="rq">
+          Does adding interpretable acoustic features to WavLM Base+ improve
+          deepfake detection, particularly on unseen and degraded audio?
+        </div>
+        <p class="sub">
+          Start with LFCC. MFCC, CQCC, spectral descriptors and chroma are
+          candidate follow-up features, not all mandatory experiments.<sup
+            ><a href="#n1">*</a></sup
+          >
+        </p>
+        <h3>Architectures</h3>
+        <div class="grid">
+          <div class="tile">
+            <b>A1 · Classical baseline</b>
+            <div class="flow">
+              <span class="node">LFCC</span>
+              <span class="arrow">→</span>
+              <span class="node">GMM</span>
+            </div>
+            <p>
+              Official ASVspoof 2019 B02 reference. Provides an interpretable
+              acoustic-feature baseline for analysing detection performance and
+              failure modes.
+              <sup><a href="#nbase">§</a></sup>
+            </p>
+          </div>
+          <div class="tile">
+            <b>A2 · SSL baseline</b>
+            <div class="flow">
+              <span class="node">WavLM Base+</span>
+              <span class="arrow">→</span>
+              <span class="node">Neural Head</span>
+            </div>
+            <p>
+              Frozen pretrained SSL encoder with a task-trained classifier.
+              Establishes the performance of learned speech representations
+              without explicit LFCC fusion.
+              <sup><a href="#nbase">§</a></sup>
+            </p>
+          </div>
+          <div class="tile">
+            <b>A4 · LFCC neural baseline</b>
+            <div class="flow">
+              <span class="node">LFCC</span>
+              <span class="arrow">→</span>
+              <span class="node">Neural Head</span>
+            </div>
+            <p>
+              Tests LFCC with neural classification instead of GMM. Provides an
+              acoustic-only control for D1/D2 and enables feature-level
+              attribution analysis.
+              <sup><a href="#n2">**</a></sup>
+            </p>
+          </div>
+          <div class="tile">
+            <b>D1 · Simple fusion</b>
+            <div class="flow">
+              <span class="node">LFCC</span>
+              <span class="node">WavLM</span>
+              <span class="arrow">→</span>
+              <span class="node">Concat + Head</span>
+            </div>
+            <p>
+              Tests whether LFCC provides complementary information beyond WavLM
+              representations.
+            </p>
+          </div>
+          <div class="tile">
+            <b>D2 · Cross-attention fusion</b>
+            <div class="flow">
+              <span class="node">LFCC</span>
+              <span class="node">WavLM</span>
+              <span class="arrow">→</span>
+              <span class="node">Cross-attn + Head</span>
+            </div>
+            <p>
+              Tests whether learned interactions between LFCC and SSL
+              representations outperform simple fusion.
+              <sup><a href="#n2">**</a></sup>
+            </p>
+          </div>
+          <div class="tile">
+            <b>D3 · Bidirectional cross-attention</b>
+            <div class="flow">
+              <span class="node">LFCC ↔ WavLM</span><span class="arrow">→</span
+              ><span class="node">Bi-cross-attn + Head</span>
+            </div>
+            <p>
+              Tests whether reciprocal feature interaction improves over one-way
+              attention (D2). <sup><a href="#n2">**</a></sup>
+            </p>
+          </div>
+        </div>
+        <h3>Primary evaluation matrix</h3>
+        <p class="small">
+          Each result cell reports EER, minDCF, ROC AUC and F1. F1 uses a
+          threshold selected on development data.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Evaluation condition</th>
+                <th>A1</th>
+                <th>A2</th>
+                <th>A4</th>
+                <th>D1</th>
+                <th>D2</th>
+                <th>D3</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>ASVspoof 2019 LA eval · in-domain</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+              <tr>
+                <td>In-the-Wild · cross-domain</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+              <tr>
+                <td>ASVspoof 2021 LA · external</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+              <tr>
+                <td>ASVspoof 2021 DF · external</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+              <tr>
+                <td>2019 LA eval + MUSAN noise · controlled</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+              <tr>
+                <td>2019 LA eval + codec/resampling · controlled</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <b>Minimum useful comparisons:</b> A1 vs A4 isolates GMM versus neural
+          LFCC classification; A2 vs D1 tests feature addition; D1 vs D2 tests
+          one-way attention; D2 vs D3 tests reciprocal attention. Keep features,
+          train/dev splits and capacity as comparable as practical.
+          <sup><a href="#n2">**</a></sup>
+        </div>
+      </section>
+      <section id="rq2">
+        <span class="pill">QUESTION 02</span>
+        <h2>Does a JEV / LAYA decision layer help?</h2>
+        <div class="rq">
+          Does a decision layer improve accuracy, reliability or useful
+          explanations beyond the same detector without that layer?
+        </div>
+        <p class="sub">
+          JEV is treated as an externally specified decision service; LAYA is a
+          candidate alternative whose actual availability, transparency and
+          capabilities must be verified before selection.<sup
+            ><a href="#n3">***</a></sup
+          >
+        </p>
+        <h3>Architectures</h3>
+        <div class="grid">
+          <div class="tile">
+            <b>A2 · SSL reference</b>
+            <div class="flow">
+              <span class="node">WavLM</span><span class="arrow">→</span
+              ><span class="node">Head</span>
+            </div>
+            <p>Frozen detector; no decision policy.</p>
+          </div>
+          <div class="tile">
+            <b>A2 + P1 · SSL with JEV (A3)</b>
+            <div class="flow">
+              <span class="node">A2</span><span class="arrow">→</span
+              ><span class="node">JEV</span>
+            </div>
+            <p>Tests JEV on the same A2 predictions and evidence.</p>
+          </div>
+          <div class="tile">
+            <b>Best fusion · Reference</b>
+            <div class="flow">
+              <span class="node">Best D1/D2/D3</span><span class="arrow">→</span
+              ><span class="node">Verdict</span>
+            </div>
+            <p>
+              Select on development data and freeze before external evaluation.
+            </p>
+          </div>
+          <div class="tile">
+            <b>Fusion + P1 / P2 · Decision policies</b>
+            <div class="flow">
+              <span class="node">Best fusion</span><span class="arrow">→</span
+              ><span class="node">JEV / LAYA</span>
+            </div>
+            <p>
+              Compare optional policies on the same frozen model, clips and
+              label-free evidence.
+            </p>
+          </div>
+        </div>
+        <h3>Decision-layer evaluation matrix</h3>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Evaluation condition</th>
+                <th>A2</th>
+                <th>A2 + P1 · JEV</th>
+                <th>Best D1/D2/D3</th>
+                <th>Fusion + P1 · JEV</th>
+                <th>Fusion + P2 · LAYA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2019 LA eval</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Optional</td>
+              </tr>
+              <tr>
+                <td>In-the-Wild</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Optional</td>
+              </tr>
+              <tr>
+                <td>2021 LA / DF</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Optional</td>
+              </tr>
+              <tr>
+                <td>Controlled noise / codec</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Measure</td>
+                <td>Optional</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <b>Decision quality is more than EER:</b> include change in error
+          count, false-positive/false-negative rates, calibration (e.g. Brier
+          score or ECE), latency/cost, decision stability, and
+          evidence-grounding checks. A layer that only returns hard labels
+          cannot automatically produce a meaningful ROC curve or EER.<sup
+            ><a href="#n3">***</a></sup
+          >
+        </div>
+      </section>
+      <section id="data">
+        <h2>Data &amp; evaluation protocol</h2>
+        <p class="sub">
+          Stage 1 trains all models on ASVspoof 2019 LA to establish controlled
+          baselines and evaluate cross-domain generalisation. If performance is
+          insufficient, Stage 2 introduces SpoofCeleb training data to
+          investigate whether greater speech and synthesis diversity improves
+          robustness. Both stages use identical training data across
+          architectures and evaluate on strictly held-out test sets.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset / source</th>
+                <th>Training</th>
+                <th>Development</th>
+                <th>Final evaluation</th>
+                <th>Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>ASVspoof 2019 LA</td>
+                <td>Official train</td>
+                <td>Official dev</td>
+                <td>Official eval</td>
+                <td class="status">Required</td>
+              </tr>
+              <tr>
+                <td>In-the-Wild</td>
+                <td>—</td>
+                <td>—</td>
+                <td>All available clips</td>
+                <td class="status">Required</td>
+              </tr>
+              <tr>
+                <td>ASVspoof 2021 LA</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Official eval</td>
+                <td>Use if present</td>
+              </tr>
+              <tr>
+                <td>ASVspoof 2021 DF</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Official eval</td>
+                <td>Use if present</td>
+              </tr>
+              <tr>
+                <td>MUSAN noise</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Corrupt fixed 2019 eval subset</td>
+                <td class="status">Required for noise</td>
+              </tr>
+              <tr>
+                <td>Self-recorded clean/noisy</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Only if labeled real AND fake samples with provenance</td>
+                <td>Optional qualitative demo</td>
+              </tr>
+              <tr>
+                <td>SpoofCeleb (conditional Stage 2)</td>
+                <td>Chandu</td>
+                <td>Chandu</td>
+                <td>Official eval, held out</td>
+                <td>Optional adaptation</td>
+              </tr>
+              <tr>
+                <td>PhonemeDF</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Not in core protocol</td>
+                <td>Defer</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Protocol lock</h3>
+        <div class="grid">
+          <div class="tile">
+            <b>Train consistently, evaluate independently</b>
+            <p>
+              Stage 1 uses official 2019 LA train/dev. If Stage 2 is activated,
+              use the same added SpoofCeleb training partition for each
+              comparable architecture; never tune on external test sets.
+            </p>
+          </div>
+          <div class="tile">
+            <b>Same clips, same metrics</b>
+            <p>
+              Compare every system on identical manifests, preprocessing
+              conditions and evaluation subsets.
+            </p>
+          </div>
+          <div class="tile">
+            <b>Freeze before external tests</b>
+            <p>
+              Select fusion and decision policies on dev; freeze them before
+              In-the-Wild and 2021 evaluation.
+            </p>
+          </div>
+          <div class="tile">
+            <b>Reproducibility</b>
+            <p>
+              Record split, seed, model checkpoint, decision prompt/version,
+              feature schema, metric definitions and cost.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section id="literature">
+        <h2>Literature map · papers already selected</h2>
+        <p class="sub">
+          What each paper contributes, where it overlaps with EchoJEV, and
+          whether it uses comparable datasets. Summaries based on
+          publisher/author abstracts and available methodology; exact split
+          comparability requires checking protocols.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Paper</th>
+                <th>Finding / Method</th>
+                <th>Evidence → Design Decision</th>
+                <th>Datasets / Scope</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2507.20417"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Two Views, One Truth (2025)
+                  </a>
+                </td>
+                <td>
+                  Combines spectral features (MFCC, LFCC, CQCC) with SSL
+                  representations. Compares concatenation, cross-attention and
+                  gating mechanisms.
+                </td>
+                <td>
+                  Motivates testing whether handcrafted acoustic features
+                  complement WavLM representations. Use
+                  <b>LFCC as the initial feature</b>, with CQCC as a focused
+                  alternative. Compare simple concatenation (D1) against
+                  cross-attention (D2) to measure whether feature interaction
+                  adds value. D3 additionally tests bidirectional
+                  cross-attention against D2.
+                </td>
+                <td>Four public deepfake benchmarks</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2409.05032"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Exploring WavLM Back-ends (2024)
+                  </a>
+                </td>
+                <td>
+                  Investigates WavLM representations with different
+                  classification back-ends, augmentation and calibration for
+                  spoof detection.
+                </td>
+                <td>
+                  Supports <b>A2 as an SSL baseline</b>. Use a pretrained WavLM
+                  encoder with a trainable classification head. Evaluate whether
+                  additional acoustic features improve on this reference rather
+                  than assuming SSL alone is sufficient.
+                </td>
+                <td>ASVspoof 5 Track 1</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2509.26471"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    On Deepfake Voice Detection — It's All in the Presentation
+                    (2025)
+                  </a>
+                </td>
+                <td>
+                  Investigates how audio presentation, communication channels
+                  and evaluation conditions affect deepfake detection.
+                </td>
+                <td>
+                  Motivates <b>cross-domain and degradation evaluation</b>. Test
+                  beyond ASVspoof 2019 LA using In-the-Wild, ASVspoof 2021 and
+                  controlled codec/noise conditions to assess real-world
+                  generalisation.
+                </td>
+                <td>Multi-corpus evaluation</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2605.29531"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Half-Truth Audio Detection and Localisation (2026)
+                  </a>
+                </td>
+                <td>
+                  Uses cross-attentive fusion of handcrafted acoustic features
+                  for partially manipulated speech detection and localisation.
+                </td>
+                <td>
+                  Provides a related example of
+                  <b>cross-attention for acoustic feature interaction</b>.
+                  Supports investigating D2, while keeping partial-splice
+                  localisation outside EchoJEV's current research scope.
+                </td>
+                <td>MLADDC, HAD, PartialSpoof</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://ieeexplore.ieee.org/document/6163888/"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Linear versus Mel Frequency Cepstral Coefficients (2011)
+                  </a>
+                </td>
+                <td>
+                  Compares LFCC and MFCC frequency representations for speaker
+                  recognition.
+                </td>
+                <td>
+                  Establishes that LFCC and MFCC use different frequency
+                  resolutions, without establishing universal superiority.
+                  <b>Start with LFCC</b> for consistency with the official
+                  ASVspoof baseline; consider alternative acoustic features
+                  through ablation.
+                </td>
+                <td>NIST SRE 2010; speaker recognition</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2409.11909"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Mixture of Experts Fusion Using Frozen wav2vec 2.0 (2025)
+                  </a>
+                </td>
+                <td>
+                  Uses a mixture-of-experts mechanism to combine representations
+                  from a frozen SSL encoder.
+                </td>
+                <td>
+                  Supports the feasibility of
+                  <b>lightweight fusion with frozen SSL representations</b>.
+                  Freeze WavLM in A2, D1 and D2 to reduce training cost and
+                  isolate the contribution of the fusion architecture.
+                </td>
+                <td>ASVspoof 2019 and 2021</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2212.08601"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    Source Tracing: Detecting Voice Spoofing (2022)
+                  </a>
+                </td>
+                <td>
+                  Studies synthesis-pipeline characteristics and their
+                  relationship to spoofed speech.
+                </td>
+                <td>
+                  Motivates examining
+                  <b>attack-specific evidence and failure modes</b>. Report
+                  per-attack performance alongside pooled EER to investigate
+                  whether detectors depend on generator-specific artifacts.
+                </td>
+                <td>ASVspoof 2019 LA</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2506.05802"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    TADA (2025)
+                  </a>
+                </td>
+                <td>
+                  Uses pretrained representations for training-free generator
+                  attribution and out-of-distribution detection.
+                </td>
+                <td>
+                  Motivates
+                  <b>unseen-generator and out-of-domain diagnostics</b>. Examine
+                  confidence, score distributions and errors when models
+                  encounter unfamiliar synthesis methods or recording
+                  conditions.
+                </td>
+                <td>ASVspoof 2019/2021/5, MLAAD, TIMIT</td>
+              </tr>
+              <tr>
+                <td>
+                  <a
+                    href="https://arxiv.org/abs/2202.12233"
+                    rel="noopener"
+                    target="_blank"
+                  >
+                    wav2vec 2.0 and Data Augmentation (2022)
+                  </a>
+                </td>
+                <td>
+                  Investigates SSL-based spoof detection and data augmentation
+                  for improved robustness.
+                </td>
+                <td>
+                  Supports
+                  <b>SSL-based anti-spoofing and robustness evaluation</b>.
+                  Evaluate controlled noise and codec changes first; consider
+                  training augmentation only if the initial experiments justify
+                  it.
+                </td>
+                <td>ASVspoof 2021 LA and DF</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <b>Novelty boundary:</b> Spectral + SSL concatenation and
+          cross-attention have already been studied. Focus the contribution on
+          your controlled comparison, failure-mode analysis, resource budget,
+          and the added decision layer. Do not directly compare EER values
+          across incompatible protocols.
+        </div>
+      </section>
+      <section id="notes">
+        <h2>Research notes &amp; justifications</h2>
+        <p class="sub">
+          Explanations are deliberately collected here rather than interrupting
+          the evaluation plan.
+        </p>
+        <div class="foot" id="nbase">
+          <span class="mark">§</span>
+          <h3>Why A1 and A2 are valid baselines</h3>
+          <p>
+            <b>A1 — classical reference.</b> LFCC-GMM (B02) is an official
+            ASVspoof 2019 reference system, providing a reproducible non-neural
+            comparator.
+            <a
+              href="https://www.asvspoof.org/asvspoof2019/asvspoof2019_evaluation_plan.pdf"
+              >ASVspoof 2019 protocol</a
+            >.
+          </p>
+          <p>
+            <b>A2 — SSL representation reference.</b>
+            <code>microsoft/wavlm-base-plus</code> supplies pretrained
+            general-purpose speech representations to a task-trained classifier.
+            Stourbe et al. (2024) demonstrate the relevance of WavLM front-ends
+            and back-end design to deepfake detection, although their fine-tuned
+            ASVspoof 5 system is not identical to our frozen Base+
+            configuration.
+            <a href="https://huggingface.co/microsoft/wavlm-base-plus">Model</a>
+            ·
+            <a href="https://arxiv.org/abs/2409.05032">Stourbe et al.</a>
+            · <a href="https://arxiv.org/abs/2110.13900">Chen et al.</a>.
+          </p>
+          <p>
+            <b>Comparison principle.</b> Use fixed 2019 LA train/dev splits and
+            identical test conditions; report A1 whole-utterance versus A2 crop
+            differences. Baselines are reproducible reference points, not claims
+            of 2026 state-of-the-art.
+          </p>
+        </div>
+        <div class="foot" id="n1">
+          <span class="mark">*</span>
+          <h3>Choosing acoustic features</h3>
+          <p>
+            <b>LFCC first:</b> it is already established by A1 and keeps the
+            experiment focused. Zhou et al. compared LFCC with MFCC in
+            <em>speaker recognition</em> and found benefits from
+            linear-frequency resolution, including higher-frequency detail; that
+            is a motivation, not proof that LFCC always detects deepfakes
+            better.
+            <a href="https://ieeexplore.ieee.org/document/6163888/"
+              >Zhou et al. (2011)</a
+            >. El Kheir et al. (2025) directly examine MFCC, LFCC and CQCC
+            alongside SSL features, making them the closest guide for follow-up
+            comparisons.
+            <a href="https://arxiv.org/abs/2507.20417">Two Views, One Truth</a>.
+            Keep chroma optional unless a concrete hypothesis justifies it.
+          </p>
+        </div>
+        <div class="foot" id="n2">
+          <span class="mark">**</span>
+          <h3>Fusion experiment and ablation</h3>
+          <p>
+            Closest prior work: El Kheir et al. (2025) already compare SSL +
+            spectral feature concatenation, cross-attention, mutual
+            cross-attention and gating on public deepfake benchmarks. EchoJEV
+            must therefore frame D1/D2/D3 as a controlled replication/adaptation
+            and robustness study , not a novel fusion concept. El Kheir et al. .
+            Wang et al. (2025) show that frozen wav2vec 2.0 layers can be fused
+            through mixture-of-experts, supporting a resource-conscious
+            frozen-encoder design. Wang et al. . Keep encoder, splits and
+            training budget matched; compare A2 → D1 → D2 → D3, with seeds,
+            parameter counts, LFCC-only control and attention-removal ablation.
+            Cross-attention is not automatically an explanation. Half-truth
+            localisation is related but a distinct task. Sutharya &amp; Sasi
+            (2026) .
+          </p>
+        </div>
+        <div class="foot" id="n3">
+          <span class="mark">***</span>
+          <h3>How to evaluate JEV / LAYA</h3>
+          <p>
+            None of the nine reviewed papers establishes JEV/LAYA transparency,
+            access or superiority. Verify documentation and outputs before
+            claiming either is explainable. Use the same frozen base detector
+            and a label-free evidence packet; prohibit true labels, filenames
+            and dataset identifiers. Fix the policy on train/dev, then compare
+            paired test decisions, error corrections versus introduced errors,
+            calibration, latency and evidence faithfulness.
+            <a href="https://arxiv.org/abs/2212.08601">Zhu et al. (2022)</a>
+            motivates generator-attribute evidence;
+            <a href="https://arxiv.org/abs/2506.05802">TADA (2025)</a>
+            motivates source/OOD diagnostics. Neither paper validates JEV/LAYA.
+            A transparent logistic-regression or rule-based policy remains a
+            useful reproducible control.
+          </p>
+        </div>
+        <div class="foot">
+          <span class="mark">†</span>
+          <h3>Dataset decisions and limitations</h3>
+          <p>
+            MUSAN is a noise source, not a labeled real-vs-fake dataset. A “self
+            clean” collection containing only authentic recordings cannot
+            support EER/minDCF by itself; a controlled test requires both
+            classes and consent/provenance. Use 2021 LA/DF only if audio, labels
+            and usage terms are verified locally. SpoofCeleb and PhonemeDF are
+            excluded from the core study because they add acquisition and
+            compute burden without being essential to the two questions.
+            External test sets remain untouched by training, hyperparameter
+            selection and threshold fitting. Channel mismatch is a documented
+            concern in
+            <a href="https://arxiv.org/abs/2509.26471"
+              >Delgado et al. (2025/26)</a
+            >; preserve original and degraded evaluation as paired tests.
+          </p>
+        </div>
+        <div class="foot">
+          <span class="mark">‡</span>
+          <h3>Metric interpretation</h3>
+          <p>
+            Specify minDCF target prior and error costs. EER and ROC AUC are
+            threshold-independent ranking summaries; F1 depends on a preselected
+            threshold. If a JEV/LAYA layer outputs only hard labels, report
+            classification metrics and decision changes rather than
+            manufacturing continuous-score EER/minDCF. For noisy conditions, use
+            the same underlying source clips and report paired performance
+            changes, not just absolute numbers.
+          </p>
+        </div>
+      </section>
+      <p class="footer">
+        EchoJEV · GC2 evaluation plan · Working protocol, not a claim that
+        pending experiments have been completed.
+      </p>
+    </main>
+  </body>
+</html>
