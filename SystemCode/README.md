@@ -33,13 +33,13 @@ Download instructions, manifest preparation, controlled noise/codec generation a
 ```bash
 uv run data-prepare --workers 4
 uv run a1 train --i 2019LA
-uv run a1 evaluate --i 2019LA --testsets dev,eval
-uv run d2 run --i 2019LA --testsets dev,eval
+uv run a1 evaluate --i 2019LA --testsets eval
+uv run d2 run --i 2019LA --testsets eval
 ```
 
 Replace `a1` with `a2`, `a4`, `d1`, `d2` or `d3`. `train` creates `artifacts/<architecture>/<timestamp>/`; `evaluate` loads the latest completed artifact (or `--model-from PATH`) and writes scores and metrics to `runs/E-<timestamp>-<architecture>/`. `run` trains **and** evaluates. Feature caches live under `data/cache/`; do not delete them unless intentionally changing preprocessing or cache configuration.
 
-Training uses ASVspoof 2019 LA train/dev. External test sets are held out. A dev-selected threshold is used for fixed-threshold metrics; EER and ROC AUC are score-based. `minDCF` is **not** the ASVspoof `min-tDCF`. Inspect metric settings before comparing historical runs.
+Training uses ASVspoof 2019 LA train/dev. External test sets are held out. By default, `--threshold-from dev` selects the operating threshold separately from `--testsets eval` (final testing). A dev-selected threshold is used for fixed-threshold metrics; EER and ROC AUC are score-based. `minDCF` is **not** the ASVspoof `min-tDCF`. Inspect metric settings before comparing historical runs.
 
 **Evaluation caveat:** silence-trimmed evaluation is the intended final protocol, but the current scoring paths have not been confirmed to apply trimming. Do not label existing scores “trimmed” unless the evaluated audio was actually trimmed. The A1 reference reproduction after the EM M-step fix reported 8.97% raw eval EER; do not mix this with historical trimmed results.
 

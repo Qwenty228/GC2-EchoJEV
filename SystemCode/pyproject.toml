@@ -22,6 +22,8 @@ dependencies = [
     "fastapi>=0.142.2",
     "uvicorn>=0.54.0",
     "python-multipart>=0.0.32",
+    "typesafe-sdk>=0.7.5",
+    "python-dotenv>=1.2.4",
 ]
 
 [project.scripts]
@@ -30,10 +32,13 @@ data-prepare = "scripts.prepare_data:main"
 data-degrade = "scripts.make_degraded:main"
 a1 = "audio_df.pipelines.a1:main"
 a2 = "audio_df.pipelines.a2:main"
+a3 = "audio_df.pipelines.a3:main"
 a4 = "audio_df.pipelines.a4:main"
 d1 = "audio_df.pipelines.d1:main"
 d2 = "audio_df.pipelines.d2:main"
 d3 = "audio_df.pipelines.d3:main"
+fp1 = "audio_df.pipelines.fp1:main"
+p1 = "audio_df.pipelines.p1:main" # not an audio detection pipeline;
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]

@@ -499,8 +499,9 @@
         </div>
         <h3>Primary evaluation matrix</h3>
         <p class="small">
-          Each result cell reports EER, minDCF, ROC AUC and F1. F1 uses a
-          threshold selected on development data.
+          Each final-test result cell reports EER, minDCF, ROC AUC and F1.
+          The held-out dev split is used for validation and threshold calibration,
+          not as a final benchmark; F1 uses its selected threshold.
         </p>
         <div class="tablewrap">
           <table>
@@ -776,11 +777,22 @@
           </table>
         </div>
         <h3>Protocol lock</h3>
+        <p class="small">
+          <b>Split roles:</b> Train learns detector parameters (raw audio);
+          dev supports early stopping (raw during training) and threshold
+          calibration (silence-trimmed for 2019 LA evaluation). Final metrics
+          are reported on eval, controlled test subsets and external datasets.
+          ASVspoof 2019 LA dev/eval and controlled eval conditions are trimmed
+          during evaluation; external datasets remain raw. JEV/LAYA policy
+          comparisons use dev only for calibration and send requests for held-out
+          test clips, never dev calibration clips.
+        </p>
         <div class="grid">
           <div class="tile">
             <b>Train consistently, evaluate independently</b>
             <p>
-              Stage 1 uses official 2019 LA train/dev. If Stage 2 is activated,
+              Stage 1 trains on official 2019 LA train and validates on dev;
+              dev is not a final benchmark. If Stage 2 is activated,
               use the same added SpoofCeleb training partition for each
               comparable architecture; never tune on external test sets.
             </p>
@@ -795,8 +807,8 @@
           <div class="tile">
             <b>Freeze before external tests</b>
             <p>
-              Select fusion and decision policies on dev; freeze them before
-              In-the-Wild and 2021 evaluation.
+              Use dev for model selection and threshold calibration; freeze
+              choices before held-out eval, In-the-Wild and 2021 testing.
             </p>
           </div>
           <div class="tile">
