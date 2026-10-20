@@ -67,8 +67,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
 
-from audio_df.evaluation import metrics
-from audio_df.features import audio as audio_mod
+from audio_df.helpers import metrics
+from audio_df.helpers.audio import load_audio
+from audio_df.helpers.signal import silence_ratio
 
 __all__ = [
     "NUISANCE_FEATURES",
@@ -139,15 +140,15 @@ def _resolve_audio_path(row: pd.Series, audio_root: str | Path | None) -> Path:
 
 def _extract_rms(row: pd.Series, audio_root: str | Path | None = None) -> float:
     path = _resolve_audio_path(row, audio_root)
-    x, _sr = audio_mod.load_audio(str(path))
-    return audio_mod.rms(x)
+    x = load_audio(path, 16000)
+    return float(np.sqrt(np.mean(np.square(x, dtype=np.float64))))
 
 
 def _extract_silence(key: str) -> Callable[[pd.Series, Any], float]:
     def _fn(row: pd.Series, audio_root: str | Path | None = None) -> float:
         path = _resolve_audio_path(row, audio_root)
-        x, _sr = audio_mod.load_audio(str(path))
-        return audio_mod.silence_ratio(x)[key]
+        x = load_audio(path, 16000)
+        return silence_ratio(x)[key]
 
     return _fn
 

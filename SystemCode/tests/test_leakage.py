@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from audio_df.evaluation.leakage import (
+from audio_df.helpers.research.leakage import (
     audit_all,
     audit_single_feature,
     extract_nuisance_features,

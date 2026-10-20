@@ -1,4 +1,4 @@
-"""Analytic tests for `audio_df.evaluation.stats`. No dataset required.
+"""Analytic tests for `audio_df.helpers.research.stats`. No dataset required.
 
 Every test has a hand-computable expected value or a known analytic property:
 Cohen's d on unit-variance normals separated by a known mean gap, Cliff's delta on
@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from audio_df.evaluation.metrics import roc_auc
-from audio_df.evaluation.stats import (
+from audio_df.helpers.metrics import roc_auc
+from audio_df.helpers.research.stats import (
     bootstrap_ci,
     cliffs_delta,
     cohens_d,

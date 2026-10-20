@@ -1,164 +1,126 @@
-# Data: download, place, build manifests
+# Data setup and evaluation datasets
 
-Every command below runs from `SystemCode/`. Audio and caches never go into git: `raw/`,
-`cache/` and the manifest CSVs are gitignored; only the checksums
-(`manifests/SHA256SUMS`) and the leakage-audit features (`metadata/nuisance_features.csv`)
-are tracked.
+Run commands from `SystemCode/`. Downloaded audio, generated manifests and feature caches are local data, not source code. The evaluation protocol is defined in `implementation.html`; **only ASVspoof 2019 LA is used for Stage 1 training**.
+
+## Dataset roles
+
+| Dataset | Train / dev | Evaluation | Status |
+|---|---|---|---|
+| **ASVspoof 2019 LA** | Official train (25,380) / dev (24,844) | Official eval (71,237) | Required |
+| **In-the-Wild** | Never | All 31,779 clips; cross-domain | Required |
+| **ASVspoof 2021 LA / DF** | Never | Official evaluation splits | Optional; manifest builder/keys must be validated |
+| **MUSAN noise** | Never | Noise source for a fixed 2019 LA evaluation subset | Required for controlled noise tests; not a labeled spoof dataset |
+| **SpoofCeleb** | Conditional Stage 2 only, using its designated train/dev partitions | Held-out official evaluation | Optional adaptation; not wired into the current data CLI |
+| **PhonemeDF** | Not in core protocol | Potential future external test | Deferred; not wired into the current data CLI |
+| **Self-recorded audio** | Never | Optional qualitative demo | Requires provenance and both classes for quantitative detection metrics |
+
+Controlled **codec/resampling** conditions (MP3, Opus, 8 kHz round-trip) use the same fixed ASVspoof 2019 LA evaluation subset as the MUSAN condition. “Controlled noise / codec” in the decision-layer matrix refers to these existing sets, not an additional corpus.
+
+## Directory layout
 
 ```text
 data/
-├── raw/           downloaded corpora (gitignored)
+├── raw/
+│   ├── _downloads/                 # temporary archives
 │   ├── ASVspoof2019/LA/
 │   ├── InTheWild/release_in_the_wild/
-│   └── musan/noise/
-├── manifests/     one CSV per test set (gitignored) + SHA256SUMS (tracked)
-├── metadata/      per-clip nuisance features for the leakage audit (tracked)
-├── cache/         features and run caches (gitignored, rebuildable)
-└── jev_cache/     cached JEV answers
+│   ├── musan/noise/
+│   └── ASVspoof2021/              # optional
+├── manifests/                     # train.csv, dev.csv, eval.csv, itw.csv, eval_*.csv
+│   └── SHA256SUMS                  # reference checksums
+├── metadata/                      # leakage-audit metadata
+├── cache/                         # feature and generated-audio caches
+└── jev_cache/                     # decision-service cache
 ```
 
-Downloads resume if interrupted (`curl -C -`): rerun the same command. Archives go to
-`raw/_downloads/` and can be deleted after unzipping.
+Keep `raw/`, `cache/` and generated manifest CSVs out of Git. Commit the intended manifest checksums only after verifying the dataset definitions; different local hashes should be investigated, not blindly overwritten.
 
-| dataset | used for | download | unpacked |
-|---|---|---|---|
-| ASVspoof 2019 LA | training, E1, E2 (required) | 7.6 GB | ~8 GB |
-| In-the-Wild | E3, cross-domain test | 8.2 GB | ~8 GB |
-| MUSAN `noise/` | E4 noise condition | 11.1 GB (keeps ~1 GB) | ~1 GB |
-| ASVspoof 2021 LA / DF | optional, not wired in yet | 7.8 GB / 4 x ~8.6 GB | |
+## Download and prepare
 
-## 1. ASVspoof 2019 LA (required)
+Download with `curl -L -C -` to resume an interrupted transfer, **or download from the linked official page and place the archive in `data/raw/_downloads/`**. Unpack into the locations below.
 
-Edinburgh DataShare, no login needed (the page's "Log In" is for depositing). The landing
-page is https://datashare.ed.ac.uk/handle/10283/3336; the link below is the direct file for
-`LA.zip`.
+### ASVspoof 2019 LA — required
+
+Source: [Edinburgh DataShare](https://datashare.ed.ac.uk/handle/10283/3336).
 
 ```bash
 mkdir -p data/raw/_downloads data/raw/ASVspoof2019
 curl -L -C - -o data/raw/_downloads/LA.zip \
-  "https://datashare.ed.ac.uk/server/api/core/bitstreams/a9f87c35-f055-4015-80e2-2fdff0d46269/content"
+  'https://datashare.ed.ac.uk/server/api/core/bitstreams/a9f87c35-f055-4015-80e2-2fdff0d46269/content'
 unzip -q data/raw/_downloads/LA.zip -d data/raw/ASVspoof2019/
-uv run python scripts/prepare_data.py                     # -> manifests/train.csv, dev.csv, eval.csv
+uv run data-prepare --workers 4
 ```
 
-Expected layout (`configs/data.yaml: dataset`):
+Expected: `data/raw/ASVspoof2019/LA/` contains `ASVspoof2019_LA_{train,dev,eval}/flac/` and `ASVspoof2019_LA_cm_protocols/`.
 
-```text
-data/raw/ASVspoof2019/LA/
-├── ASVspoof2019_LA_train/flac/          25,380 clips
-├── ASVspoof2019_LA_dev/flac/            24,844 clips
-├── ASVspoof2019_LA_eval/flac/           71,237 clips
-└── ASVspoof2019_LA_cm_protocols/        *.trn.txt / *.trl.txt
-```
+### In-the-Wild — required external test
 
-## 2. In-the-Wild (E3)
-
-Hugging Face `mueller91/In-The-Wild`, public, one zip.
+Source: [Hugging Face — mueller91/In-The-Wild](https://huggingface.co/datasets/mueller91/In-The-Wild).
 
 ```bash
 mkdir -p data/raw/_downloads data/raw/InTheWild
 curl -L -C - -o data/raw/_downloads/release_in_the_wild.zip \
-  "https://huggingface.co/datasets/mueller91/In-The-Wild/resolve/main/release_in_the_wild.zip"
+  'https://huggingface.co/datasets/mueller91/In-The-Wild/resolve/main/release_in_the_wild.zip'
 unzip -q data/raw/_downloads/release_in_the_wild.zip -d data/raw/InTheWild/
-uv run python scripts/prepare_data.py --dataset in_the_wild   # -> manifests/itw.csv
+uv run data-prepare --dataset in_the_wild --workers 4
 ```
 
-This gives `data/raw/InTheWild/release_in_the_wild/` with `meta.csv` (`file, speaker,
-label`) and 31,779 WAVs at 16 kHz: 19,963 bona fide and 11,816 spoof. There are no attack
-labels and no official split; use it for testing only. Licence: the dataset card says
-CC-BY-SA 4.0, while the authors' page says Apache-2.0.
+Expected: `data/raw/InTheWild/release_in_the_wild/`, including `meta.csv` and audio. Output: `data/manifests/itw.csv`. Test only; do not invent a training split.
 
-## 3. MUSAN noise (E4)
+### MUSAN noise — controlled robustness
 
-The script downloads the archive, extracts only `noise/` (929 files) into
-`data/raw/musan/noise`, checks the count and deletes the archive:
-
-```bash
-uv run python scripts/get_musan.py --dry-run      # shows what it will do
-uv run python scripts/get_musan.py
-```
-
-By hand instead:
+Source: [OpenSLR SLR17](https://www.openslr.org/17/). Only the `musan/noise/` portion is needed.
 
 ```bash
 mkdir -p data/raw/_downloads data/raw/musan
-curl -L -C - -o data/raw/_downloads/musan.tar.gz "https://www.openslr.org/resources/17/musan.tar.gz"
+curl -L -C - -o data/raw/_downloads/musan.tar.gz \
+  'https://www.openslr.org/resources/17/musan.tar.gz'
 tar -xzf data/raw/_downloads/musan.tar.gz -C data/raw/ musan/noise
 ```
 
-Then build the E4 test sets (needs ASVspoof 2019 LA and MUSAN):
+MUSAN is **not** a real/spoof classification dataset. It supplies noise for reproducible corruption of ASVspoof evaluation clips.
+
+### Generate controlled evaluation sets
+
+Requires ASVspoof 2019 LA; the noise condition additionally requires MUSAN. Uses the same fixed, seeded clean evaluation subset for all conditions. See `configs/e4_degradations.yaml` for exact settings.
 
 ```bash
-uv run python scripts/make_degraded.py subset      # 10k stratified eval subset -> manifests/eval_clean10k.csv
-uv run python scripts/make_degraded.py generate    # MP3, Opus, noise, 8 kHz -> manifests/eval_*.csv
+uv run python scripts/make_degraded.py --clean-only
+uv run python scripts/make_degraded.py --conditions eval_noise_10db
+uv run python scripts/make_degraded.py --conditions eval_mp3_32k,eval_opus_16k,eval_resample_8k
+# Or generate all conditions:
+uv run python scripts/make_degraded.py --conditions all --workers 4
 ```
 
-## 4. ASVspoof 2021 LA / DF (optional, not wired in yet)
+Outputs include `data/manifests/eval_clean10k.csv`, `eval_noise_10db.csv`, `eval_mp3_32k.csv`, `eval_opus_16k.csv` and `eval_resample_8k.csv`, with generated audio under `data/cache/degraded/`. The conditions must use matched source utterances when comparing robustness.
 
-Evaluation-only tracks from the 2021 challenge (Zenodo), with the full keys from
-asvspoof.org. `prepare_data.py` has no builder for them yet; see "Adding a dataset" below.
+### ASVspoof 2021 LA / DF — optional external tests
+
+Download evaluation audio from [LA (Zenodo)](https://zenodo.org/records/4837263) and [DF (Zenodo)](https://zenodo.org/records/4835108), plus official evaluation keys from [ASVspoof](https://www.asvspoof.org/). Place and extract under `data/raw/ASVspoof2021/`.
+
+**Current limitation:** `data-prepare` does not yet build or validate 2021 LA/DF manifests. Do not include these in `--testsets` until the official keys are parsed, audio paths validated and evaluation manifests generated.
+
+### SpoofCeleb / PhonemeDF — future work
+
+SpoofCeleb is a **conditional Stage 2** dataset: use its designated training/development partitions only if the adaptation study is activated, and keep its evaluation partition held out. PhonemeDF is deferred from the core protocol. For both, obtain audio and metadata through their official dataset distribution and review access/licensing terms; neither has a supported manifest builder yet. Do not mix either into Stage 1 results.
+
+## Validate and use manifests
 
 ```bash
-mkdir -p data/raw/_downloads data/raw/ASVspoof2021
-# LA eval audio (7.8 GB) and keys
-curl -L -C - -o data/raw/_downloads/ASVspoof2021_LA_eval.tar.gz \
-  "https://zenodo.org/records/4837263/files/ASVspoof2021_LA_eval.tar.gz"
-curl -L -C - -o data/raw/_downloads/LA-keys-full.tar.gz \
-  "https://www.asvspoof.org/asvspoof2021/LA-keys-full.tar.gz"
-# DF eval audio (four parts, about 8.6 GB each) and keys
-for p in 00 01 02 03; do
-  curl -L -C - -o "data/raw/_downloads/ASVspoof2021_DF_eval_part$p.tar.gz" \
-    "https://zenodo.org/records/4835108/files/ASVspoof2021_DF_eval_part$p.tar.gz"
-done
-curl -L -C - -o data/raw/_downloads/DF-keys-full.tar.gz \
-  "https://www.asvspoof.org/asvspoof2021/DF-keys-full.tar.gz"
-for f in data/raw/_downloads/ASVspoof2021_*.tar.gz data/raw/_downloads/*-keys-full.tar.gz; do
-  tar -xzf "$f" -C data/raw/ASVspoof2021/
-done
+uv run data-prepare --help
+uv run data-check --help
+uv run data-check --paths
+uv run data-check --verify --paths
 ```
 
-## 5. Check the manifests
+`--paths` checks manifest-referenced audio locations; `--verify` additionally compares manifest files with `data/manifests/SHA256SUMS`. A checksum mismatch is **not** automatically audio corruption: investigate serialization, paths, row ordering and dataset versions before updating references. Optional ASVspoof 2021 presence alone is not validation.
+
+Models use manifest CSVs rather than scanning audio directories. Each manifest needs at least `utt_id`, `path` and `label` (`bonafide`/`spoof`); the standard builder also records split, speaker/attack IDs and audio metadata. To add a dataset, implement its builder in `src/audio_df/data/manifests.py`, expose it through `data-prepare`, validate label/path integrity and keep train/dev/test partitions disjoint. Evaluation uses names of existing manifests, for example:
 
 ```bash
-uv run python scripts/prepare_data.py --verify     # every manifest matches SHA256SUMS
-uv run python scripts/audit_leakage.py --config configs/data.yaml
+uv run a1 evaluate --i 2019LA --testsets dev,eval,itw
 ```
 
-`--verify` fails if a manifest is missing or differs from the checksums in git, which shows
-whether your local data matches the data the results were produced on.
+This command requires an existing completed A1 artifact. Include `dev` for the current threshold-selection workflow; never select thresholds using external evaluation labels.
 
-## Adding a dataset
-
-Models never read audio folders directly: they read a **manifest**, a CSV with one row per
-clip. A new dataset therefore needs only a manifest builder.
-
-1. **Download** it under `data/raw/<Name>/` (add the commands to this file).
-2. **Configure** it in `configs/data.yaml`: a block with its `root` and anything the builder
-   needs (protocol file, meta file, expected clip count), as `in_the_wild:` does.
-3. **Build** the manifest in `src/audio_df/data/manifests.py`, next to `build_itw_manifest`.
-   Fail with `DatasetNotFoundError` naming the expected path when the data is missing. The
-   manifest needs these columns:
-
-   | column | meaning |
-   |---|---|
-   | `utt_id` | unique clip id |
-   | `path` | audio file path, relative to `SystemCode/` |
-   | `label` | `bonafide` or `spoof` |
-   | `speaker_id` | speaker, or `-` if unknown |
-   | `attack_id` | generator or attack (`A07`, ...), `-` for bona fide or unknown |
-   | `source_corpus` | dataset name |
-   | `sample_rate`, `duration_s`, `codec` | from the file header |
-   | `split` | `train`, `dev`, `eval` or the test-set name |
-   | `language` | for example `en` |
-
-4. **Expose** it in `scripts/prepare_data.py` (`--dataset <name>`), writing
-   `data/manifests/<testset>.csv`. The test-set name must match `^[a-z0-9_]+$`.
-5. **Record** it: running `prepare_data.py` rewrites `manifests/SHA256SUMS`; commit that file.
-6. **Use** it: add the test set to a system config (`data.testsets.<name>`), then for example
-   `uv run adf --config configs/a1_lfcc_gmm.yaml score --model-from runs/<run id> --exp e3
-   --silence-mode raw --testsets <name>`.
-7. **Test** the builder on a tiny fake copy of the layout in `tmp_path`, as
-   `tests/test_data.py` does for ASVspoof and In-the-Wild.
-
-Never train on a test-only set, and never let one speaker or generator appear on both sides
-of a train/test split (`assert_no_speaker_overlap`).
+**Evaluation protocol:** train on the official 2019 LA train split, select checkpoints/thresholds on dev, and evaluate on held-out test sets. The agreed silence-trimmed test protocol must be enabled in the evaluation implementation before reporting any run as “trimmed”; generating manifests alone does not apply trimming. Keep preprocessing and metrics consistent across detectors.
