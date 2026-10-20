@@ -45,3 +45,11 @@ def cache_frames(rows, extract, directory: str | Path, key: str, n_features: int
     tmp.replace(file)
     meta.write_text(json.dumps({"frames": count, "features": n_features}))
     return np.memmap(file, dtype="float32", mode="r", shape=(count, n_features))
+
+
+def feature_cache_dir(root: str | Path, feature: str, representation: str | None = None) -> Path:
+    """Cache location is based on the feature recipe, not the pipeline ID."""
+    parts = [feature] + ([representation] if representation else [])
+    if any(not part or part in {".", ".."} or "/" in part or "\\" in part for part in parts):
+        raise ValueError("Cache names must be single directory components")
+    return Path(root).joinpath(*parts)

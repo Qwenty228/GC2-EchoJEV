@@ -1,10 +1,8 @@
 """A1 detector: two class-specific diagonal GMMs, one likelihood ratio."""
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import hashlib
 import json
-from tqdm.auto import tqdm
 from pathlib import Path
-from dataclasses import dataclass
 
 from audio_df2.helpers.audio import load_audio
 from audio_df2.helpers.cache import cache_frames
@@ -13,11 +11,12 @@ from audio_df2.helpers.training import fit_gmm
 from audio_df2.modules.gmm import DiagGMM, GMMConfig, score_llr
 from audio_df2.modules.lfcc import LFCC, LFCCConfig
 
+
 @dataclass
 class AudioFeatureExtractor:
     features: LFCC
 
-    def __call__(self, path):
+    def __call__(self, path: str | Path):
         audio = load_audio(path, self.features.sample_rate)
         return self.features(audio)
 
@@ -32,16 +31,19 @@ class GMMDetector:
         self.bonafide: DiagGMM | None = None
         self.spoof: DiagGMM | None = None
 
+    @property
+    def cache_namespace(self) -> tuple[str, ...]:
+        # Same LFCC features can be shared by A1 and other detectors.
+        return ("lfcc",)
+
     def fit(self, train, cache_dir: Path, seed: int | None = None):
         cfg = self.config
         actual_seed = cfg.seed if seed is None else seed
         fingerprint = hashlib.sha256(
-            (train.to_csv(index=False) + json.dumps(self.features.config, sort_keys=True)).encode()
+            (train.to_csv(index=False) + json.dumps(asdict(self.features.settings), sort_keys=True)).encode()
         ).hexdigest()[:16]
-        
         for label in ("bonafide", "spoof"):
             paths = train.loc[train.label == label, "path"]
-            tqdm.write(f"[{label}] Preparing {len(paths):,} audio clips...")
             frames = cache_frames(
                 paths,
                 AudioFeatureExtractor(self.features),
@@ -49,7 +51,6 @@ class GMMDetector:
                 f"{label}-{fingerprint}",
                 3 * self.features.settings.n_filters,
             )
-            tqdm.write(f"[{label}] Features ready: {frames.shape[0]:,} frames")
             fitted = fit_gmm(
                 frames,
                 components=cfg.components,
@@ -94,3 +95,8 @@ class GMMDetector:
         model.bonafide = DiagGMM.load(directory / "bonafide.npz")
         model.spoof = DiagGMM.load(directory / "spoof.npz")
         return model
+
+    def score_manifest(self, manifest, destination, *, split: str, cache_dir: Path):
+        """A1's implementation of the common detector scoring interface."""
+        from audio_df2.evaluation import score_manifest
+        return score_manifest(manifest, self, destination)
