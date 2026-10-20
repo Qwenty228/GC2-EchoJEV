@@ -30,8 +30,11 @@ data-check = "audio_df.data_check:main" # --verify --paths
 data-prepare = "audio_df.data_cli:prepare"
 a1 = "audio_df2.pipelines.a1:main"
 a2 = "audio_df2.pipelines.a2:main"
+a3 = "audio_df2.pipelines.a3:main"
 a4 = "audio_df2.pipelines.a4:main"
 d1 = "audio_df2.pipelines.d1:main"
+d2 = "audio_df2.pipelines.d2:main"
+d3 = "audio_df2.pipelines.d3:main"
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]

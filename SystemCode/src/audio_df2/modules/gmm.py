@@ -176,7 +176,7 @@ class DiagGMM:
         k, d = self.n_components, self.n_features
         history: list[float] = []
         
-        n_chunks = np.ceil(n / chunk_frames)
+        n_chunks = (n + chunk_frames - 1) // chunk_frames
         with tqdm(total=n_iter * n_chunks,desc="GMM Training",unit="chunk",) as progress:
             for iteration in range(n_iter):
                 n_k = np.zeros(k, dtype=np.float64)
@@ -198,8 +198,15 @@ class DiagGMM:
 
                     progress.update(1)
 
-                # Keep your existing M-step here.
-                # Update parameters and append to history.
+                # M-step: update the mixture parameters from responsibilities.
+                n_k_safe = np.maximum(n_k, 1e-12)
+                self.weights = n_k / n
+                self.means = s_k / n_k_safe[:, None]
+                self.vars_ = np.maximum(
+                    s_k2 / n_k_safe[:, None] - self.means * self.means,
+                    self.variance_floor,
+                )
+                history.append(total_ll / n)
 
                 progress.set_postfix(
                     EM=f"{iteration + 1}/{n_iter}",

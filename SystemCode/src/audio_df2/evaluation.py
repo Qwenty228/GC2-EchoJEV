@@ -1,21 +1,36 @@
 """Score manifests and compute metrics using the original EchoJEV definitions."""
 from pathlib import Path
 import json
+from tqdm import tqdm
 import pandas as pd
 from audio_df2.helpers.metrics import compute_eer, roc_auc, min_dcf, prf1_at_threshold
 
 def score_manifest(df, model, output):
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+
     rows = []
-    for row in df.itertuples(index=False):
-        result = {"clip_id": str(row.utt_id), "label": str(row.label),
-                  "score": float(model.score_file(row.path))}
+
+    for row in tqdm(
+        df.itertuples(index=False),
+        total=len(df),
+        desc="Scoring audio",
+        unit="clip",
+    ):
+        result = {
+            "clip_id": str(row.utt_id),
+            "label": str(row.label),
+            "score": float(model.score_file(row.path)),
+        }
+
         if hasattr(row, "attack_id"):
             result["attack_id"] = str(row.attack_id)
+
         rows.append(result)
-    pd.DataFrame(rows).to_csv(output, index=False)
-    return pd.DataFrame(rows)
+
+    scores = pd.DataFrame(rows)
+    scores.to_csv(output, index=False)
+    return scores
 
 def evaluate_scores(dev, test, output):
     threshold_eer, threshold = compute_eer(dev.score, dev.label, higher_is_spoof=False)
