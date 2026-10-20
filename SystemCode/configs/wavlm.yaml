@@ -1,0 +1,9 @@
+model_id: microsoft/wavlm-base-plus
+revision: null
+sample_rate: 16000
+crop_seconds: 4.0
+n_layers: 13
+hidden_dim: 768
+batch_size: 8
+num_workers: 0
+chunk_size: 512

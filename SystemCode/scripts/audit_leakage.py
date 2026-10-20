@@ -26,7 +26,7 @@ from pathlib import Path
 
 import yaml
 
-from audio_df.evaluation.leakage import run_audit
+from audio_df.helpers.research.leakage import run_audit
 
 
 def main() -> int:

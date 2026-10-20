@@ -1,0 +1,4 @@
+lr: 0.001
+batch_size: 256
+max_epochs: 60
+patience: 8

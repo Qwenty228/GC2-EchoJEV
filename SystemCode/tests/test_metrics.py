@@ -1,4 +1,4 @@
-"""Analytic tests for `audio_df.evaluation.metrics`.
+"""Analytic tests for `audio_df.helpers.metrics`.
 
 Every test either has a hand-computable expected value or a known analytic property
 (perfect separability -> EER 0, identical distributions -> EER ~0.5, polarity flip ->
@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from sklearn.metrics import roc_auc_score
 
-from audio_df.evaluation.metrics import (
+from audio_df.helpers.metrics import (
     brier_score,
     compute_eer,
     compute_eer_interpolated,

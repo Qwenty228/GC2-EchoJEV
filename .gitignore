@@ -12,3 +12,4 @@ Miscellaneous/research/**/*.pdf
 # paper notes and PDFs stay local; only the README with the Drive link is tracked
 Miscellaneous/research/knowledge/papers/*
 !Miscellaneous/research/knowledge/papers/README.md
+SystemCode/.env

@@ -1,0 +1,6 @@
+components: 512
+iterations: 10
+chunk_frames: 50000
+variance_floor: 0.001
+init_sample_size: 200000
+seed: 1337

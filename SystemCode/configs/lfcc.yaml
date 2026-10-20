@@ -1,0 +1,10 @@
+sample_rate: 16000
+window_ms: 20
+hop_ms: 10
+n_fft: 512
+n_filters: 20
+fmin: 0.0
+fmax: null
+preemph: 0.97
+delta_window: 3
+spacing: linear
