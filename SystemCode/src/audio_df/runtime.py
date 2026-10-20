@@ -14,6 +14,7 @@ import yaml
 from audio_df.data.manifests import load_manifest
 from audio_df.helpers.cache import feature_cache_dir
 from audio_df.evaluation import evaluate_scores
+from audio_df.helpers.eval_audio import trimmed_manifest, TRIM_RECIPE
 
 
 
@@ -202,6 +203,8 @@ class Run:
         scored = {}
         for name in self.testsets:
             df = self.manifest(name)
+            if self.dataset == "2019LA" and (name == "dev" or name.startswith("eval")):
+                df = trimmed_manifest(df, self.root / "data" / "cache", name)
             destination = output / "scores" / f"{name}.csv"
             scored[name] = model.score_manifest(
                 df, destination, split=name,
@@ -220,6 +223,8 @@ class Run:
             "model_artifact": str(artifact),
             "testsets": self.testsets,
             "seed": self.seed,
+            "evaluation_preprocessing": {"dev": "raw", "testsets": "trimmed",
+                                         "trim_recipe": TRIM_RECIPE},
         }
         (output / "config.yaml").write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
         print(f"Evaluation saved: {output}")
