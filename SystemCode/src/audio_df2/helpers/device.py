@@ -11,9 +11,12 @@ def get_device(requested: str = "auto") -> torch.device:
         return device
 
     if torch.cuda.is_available():
+        print("Using CUDA device:", torch.cuda.get_device_name(0))
         return torch.device("cuda")
 
     if torch.backends.mps.is_available():
+        print("Using MPS device")
         return torch.device("mps")
 
+    print("Using CPU device")
     return torch.device("cpu")
