@@ -303,6 +303,14 @@ uv run data-degrade --conditions all --workers 4</code></pre>
           in <code>runs/</code>.
         </p>
         <p class="small">
+          <b>Dataset roles:</b> <code>train</code> learns parameters;
+          <code>dev</code> is validation and threshold calibration, not a final
+          benchmark; <code>eval</code> and external/controlled test sets report
+          final performance. For 2019 LA, training uses raw audio while dev
+          calibration and eval testing use silence-trimmed audio. External
+          datasets are evaluated raw.
+        </p>
+        <p class="small">
           <b>Quick run:</b>
           <code>uv run &lt;architecture&gt; {run|train|evaluate} [flags]</code>
           — e.g. <code>uv run d2 evaluate --i 2019LA --testsets dev,eval</code>.
@@ -368,12 +376,13 @@ uv run data-degrade --conditions all --workers 4</code></pre>
         <pre><code>uv run d2 train --i 2019LA
 uv run d2 evaluate --i 2019LA --testsets dev,eval
 uv run pytest -q</code></pre>
-        <h3>Phase 2 · Decision policies (planned, not yet implemented)</h3>
+        <h3>Phase 2 · Decision policies</h3>
         <div class="grid">
           <div class="tile">
-            <strong>P1 · JEV</strong>Implement the JEV policy/head as a new
-            module consuming a <em>frozen detector's</em> score and label-free
-            evidence. A3 denotes A2 + P1.
+            <strong>P1 · JEV</strong>Reusable TypeSafe decision module consuming
+            a <em>frozen detector's</em> score and label-free evidence.
+            A3 composes A2 + P1; dev calibrates the detector threshold, while
+            JEV evaluates sampled held-out test clips.
           </div>
           <div class="tile">
             <strong>P2 · LAYA</strong>Alternative policy on the same evidence
@@ -393,7 +402,7 @@ uv run pytest -q</code></pre>
           <code>pipelines/</code>. Do not retrain the detector for policy
           comparisons. Do not pass ground-truth labels or dataset IDs into
           evidence. Compare A2 vs A3 and the same fusion model with/without
-          P1/P2. Define the evidence schema and API before integration.
+          P1/P2. Keep complete detector and JEV responses for analysis.
         </p>
       </section>
       <section id="app">

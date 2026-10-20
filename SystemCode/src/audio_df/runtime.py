@@ -40,7 +40,8 @@ def _new_directory(parent: Path, prefix: str) -> Path:
 class Run:
     def __init__(
         self, *, name: str, dataset: str = "2019LA", output: str = "runs",
-        root: str = ".", seed: int = 1337, testsets: str = "dev,eval",
+        root: str = ".", seed: int = 1337, testsets: str = "eval",
+        threshold_from: str = "dev",
         model_from: str | None = None, command: str = "run",
     ) -> None:
         if dataset.lower() not in {"2019la", "2019", "asvspoof2019"}:
@@ -54,6 +55,11 @@ class Run:
         self.artifact_root = self.root / "artifacts" / name
         self.seed = seed
         self.testsets = [part.strip() for part in testsets.split(",") if part.strip()]
+        self.threshold_from = threshold_from.strip()
+        if not self.threshold_from or not self.threshold_from.replace("_", "").isalnum():
+            raise ValueError("Invalid --threshold-from name")
+        if not self.testsets or len(self.testsets) != len(set(self.testsets)):
+            raise ValueError("--testsets must contain unique test-set names")
         self.command = command
         self._model_from_arg = model_from
         self._artifact_dir: Path | None = None
@@ -65,13 +71,19 @@ class Run:
             # Derive from the decorated function's defining file, not call stack.
             name = Path(inspect.getfile(func)).stem
             signature = inspect.signature(func)
-            manifest_dir = Path("data/manifests")
-            available = sorted(p.stem for p in manifest_dir.glob("*.csv")  if p.stem != "train")
+            # Resolve --root even for --help so available manifests reflect the chosen project.
+            root_parser = argparse.ArgumentParser(add_help=False)
+            root_parser.add_argument("--root", default=".")
             
 
             @wraps(func)
             def invoke(argv: list[str] | None = None) -> Any:
                 
+                help_root, _ = root_parser.parse_known_args(argv)
+                manifest_dir = Path(help_root.root) / "data" / "manifests"
+                available = sorted(p.stem for p in manifest_dir.glob("*.csv") if p.stem != "train")
+                calibrations = ", ".join(available) or "none (run data-prepare)"
+                tests = ", ".join(available) or "none (run data-prepare)"
                 parser = argparse.ArgumentParser(description=func.__doc__)
                 parser.add_argument(
                     "command",
@@ -84,7 +96,7 @@ class Run:
                     "--i",
                     default=dataset,
                     metavar="DATASET",
-                    help=f"Training dataset identifier (default: {dataset})",
+                    help=f"Training dataset identifier (default: {dataset}). Available: 2019LA",
                 )
                 parser.add_argument(
                     "--o",
@@ -107,12 +119,18 @@ class Run:
                 )
                 parser.add_argument(
                     "--testsets",
-                    default="dev,eval",
+                    default="eval",
                     metavar="NAMES",
                     help=(
-                            "Comma-separated test sets (default: dev,eval). "
-                        f"Available: {', '.join(available) or 'none'}"
+                            "Comma-separated final test sets (default: eval). "
+                        f"Available manifests: {tests}"
                     )
+                )
+                parser.add_argument(
+                    "--threshold-from",
+                    default="dev",
+                    metavar="NAME",
+                    help=f"Validation manifest for threshold calibration (default: dev). Available: {calibrations}",
                 )
                 parser.add_argument(
                     "--model-from",
@@ -130,6 +148,7 @@ class Run:
                 args = parser.parse_args(argv)
                 run = cls(name=name, dataset=args.i, output=args.o, root=args.root,
                           seed=args.seed, testsets=args.testsets,
+                          threshold_from=args.threshold_from,
                           model_from=args.model_from, command=args.command)
                 kwargs = {key: getattr(args, key) for key in signature.parameters if key != "run"}
                 return func(run, **kwargs)
@@ -205,37 +224,56 @@ class Run:
         return directory
     
     def validate_testsets(self) -> None:
+        """Check registered manifests and reject calibration/test data leakage.
+
+        Utterance IDs are dataset-specific, so source audio paths are checked too.
+        Cross-dataset duplicates with different IDs/paths require a separate audit.
+        """
         manifest_dir = self.root / "data" / "manifests"
-
         available = {p.stem for p in manifest_dir.glob("*.csv")}
-        requested = set(self.testsets)
-
+        requested = set(self.testsets) | {self.threshold_from}
         unknown = requested - available
-
         if unknown:
             raise ValueError(
-                f"Unknown testsets: {sorted(unknown)}. "
-                f"Available: {sorted(available)}"
+                f"Unknown manifests: {sorted(unknown)}. Available: {sorted(available)}"
             )
+        if self.threshold_from in self.testsets:
+            raise ValueError(
+                f"Calibration set {self.threshold_from!r} cannot appear in --testsets"
+            )
+        # eval_clean10k and degraded variants derive from 2019 LA eval.
+        # Prevent known overlap even when audio paths differ after degradation.
+        def eval_family(name: str) -> bool:
+            return name == "eval" or name.startswith("eval_")
+        if eval_family(self.threshold_from) and any(eval_family(n) for n in self.testsets):
+            raise ValueError(
+                "Calibration and test sets from the ASVspoof 2019 LA eval family "
+                "may overlap. Use dev for calibration."
+            )
+        calibration = self.manifest(self.threshold_from)
+        cal_ids = set(calibration["utt_id"].astype(str))
+        cal_paths = set(calibration["path"].astype(str))
+        for name in self.testsets:
+            test = self.manifest(name)
+            if cal_ids.intersection(test["utt_id"].astype(str)) or cal_paths.intersection(test["path"].astype(str)):
+                raise ValueError(f"Calibration set {self.threshold_from!r} overlaps test set {name!r}")
+
+    def _is_trimmed(self, name: str) -> bool:
+        return self.dataset.lower() in {"2019la", "2019", "asvspoof2019"} and (
+            name == "dev" or name == "eval" or name.startswith("eval_")
+        )
 
     def evaluate(self, model: Any) -> dict[str, Any]:
         self.validate_testsets()
-        if "dev" not in self.testsets:
-            raise ValueError("Include dev in --testsets to select the decision threshold")
         artifact = self.model_from
         output = self.output
         cache_dir = feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace)
-        prepared = []
-        for name in self.testsets:
-            df = self.manifest(name)
-            trimmed = self.dataset.lower() in {"2019la", "2019", "asvspoof2019"} and (
-                name == "dev" or name == "eval" or name.startswith("eval_")
-            )
-            prepared.append((name, df, trimmed))
+        names = [self.threshold_from, *self.testsets]
+        prepared = [(name, self.manifest(name), self._is_trimmed(name)) for name in names]
         print(f"\n[{self.name.upper()}] EVALUATE | dataset={self.dataset}", flush=True)
         print(f"  model artifact: {artifact}", flush=True)
         for name, df, trimmed in prepared:
-            role = "threshold selection" if name == "dev" else "test"
+            role = "threshold calibration" if name == self.threshold_from else "test"
             print(f"  {name}: {len(df):,} clips | {'trimmed' if trimmed else 'raw'} ({role})", flush=True)
         print(f"  feature cache: {cache_dir}", flush=True)
         print(f"  output: {output}", flush=True)
@@ -244,26 +282,30 @@ class Run:
             print(f"[{self.name.upper()}] Scoring {name} ({'trimmed' if trimmed else 'raw'})", flush=True)
             if trimmed:
                 df = trimmed_manifest(df, self.root / "data" / "cache", name)
-            destination = output / "scores" / f"{name}.csv"
             scored[name] = model.score_manifest(
-                df, destination, split=name, cache_dir=cache_dir,
+                df, output / "scores" / f"{name}.csv", split=name, cache_dir=cache_dir,
             )
+        calibration = scored[self.threshold_from]
         results = {}
-        for name, table in scored.items():
-            if name == "dev":
-                continue
-            results[name] = evaluate_scores(scored["dev"], table, output / f"metrics_{name}.json")
+        for name in self.testsets:
+            results[name] = evaluate_scores(calibration, scored[name], output / f"metrics_{name}.json")
             print(f"{name}: EER={results[name]['eer']:.4%}")
         (output / "metrics.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+        from audio_df.helpers.metrics import compute_eer
+        cal_eer, threshold = compute_eer(calibration.score, calibration.label, higher_is_spoof=False)
+        (output / "calibration.json").write_text(json.dumps({
+            "source": self.threshold_from, "eer": float(cal_eer),
+            "eer_threshold": float(threshold), "n": len(calibration),
+            "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
+        }, indent=2), encoding="utf-8")
         record = {
-            "architecture": self.name,
-            "dataset": self.dataset,
-            "model_artifact": str(artifact),
-            "testsets": self.testsets,
+            "architecture": self.name, "dataset": self.dataset,
+            "model_artifact": str(artifact), "testsets": self.testsets,
             "seed": self.seed,
+            "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test") for name in names},
+            "reported_metrics": "held_out_test_only", "threshold_source": self.threshold_from,
             "evaluation_preprocessing": {
-                "testsets": {name: ("trimmed" if trimmed else "raw")
-                             for name, _, trimmed in prepared},
+                "testsets": {name: ("trimmed" if trimmed else "raw") for name, _, trimmed in prepared},
                 "trim_recipe": TRIM_RECIPE if any(trimmed for _, _, trimmed in prepared) else None,
             },
         }
@@ -286,8 +328,6 @@ class Run:
         from audio_df.modules.jev import JEVState
 
         self.validate_testsets()
-        if "dev" not in self.testsets:
-            raise ValueError("Include dev in --testsets for threshold calibration")
         if limit <= 0:
             raise ValueError("limit must be positive (external API calls incur cost)")
         artifact = self.model_from_for(base)
@@ -297,24 +337,28 @@ class Run:
         print(f"  API limit per test set: {limit} clips | output: {output}", flush=True)
         scored = {}
         samples = {}
-        for name in self.testsets:
+        for name in [self.threshold_from, *self.testsets]:
             df = self.manifest(name)
             total = len(df)
-            # Dev must remain complete for reliable EER threshold calibration.
-            # Sample BEFORE trimming or extracting features on all other splits.
-            if name != "dev":
+            # Calibration remains complete. Sample test sets before extraction.
+            if name != self.threshold_from:
                 count = min(limit, total)
                 # Independent, stable seeded sampling for each split.
                 split_seed = int.from_bytes(hashlib.sha256(name.encode()).digest()[:4], "big")
                 df = df.sample(n=count, random_state=(self.seed + split_seed) % (2**32)).reset_index(drop=True)
                 samples[name] = [str(value) for value in df["utt_id"].tolist()]
-            trimmed = self.dataset.lower() in {"2019la", "2019", "asvspoof2019"} and (name == "dev" or name == "eval" or name.startswith("eval_"))
+            trimmed = self._is_trimmed(name)
             print(f"  {name}: {len(df):,}/{total:,} clips | {'trimmed' if trimmed else 'raw'}" +
-                  (" | full threshold calibration" if name == "dev" else " | seeded sample"), flush=True)
+                  (" | full threshold calibration" if name == self.threshold_from else " | seeded sample"), flush=True)
             if trimmed:
                 df = trimmed_manifest(df, self.root / "data" / "cache", name)
             scored[name] = detector.score_manifest(df, output / "scores" / f"{name}.csv", split=name, cache_dir=cache_dir)
-        _, threshold = compute_eer(scored["dev"].score, scored["dev"].label, higher_is_spoof=False)
+        calibration_eer, threshold = compute_eer(scored[self.threshold_from].score, scored[self.threshold_from].label, higher_is_spoof=False)
+        (output / "calibration.json").write_text(json.dumps({
+            "source": self.threshold_from, "eer": float(calibration_eer),
+            "eer_threshold": float(threshold), "n": len(scored[self.threshold_from]),
+            "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
+        }, indent=2), encoding="utf-8")
         selected_model = jev_model or __import__("os").getenv("JEV_MODEL", "jev-latest")
         cache = self.root / "data" / "cache" / "jev" / "decisions"
         cache.mkdir(parents=True, exist_ok=True)
@@ -324,11 +368,11 @@ class Run:
         with (jev_dir / "sampling.json").open("w", encoding="utf-8") as f:
             json.dump({"method": "pandas.DataFrame.sample", "seed": self.seed,
                        "limit_per_testset": limit, "selected_utt_ids": samples,
-                       "dev": "full dataset for threshold calibration"}, f, indent=2)
+                       "calibration_source": self.threshold_from, "calibration": "full dataset for threshold calibration"}, f, indent=2)
         requests_file = jev_dir / "requests.jsonl"
         responses_file = jev_dir / "responses.jsonl"
         for name, table in scored.items():
-            if name == "dev":
+            if name == self.threshold_from:
                 continue
             records = []
             for row in table.itertuples(index=False):
@@ -402,8 +446,13 @@ class Run:
         (output / "config.yaml").write_text(yaml.safe_dump({"architecture": self.name, "base": base,
             "model_artifact": str(artifact), "jev_model_requested": selected_model,
             "testsets": self.testsets, "limit": limit, "seed": self.seed,
+            "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test")
+                            for name in [self.threshold_from, *self.testsets]},
+            "policy_evaluated_testsets": list(self.testsets),
+            "threshold_source": self.threshold_from,
             "sampling": "seeded random without replacement, before preprocessing",
             "dev_threshold": float(threshold),
-            "preprocessing": "2019 LA dev/eval trimmed; other datasets raw"}, sort_keys=False))
+            "preprocessing": {name: ("trimmed" if self._is_trimmed(name) else "raw")
+                              for name in [self.threshold_from, *self.testsets]}}, sort_keys=False))
         print(f"Policy evaluation saved: {output}", flush=True)
         return reports

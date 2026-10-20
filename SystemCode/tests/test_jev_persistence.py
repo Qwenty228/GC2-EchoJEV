@@ -13,17 +13,20 @@ def test_policy_preserves_original_and_raw_responses(tmp_path, monkeypatch):
     manifests = tmp_path / "data" / "manifests"
     manifests.mkdir(parents=True)
     for split in ("dev", "eval"):
-        pd.DataFrame({"utt_id": ["real", "fake"],
-                      "path": ["unused1.wav", "unused2.wav"],
+        pd.DataFrame({"utt_id": [f"{split}_real", f"{split}_fake"],
+                      "path": [f"{split}_real.wav", f"{split}_fake.wav"],
                       "label": ["bonafide", "spoof"]}).to_csv(manifests / f"{split}.csv", index=False)
 
     class FakeDetector:
         cache_namespace = ("a2",)
 
         def score_manifest(self, df, destination, *, split, cache_dir):
-            return pd.DataFrame({"clip_id": ["real", "fake"],
-                                 "label": ["bonafide", "spoof"],
-                                 "score": [2.0, -2.0], "diagnostic": ["x", "y"]})
+            return pd.DataFrame({
+                "clip_id": df["utt_id"].tolist(),
+                "label": df["label"].tolist(),
+                "score": [2.0 if label == "bonafide" else -2.0 for label in df["label"]],
+                "diagnostic": ["x" if label == "bonafide" else "y" for label in df["label"]],
+            })
 
     monkeypatch.setattr("audio_df.runtime.trimmed_manifest", lambda df, cache, split: df)
     calls = []
@@ -35,15 +38,20 @@ def test_policy_preserves_original_and_raw_responses(tmp_path, monkeypatch):
                                          "probabilities": {"bonafide": 0.8, "spoof": 0.2}},
                             "ambiguity": {"type": "noul", "noul": 0.1}}}
 
+    selected_ids = []
     for _ in range(2):
-        run = Run(name="a3", root=str(tmp_path), testsets="dev,eval", command="evaluate")
+        run = Run(name="a3", root=str(tmp_path), testsets="eval", command="evaluate")
         run.evaluate_policy(FakeDetector(), fake_policy, base="a2", limit=1, jev_model="test-version")
         requests = [json.loads(line) for line in (run.output / "jev" / "requests.jsonl").read_text().splitlines()]
         responses = [json.loads(line) for line in (run.output / "jev" / "responses.jsonl").read_text().splitlines()]
         assert len(requests) == len(responses) == 1
-        assert requests[0]["original_detector_response"]["diagnostic"] == "x"
-        assert requests[0]["original_detector_response"]["label"] == "bonafide"
+        selected_ids.append(requests[0]["clip_id"])
+        original = requests[0]["original_detector_response"]
+        assert original["clip_id"] == requests[0]["clip_id"]
+        assert original["label"] in {"bonafide", "spoof"}
+        assert original["diagnostic"] == ("x" if original["label"] == "bonafide" else "y")
         assert "label" not in requests[0]["state"]["context"]
         assert responses[0]["raw_jev_response"]["answers"]["ambiguity"]["noul"] == 0.1
         assert responses[0]["raw_jev_response"]["usage"]["input_tokens"] == 12
-    assert len(calls) == 1  # second run reused cache but retained complete records
+    assert selected_ids[0] == selected_ids[1]  # Stable seeded sample.
+    assert len(calls) == 1  # Second run reused cache but retained complete records.

@@ -16,7 +16,7 @@ def test_seeded_policy_sampling_and_persistence(tmp_path, monkeypatch):
     for split, size in [('dev', 20), ('eval', 50)]:
         pd.DataFrame({
             'utt_id': [f'{split}_{i}' for i in range(size)],
-            'path': [f'unused_{i}.wav' for i in range(size)],
+            'path': [f'{split}_{i}.wav' for i in range(size)],
             'label': ['bonafide' if i % 2 else 'spoof' for i in range(size)],
         }).to_csv(manifests / f'{split}.csv', index=False)
 
@@ -40,16 +40,21 @@ def test_seeded_policy_sampling_and_persistence(tmp_path, monkeypatch):
 
     def run_once():
         run = Run(name='a3', root=str(root), command='evaluate', seed=123,
-                  testsets='dev,eval')
+                  testsets='eval')
         result = run.evaluate_policy(FakeDetector(), fake_policy, base='a1', limit=3)
         return run, result
 
     first, report = run_once()
     assert len(observed['dev']) == 20
     assert len(observed['eval']) == 3
-    assert len(calls) == 3
+    assert len(calls) == 2
     selected = observed['eval'][:]
+    assert set(report) == {'eval'}
     assert report['eval']['n'] == 3
+    import yaml
+    metadata = yaml.safe_load((first.output / 'config.yaml').read_text())
+    assert metadata['policy_evaluated_testsets'] == ['eval']
+    assert metadata['split_roles']['dev'] == 'validation_threshold' 
     request_records = [json.loads(x) for x in (first.output / 'jev' / 'requests.jsonl').read_text().splitlines()]
     response_records = [json.loads(x) for x in (first.output / 'jev' / 'responses.jsonl').read_text().splitlines()]
     assert len(request_records) == len(response_records) == 3
@@ -57,5 +62,5 @@ def test_seeded_policy_sampling_and_persistence(tmp_path, monkeypatch):
     assert response_records[0]['raw_jev_response']['usage']['input_tokens'] == 3
     second, _ = run_once()
     assert observed['eval'] == selected
-    assert len(calls) == 3  # Persistent JEV cache hit; no extra paid calls.
+    assert len(calls) == 2  # Persistent JEV cache hit; no extra paid calls.
     assert all(json.loads(line)['cached'] for line in (second.output / 'jev' / 'responses.jsonl').read_text().splitlines())
