@@ -12,9 +12,9 @@ def main(run: Run, limit: int = 1, jev_model: str = "jev-latest"):
         raise ValueError("A3 is evaluation-only; train A2 separately")
     print("WARNING: Limited A3 runs are API demonstrations, NOT full benchmarks.", flush=True)
     
-    base = "a1"
-    # model = SSLDetector.load(run.model_from_for("a2"))
-    model = GMMDetector.load(run.model_from_for(base))
+    base = "a2"
+    model = SSLDetector.load(run.model_from_for(base))
+    # model = GMMDetector.load(run.model_from_for(base))
     return run.evaluate_policy(model, decide, base=base, limit=limit, jev_model=jev_model)
 
 

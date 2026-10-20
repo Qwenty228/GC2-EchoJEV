@@ -27,3 +27,15 @@ def test_shared_trim_cache_and_raw_manifest_unchanged(tmp_path):
     assert first.path.iloc[0] != df.path.iloc[0]
     assert df.path.iloc[0] == str(original)
     assert sf.info(first.path.iloc[0]).frames < sf.info(original).frames
+
+
+def test_complete_cache_skips_wav_header_checks(tmp_path, monkeypatch):
+    original = tmp_path / "raw.wav"
+    sf.write(original, np.r_[np.zeros(16000), np.ones(16000) * .2], 16000)
+    df = pd.DataFrame({"utt_id": ["x"], "path": [str(original)], "label": ["spoof"]})
+    first = trimmed_manifest(df, tmp_path / "cache", "eval")
+    def fail_info(*args, **kwargs):
+        raise AssertionError("complete cache should not inspect WAV headers")
+    monkeypatch.setattr("audio_df.helpers.eval_audio.sf.info", fail_info)
+    second = trimmed_manifest(df, tmp_path / "cache", "eval")
+    assert first.path.tolist() == second.path.tolist()

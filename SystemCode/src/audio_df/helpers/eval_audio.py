@@ -76,6 +76,27 @@ def trimmed_manifest(df: pd.DataFrame, cache_root: Path, split: str) -> pd.DataF
         temp.write_text(json.dumps({"identity": identity, "recipe": TRIM_RECIPE}, indent=2), encoding="utf-8")
         os.replace(temp, metadata)
 
+    # A complete cache was verified clip-by-clip when first generated. On
+    # subsequent runs, avoid opening every WAV header (very slow on Windows).
+    # Source file sizes/mtimes are already included in the identity above.
+    complete = directory / "COMPLETE"
+    if complete.is_file():
+        try:
+            record = json.loads(complete.read_text(encoding="utf-8"))
+            expected = len(source)
+            # scandir avoids tens of thousands of separate sf.info() calls.
+            with os.scandir(directory) as entries:
+                actual = sum(e.is_file() and e.name.endswith(".wav") and
+                             len(e.name) == 11 and e.name[:7].isdigit()
+                             for e in entries)
+            if record == {"identity": identity, "count": expected} and actual == expected:
+                result = df.copy()
+                result["path"] = [str(directory / f"{i:07d}.wav") for i in range(expected)]
+                tqdm.write(f"Trim audio {split}: cache hit ({expected:,} clips)")
+                return result
+        except (OSError, ValueError, TypeError):
+            pass
+
     paths: list[str] = []
     reused = 0
     for index, path in enumerate(tqdm(source["path"], desc=f"Trim audio {split}", unit="clip")):
@@ -97,6 +118,10 @@ def trimmed_manifest(df: pd.DataFrame, cache_root: Path, split: str) -> pd.DataF
         sf.write(temp, trimmed, TRIM_RECIPE["sample_rate"], subtype="FLOAT")
         os.replace(temp, target)
         paths.append(str(target.resolve()))
+    # Mark complete only after every clip was successfully validated or written.
+    marker_tmp = directory / "COMPLETE.tmp"
+    marker_tmp.write_text(json.dumps({"identity": identity, "count": len(source)}), encoding="utf-8")
+    os.replace(marker_tmp, complete)
     if reused:
         tqdm.write(f"Trim audio {split}: reused {reused:,}/{len(df):,} cached clips")
     result = df.copy()
