@@ -4,7 +4,7 @@ From SystemCode/:
     ADF_SYSTEM=a1 uv run uvicorn backend.app:app --reload
     ADF_SYSTEM=a2 ADF_THRESHOLD=0.5 uv run uvicorn backend.app:app
 
-ADF_SYSTEM selects a1, a2, a4, d1, or d3. ADF_MODEL_FROM optionally
+ADF_SYSTEM selects a1, a2, a4, d1, d2, or d3. ADF_MODEL_FROM optionally
 pins an artifact directory; otherwise the latest COMPLETE artifact is used.
 ADF_THRESHOLD must be calibrated for that exact artifact before a verdict
 is returned. Without it, /api/detect returns a continuous score only.
@@ -28,6 +28,7 @@ from audio_df.modules.ssl_detector import SSLDetector
 from audio_df.modules.lfcc_neural import LFCCDetector
 from audio_df.modules.fusion_detector import FusionDetector
 from audio_df.modules.d3_detector import D3Detector
+from audio_df.modules.d2_detector import D2Detector
 
 __all__ = ["app", "create_app"]
 
@@ -36,6 +37,7 @@ DETECTORS = {
     "a2": SSLDetector,
     "a4": LFCCDetector,
     "d1": FusionDetector,
+    "d2": D2Detector,
     "d3": D3Detector,
 }
 ROOT = Path(__file__).resolve().parents[2]
