@@ -66,7 +66,7 @@ class D3Detector:
         best, stale, best_epoch = float("inf"), 0, 0
         best_state = copy.deepcopy(head.state_dict())
         train_losses, dev_losses = [], []
-        for epoch in tqdm(range(cfg.max_epochs), desc="D3 training", unit="epoch"):
+        for epoch in tqdm(range(cfg.max_epochs), desc=f"{type(self).__name__} training", unit="epoch"):
             head.train()
             running = 0.
             for a, s, y in loader:
@@ -86,7 +86,7 @@ class D3Detector:
             dev_loss = running / len(validation)
             train_losses.append(train_loss)
             dev_losses.append(dev_loss)
-            tqdm.write(f"D3 epoch {epoch+1}: train={train_loss:.4f} dev={dev_loss:.4f}")
+            tqdm.write(f"{type(self).__name__} epoch {epoch+1}: train={train_loss:.4f} dev={dev_loss:.4f}")
             if dev_loss < best:
                 best, best_epoch, stale = dev_loss, epoch+1, 0
                 best_state = copy.deepcopy(head.state_dict())
@@ -107,7 +107,7 @@ class D3Detector:
         self.head.to(self.device).eval()
         scores = []
         with torch.inference_mode():
-            for a, s, _ in tqdm(loader, desc=f"D3 scoring {split}", unit="batch"):
+            for a, s, _ in tqdm(loader, desc=f"{type(self).__name__} scoring {split}", unit="batch"):
                 scores.extend(self.head(a.to(self.device), s.to(self.device)).cpu().tolist())
         result = pd.DataFrame({"clip_id": df.utt_id.astype(str).to_numpy(),
                                "label": df.label.to_numpy(), "score": scores})
