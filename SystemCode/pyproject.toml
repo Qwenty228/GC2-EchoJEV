@@ -22,6 +22,8 @@ dependencies = [
     "fastapi>=0.142.2",
     "uvicorn>=0.54.0",
     "python-multipart>=0.0.32",
+    "typesafe-sdk>=0.7.5",
+    "python-dotenv>=1.2.4",
 ]
 
 [project.scripts]
@@ -34,6 +36,7 @@ a4 = "audio_df.pipelines.a4:main"
 d1 = "audio_df.pipelines.d1:main"
 d2 = "audio_df.pipelines.d2:main"
 d3 = "audio_df.pipelines.d3:main"
+p1 = "audio_df.pipelines.p1:main"
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]

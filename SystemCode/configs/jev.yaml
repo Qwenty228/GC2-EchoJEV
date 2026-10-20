@@ -1,0 +1,23 @@
+# Standalone demonstration defaults, NOT an audio benchmark policy.
+# Override per scenario with JEVState(context=..., prompt=..., questions=...).
+prompt: >-
+  Judge only the supplied evidence and constraints. Do not infer missing facts.
+  These questions are independent; do not treat a rubric score as confidence.
+questions:
+  decision:
+    type: choice
+    instructions: Which action is most defensible under the stated constraints?
+    criteria:
+      proceed: Evidence supports acting now and no critical constraint is violated.
+      delay: More evidence or an unresolved dependency is needed before acting.
+      reject: A critical constraint prevents the proposed action.
+  evidence_quality:
+    type: score
+    instructions: How complete is the evidence for making this decision?
+    criteria:
+      - Critical facts are missing or contradictory.
+      - Some relevant evidence exists, but important uncertainties remain.
+      - Relevant evidence is complete, consistent and independently checked.
+  critical_blocker:
+    type: noul
+    instructions: Does the provided state explicitly identify a critical blocker to proceeding?
