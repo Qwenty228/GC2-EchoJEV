@@ -8,7 +8,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 MANIFESTS = ROOT / "data" / "manifests"
 AUDIO_EXT = {".flac", ".wav", ".mp3", ".opus", ".ogg", ".m4a"}

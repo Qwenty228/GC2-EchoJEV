@@ -36,13 +36,16 @@ def test_runtime_evaluate_has_no_architecture_special_cases(tmp_path, monkeypatc
                 "score": [2.0, -2.0],
             })
 
+    run = Run(name="a2", root=str(root), testsets="dev,eval", command="evaluate", dataset="2019LA")
     monkeypatch.setattr(
-        "audio_df.runtime.evaluate_scores",
-        lambda dev, test, path: {"eer": 0.0},
-    )
-
-    run = Run(name="a2", root=str(root), testsets="dev,eval", command="evaluate")
+    "audio_df.runtime.trimmed_manifest",
+    lambda df, cache_root, split: df)
     result = run.evaluate(FakeDetector())
 
-    assert result == {"eval": {"eer": 0.0}}
+    assert "eval" in result
+    assert result["eval"]["eer"] == 0.0
+    assert result["eval"]["min_dcf"] == 0.0
+    assert result["eval"]["roc_auc"] == 1.0
+    assert result["eval"]["f1"] == 1.0
+    assert (run.output / "metrics.json").exists()
     assert (run.output / "metrics.json").exists()

@@ -30,7 +30,6 @@ data/
 │   └── SHA256SUMS                  # reference checksums
 ├── metadata/                      # leakage-audit metadata
 ├── cache/                         # feature and generated-audio caches
-└── jev_cache/                     # decision-service cache
 ```
 
 Keep `raw/`, `cache/` and generated manifest CSVs out of Git. Commit the intended manifest checksums only after verifying the dataset definitions; different local hashes should be investigated, not blindly overwritten.
@@ -85,11 +84,11 @@ MUSAN is **not** a real/spoof classification dataset. It supplies noise for repr
 Requires ASVspoof 2019 LA; the noise condition additionally requires MUSAN. Uses the same fixed, seeded clean evaluation subset for all conditions. See `configs/e4_degradations.yaml` for exact settings.
 
 ```bash
-uv run python scripts/make_degraded.py --clean-only
-uv run python scripts/make_degraded.py --conditions eval_noise_10db
-uv run python scripts/make_degraded.py --conditions eval_mp3_32k,eval_opus_16k,eval_resample_8k
+uv run data-degrade --clean-only
+uv run data-degrade --conditions eval_noise_10db
+uv run data-degrade --conditions eval_mp3_32k,eval_opus_16k,eval_resample_8k
 # Or generate all conditions:
-uv run python scripts/make_degraded.py --conditions all --workers 4
+uv run data-degrade --conditions all --workers 4
 ```
 
 Outputs include `data/manifests/eval_clean10k.csv`, `eval_noise_10db.csv`, `eval_mp3_32k.csv`, `eval_opus_16k.csv` and `eval_resample_8k.csv`, with generated audio under `data/cache/degraded/`. The conditions must use matched source utterances when comparing robustness.
@@ -108,6 +107,7 @@ SpoofCeleb is a **conditional Stage 2** dataset: use its designated training/dev
 
 ```bash
 uv run data-prepare --help
+uv run data-degrade --help
 uv run data-check --help
 uv run data-check --paths
 uv run data-check --verify --paths
@@ -123,4 +123,4 @@ uv run a1 evaluate --i 2019LA --testsets dev,eval,itw
 
 This command requires an existing completed A1 artifact. Include `dev` for the current threshold-selection workflow; never select thresholds using external evaluation labels.
 
-**Evaluation protocol:** train on the official 2019 LA train split, select checkpoints/thresholds on dev, and evaluate on held-out test sets. The agreed silence-trimmed test protocol must be enabled in the evaluation implementation before reporting any run as “trimmed”; generating manifests alone does not apply trimming. Keep preprocessing and metrics consistent across detectors.
+**Evaluation protocol:** train on the official 2019 LA train split, select checkpoints/thresholds on dev, and evaluate on held-out test sets. The runtime trims ASVspoof 2019 LA dev/eval and controlled `eval_*` sets during evaluation; training audio remains raw. External sets such as In-the-Wild remain raw. Generated manifests alone do not apply trimming. Keep preprocessing and metrics consistent across detectors.
