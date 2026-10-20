@@ -2,7 +2,9 @@
 from dataclasses import asdict
 import hashlib
 import json
+from tqdm.auto import tqdm
 from pathlib import Path
+from dataclasses import dataclass
 
 from audio_df2.helpers.audio import load_audio
 from audio_df2.helpers.cache import cache_frames
@@ -11,6 +13,13 @@ from audio_df2.helpers.training import fit_gmm
 from audio_df2.modules.gmm import DiagGMM, GMMConfig, score_llr
 from audio_df2.modules.lfcc import LFCC, LFCCConfig
 
+@dataclass
+class AudioFeatureExtractor:
+    features: LFCC
+
+    def __call__(self, path):
+        audio = load_audio(path, self.features.sample_rate)
+        return self.features(audio)
 
 class GMMDetector:
     def __init__(
@@ -29,15 +38,18 @@ class GMMDetector:
         fingerprint = hashlib.sha256(
             (train.to_csv(index=False) + json.dumps(self.features.config, sort_keys=True)).encode()
         ).hexdigest()[:16]
+        
         for label in ("bonafide", "spoof"):
             paths = train.loc[train.label == label, "path"]
+            tqdm.write(f"[{label}] Preparing {len(paths):,} audio clips...")
             frames = cache_frames(
                 paths,
-                lambda path: self.features(load_audio(path, self.features.sample_rate)),
+                AudioFeatureExtractor(self.features),
                 cache_dir,
                 f"{label}-{fingerprint}",
                 3 * self.features.settings.n_filters,
             )
+            tqdm.write(f"[{label}] Features ready: {frames.shape[0]:,} frames")
             fitted = fit_gmm(
                 frames,
                 components=cfg.components,

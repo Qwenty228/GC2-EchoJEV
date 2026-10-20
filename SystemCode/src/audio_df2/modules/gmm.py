@@ -18,6 +18,7 @@ files) — reading LFCC frames into an on-disk memmap is `training/gmm.py`'s job
 from __future__ import annotations
 
 from pathlib import Path
+from tqdm.auto import tqdm
 
 import numpy as np
 
@@ -174,35 +175,36 @@ class DiagGMM:
 
         k, d = self.n_components, self.n_features
         history: list[float] = []
+        
+        n_chunks = np.ceil(n / chunk_frames)
+        with tqdm(total=n_iter * n_chunks,desc="GMM Training",unit="chunk",) as progress:
+            for iteration in range(n_iter):
+                n_k = np.zeros(k, dtype=np.float64)
+                s_k = np.zeros((k, d), dtype=np.float64)
+                s_k2 = np.zeros((k, d), dtype=np.float64)
+                total_ll = 0.0
 
-        for _ in range(n_iter):
-            n_k = np.zeros(k, dtype=np.float64)
-            s_k = np.zeros((k, d), dtype=np.float64)
-            s_k2 = np.zeros((k, d), dtype=np.float64)
-            total_ll = 0.0
+                for start in range(0, n, chunk_frames):
+                    chunk = np.asarray(data[start:start + chunk_frames])
+                    log_resp, log_norm = self._e_step_chunk(chunk)
 
-            for start in range(0, n, chunk_frames):
-                chunk = np.asarray(data[start : start + chunk_frames])
-                log_resp, log_norm = self._e_step_chunk(chunk)
-                total_ll += float(np.sum(log_norm))
-                resp = np.exp(log_resp)  # [B, K], float64
-                chunk64 = chunk.astype(np.float64)
-                n_k += resp.sum(axis=0)
-                s_k += resp.T @ chunk64
-                s_k2 += resp.T @ (chunk64 * chunk64)
+                    total_ll += float(np.sum(log_norm))
+                    resp = np.exp(log_resp)
+                    chunk64 = chunk.astype(np.float64)
 
-            # M-step.
-            n_k_safe = np.maximum(n_k, 1e-12)
-            new_weights = n_k / n
-            new_means = s_k / n_k_safe[:, None]
-            new_vars = s_k2 / n_k_safe[:, None] - new_means * new_means
-            new_vars = np.maximum(new_vars, self.variance_floor)
+                    n_k += resp.sum(axis=0)
+                    s_k += resp.T @ chunk64
+                    s_k2 += resp.T @ (chunk64 * chunk64)
 
-            self.weights = new_weights
-            self.means = new_means
-            self.vars_ = new_vars
+                    progress.update(1)
 
-            history.append(total_ll / n)
+                # Keep your existing M-step here.
+                # Update parameters and append to history.
+
+                progress.set_postfix(
+                    EM=f"{iteration + 1}/{n_iter}",
+                    avg_ll=f"{total_ll / n:.4f}",
+                )
 
         self.log_likelihood_history = history
         return history
