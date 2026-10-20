@@ -390,9 +390,12 @@ class Run:
                         "ambiguity": {"type": "noul", "instructions": "Is the supplied evidence ambiguous?"},
                     },
                 )
-                # The hash excludes ground-truth, identifiers, paths and split names.
+                # Keep clip identifiers and ground truth out of API evidence. Cache
+                # identity additionally includes the trained detector provenance.
                 key = hashlib.sha256(json.dumps({"context": dict(case.context), "prompt": case.prompt,
-                    "questions": case.questions, "model": selected_model}, sort_keys=True).encode()).hexdigest()
+                    "questions": case.questions, "model": selected_model,
+                    "base_architecture": base, "base_artifact": str(artifact.resolve())},
+                    sort_keys=True).encode()).hexdigest()
                 target = cache / f"{key}.json"
                 cached = target.is_file()
                 if cached:

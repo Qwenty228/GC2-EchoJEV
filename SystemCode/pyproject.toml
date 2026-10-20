@@ -37,7 +37,8 @@ a4 = "audio_df.pipelines.a4:main"
 d1 = "audio_df.pipelines.d1:main"
 d2 = "audio_df.pipelines.d2:main"
 d3 = "audio_df.pipelines.d3:main"
-p1 = "audio_df.pipelines.p1:main"
+fp1 = "audio_df.pipelines.fp1:main"
+p1 = "audio_df.pipelines.p1:main" # not an audio detection pipeline;
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]
