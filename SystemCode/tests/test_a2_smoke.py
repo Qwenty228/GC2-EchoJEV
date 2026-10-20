@@ -2,9 +2,9 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 import soundfile as sf
-from audio_df2.modules.wavlm import WavLMConfig
-from audio_df2.modules.neural import NeuralConfig, NeuralHead
-from audio_df2.modules.ssl_detector import SSLDetector
+from audio_df.modules.wavlm import WavLMConfig
+from audio_df.modules.neural import NeuralConfig, NeuralHead
+from audio_df.modules.ssl_detector import SSLDetector
 
 class FakeEncoder:
     def __init__(self):
@@ -38,9 +38,9 @@ def test_end_to_end(tmp_path):
     assert len(__import__('json').loads((out/'layer_weights.json').read_text()))==3
 
 def test_checkpoint_load_without_download(tmp_path):
-    from audio_df2.modules.wavlm import WavLM
-    from audio_df2.modules.ssl_detector import SSLDetector
-    from audio_df2.modules.neural import NeuralConfig, NeuralHead
+    from audio_df.modules.wavlm import WavLM
+    from audio_df.modules.ssl_detector import SSLDetector
+    from audio_df.modules.neural import NeuralConfig, NeuralHead
     encoder = WavLM(WavLMConfig('mock', None, 16000, 0.1, 3, 4, 2, 0, 2), device='cpu')
     model = SSLDetector(encoder, NeuralHead(3, 4, NeuralConfig(4, 4, 0.0, 0.001, 2, 2, 2)))
     model.save(tmp_path)
