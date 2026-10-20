@@ -165,11 +165,18 @@ class Run:
         return load_manifest(self.root / "data" / "manifests" / f"{split}.csv", self.root)
 
     def train(self, model: Any) -> Any:
-        # Feature caches are reusable and are not stored with evaluation results.
+        # Training and early-stopping development data are always raw.
         cache_dir = feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace)
+        train_df = self.manifest("train")
         params = inspect.signature(model.fit).parameters
         extra = {"dev": self.manifest("dev")} if "dev" in params else {}
-        return model.fit(self.manifest("train"), cache_dir, seed=self.seed, **extra)
+        print(f"\n[{self.name.upper()}] TRAIN | dataset={self.dataset} | seed={self.seed}", flush=True)
+        print(f"  train: {len(train_df):,} clips | raw", flush=True)
+        if "dev" in extra:
+            print(f"  dev:   {len(extra['dev']):,} clips | raw (training validation)", flush=True)
+        print(f"  feature cache: {cache_dir}", flush=True)
+        print(f"  artifact destination: {self.artifact_root}", flush=True)
+        return model.fit(train_df, cache_dir, seed=self.seed, **extra)
 
     def save(self, model: Any) -> Path:
         directory = _new_directory(self.artifact_root, _timestamp())
@@ -200,15 +207,29 @@ class Run:
             raise ValueError("Include dev in --testsets to select the decision threshold")
         artifact = self.model_from
         output = self.output
-        scored = {}
+        cache_dir = feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace)
+        prepared = []
         for name in self.testsets:
             df = self.manifest(name)
-            if self.dataset == "2019LA" and (name == "dev" or name.startswith("eval")):
+            trimmed = self.dataset.lower() in {"2019la", "2019", "asvspoof2019"} and (
+                name == "dev" or name == "eval" or name.startswith("eval_")
+            )
+            prepared.append((name, df, trimmed))
+        print(f"\n[{self.name.upper()}] EVALUATE | dataset={self.dataset}", flush=True)
+        print(f"  model artifact: {artifact}", flush=True)
+        for name, df, trimmed in prepared:
+            role = "threshold selection" if name == "dev" else "test"
+            print(f"  {name}: {len(df):,} clips | {'trimmed' if trimmed else 'raw'} ({role})", flush=True)
+        print(f"  feature cache: {cache_dir}", flush=True)
+        print(f"  output: {output}", flush=True)
+        scored = {}
+        for name, df, trimmed in prepared:
+            print(f"[{self.name.upper()}] Scoring {name} ({'trimmed' if trimmed else 'raw'})", flush=True)
+            if trimmed:
                 df = trimmed_manifest(df, self.root / "data" / "cache", name)
             destination = output / "scores" / f"{name}.csv"
             scored[name] = model.score_manifest(
-                df, destination, split=name,
-                cache_dir=feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace),
+                df, destination, split=name, cache_dir=cache_dir,
             )
         results = {}
         for name, table in scored.items():
@@ -223,8 +244,11 @@ class Run:
             "model_artifact": str(artifact),
             "testsets": self.testsets,
             "seed": self.seed,
-            "evaluation_preprocessing": {"dev": "raw", "testsets": "trimmed",
-                                         "trim_recipe": TRIM_RECIPE},
+            "evaluation_preprocessing": {
+                "testsets": {name: ("trimmed" if trimmed else "raw")
+                             for name, _, trimmed in prepared},
+                "trim_recipe": TRIM_RECIPE if any(trimmed for _, _, trimmed in prepared) else None,
+            },
         }
         (output / "config.yaml").write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
         print(f"Evaluation saved: {output}")
