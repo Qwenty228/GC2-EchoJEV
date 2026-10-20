@@ -18,12 +18,14 @@ from __future__ import annotations
 import hashlib
 import os
 import warnings
+from concurrent.futures import ProcessPoolExecutor
 from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import soundfile as sf
+from tqdm.auto import tqdm
 
 __all__ = [
     "DatasetNotFoundError",
@@ -162,7 +164,29 @@ def _resolve_audio_path(split_audio_dir: Path, utt_id: str, *, split: str) -> Pa
     )
 
 
-def build_manifest(cfg: dict) -> pd.DataFrame:
+def _audio_metadata(path: Path) -> tuple[int, float, str]:
+    """Picklable audio-header reader; does not decode waveform samples."""
+    info = sf.info(str(path))
+    return info.samplerate, info.frames / info.samplerate, info.format
+
+
+def _read_metadata(paths: list[Path], *, workers: int, desc: str):
+    """Ordered metadata iterator, with progress and optional process parallelism."""
+    if workers < 1:
+        raise ValueError("workers must be >= 1")
+    if workers == 1:
+        return tqdm(map(_audio_metadata, paths), total=len(paths), desc=desc, unit="clip")
+    # A generator keeps the pool open until the caller finishes consuming results.
+    def generate():
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            yield from tqdm(
+                pool.map(_audio_metadata, paths, chunksize=64),
+                total=len(paths), desc=desc, unit="clip",
+            )
+    return generate()
+
+
+def build_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
     """Build the full manifest: every column in `cfg['manifest']['columns']`, one row per
     utterance across every split in `cfg['dataset']['splits']`.
 
@@ -187,10 +211,17 @@ def build_manifest(cfg: dict) -> pd.DataFrame:
         proto_df = parse_asvspoof_protocol(protocol_path, split=split)
         split_audio_dir = root / f"ASVspoof2019_LA_{split}" / "flac"
 
+        rows = list(proto_df.itertuples(index=False))
+        audio_paths = [
+            _resolve_audio_path(split_audio_dir, str(row.utt_id), split=split)
+            for row in rows
+        ]
         records = []
-        for row in proto_df.itertuples(index=False):
-            audio_path = _resolve_audio_path(split_audio_dir, str(row.utt_id), split=split)
-            info = sf.info(str(audio_path))
+        for row, audio_path, (sample_rate, duration_s, codec) in zip(
+            rows, audio_paths,
+            _read_metadata(audio_paths, workers=workers, desc=f"ASVspoof {split}"),
+            strict=True,
+        ):
             records.append(
                 {
                     "utt_id": row.utt_id,
@@ -199,9 +230,9 @@ def build_manifest(cfg: dict) -> pd.DataFrame:
                     "speaker_id": row.speaker_id,
                     "attack_id": row.attack_id,
                     "source_corpus": _ASVSPOOF_LA_SOURCE_CORPUS,
-                    "sample_rate": info.samplerate,
-                    "duration_s": info.frames / info.samplerate,
-                    "codec": info.format,
+                    "sample_rate": sample_rate,
+                    "duration_s": duration_s,
+                    "codec": codec,
                     "split": split,
                     "language": _ASVSPOOF_LA_LANGUAGE,
                 }
@@ -345,7 +376,7 @@ def _resolve_itw_meta(root: Path, meta_file: str) -> tuple[Path, Path]:
     )
 
 
-def build_itw_manifest(cfg: dict) -> pd.DataFrame:
+def build_itw_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
     """Build the In-the-Wild manifest with EXACTLY the ASVspoof manifest's column set.
 
     `cfg` is the parsed contents of `configs/data.yaml` (must carry both `in_the_wild` and
@@ -373,8 +404,24 @@ def build_itw_manifest(cfg: dict) -> pd.DataFrame:
             f"{sorted(missing_cols)}; expected at least {sorted(required_cols)}."
         )
 
+    # Resolve and validate paths first, preserving meta.csv row order.
+    paths = []
+    for file_name in meta["file"].astype(str):
+        audio_path = audio_dir / file_name
+        if not audio_path.exists():
+            fallback = audio_dir / f"{file_name}.wav"
+            if fallback.exists():
+                audio_path = fallback
+            else:
+                raise _itw_not_found(audio_path, f"In-the-Wild audio file for meta row '{file_name}'")
+        paths.append(audio_path)
+
     records = []
-    for row in meta.itertuples(index=False):
+    for row, audio_path, (sample_rate, duration_s, codec) in zip(
+        meta.itertuples(index=False), paths,
+        _read_metadata(paths, workers=workers, desc="In-the-Wild"),
+        strict=True,
+    ):
         raw_label = str(row.label).strip().lower()
         label = _ITW_LABEL_MAP.get(raw_label)
         if label is None:
@@ -385,17 +432,6 @@ def build_itw_manifest(cfg: dict) -> pd.DataFrame:
         attack_id = "-" if label == "bonafide" else "unknown"
 
         file_name = str(row.file)
-        audio_path = audio_dir / file_name
-        if not audio_path.exists():
-            fallback = audio_dir / f"{file_name}.wav"
-            if fallback.exists():
-                audio_path = fallback
-            else:
-                raise _itw_not_found(
-                    audio_path, f"In-the-Wild audio file for meta row '{file_name}'"
-                )
-
-        info = sf.info(str(audio_path))
         records.append(
             {
                 "utt_id": f"ITW_{Path(file_name).stem}",
@@ -404,9 +440,9 @@ def build_itw_manifest(cfg: dict) -> pd.DataFrame:
                 "speaker_id": str(row.speaker),
                 "attack_id": attack_id,
                 "source_corpus": _ITW_SOURCE_CORPUS,
-                "sample_rate": info.samplerate,
-                "duration_s": info.frames / info.samplerate,
-                "codec": info.format,
+                "sample_rate": sample_rate,
+                "duration_s": duration_s,
+                "codec": codec,
                 "split": _ITW_SPLIT,
                 "language": _ITW_LANGUAGE,
             }

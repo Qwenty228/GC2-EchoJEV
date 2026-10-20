@@ -43,13 +43,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CHECKSUM_FILENAME = "SHA256SUMS"
 
 
-def _write_manifests(cfg: dict, dataset: str) -> Path:
+def _write_manifests(cfg: dict, dataset: str, workers: int = 4) -> Path:
     """Build and write manifest CSV(s) for `dataset`; returns the manifest output directory."""
     out_dir = Path(cfg["manifest"]["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if dataset == "asvspoof2019_la":
-        manifest = build_manifest(cfg)
+        manifest = build_manifest(cfg, workers=workers)
         for split, split_df in manifest.groupby("split"):
             out_path = out_dir / f"{split}.csv"
             split_df.to_csv(out_path, index=False)
@@ -58,7 +58,7 @@ def _write_manifests(cfg: dict, dataset: str) -> Path:
         print("Manifest summary (counts by split / class / attack, with speaker counts):")
         print(summarise_manifest(manifest).to_string(index=False))
     elif dataset == "in_the_wild":
-        manifest = build_itw_manifest(cfg)
+        manifest = build_itw_manifest(cfg, workers=workers)
         out_path = out_dir / "itw.csv"
         manifest.to_csv(out_path, index=False)
         print(f"wrote {len(manifest)} rows to {out_path} (split_hash={split_hash(manifest)})")
@@ -114,7 +114,13 @@ def main() -> None:
             "(re)building any manifest; exits non-zero on any mismatch."
         ),
     )
+    parser.add_argument(
+        "--workers", type=int, default=4,
+        help="Parallel audio-header readers (default: 4; use 1 for sequential)",
+    )
     args = parser.parse_args()
+    if args.workers < 1:
+        parser.error("--workers must be >= 1")
 
     cfg = yaml.safe_load(args.config.read_text())
     out_dir = Path(cfg["manifest"]["out_dir"])
@@ -126,7 +132,7 @@ def main() -> None:
             sys.exit(1)
         sys.exit(_verify(sums_path))
 
-    out_dir = _write_manifests(cfg, args.dataset)
+    out_dir = _write_manifests(cfg, args.dataset, workers=args.workers)
     _write_checksums_for_dir(out_dir)
 
 
