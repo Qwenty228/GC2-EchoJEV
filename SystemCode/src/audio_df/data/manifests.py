@@ -37,6 +37,8 @@ __all__ = [
     "assert_no_speaker_overlap",
     "summarise_manifest",
     "build_itw_manifest",
+    "build_la2021_manifest",
+    "parse_la2021_cm_key",
     "stratified_subset",
     "manifest_checksums",
     "write_checksums",
@@ -456,6 +458,110 @@ def build_itw_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
             f"In-the-Wild manifest built {len(manifest)} rows from '{meta_path}', but "
             f"configs/data.yaml:in_the_wild.expected_clips={expected_clips}. Not fatal — "
             "the local release may be a different version — but worth checking.",
+            stacklevel=2,
+        )
+
+    columns = list(cfg["manifest"]["columns"])
+    return manifest[columns] if len(manifest) else pd.DataFrame(columns=columns)
+
+
+# ================================================================================================
+# ASVspoof 2021 LA eval — test-only. Labels come from the post-challenge CM key
+# (keys/LA/CM/trial_metadata.txt); the .trl.txt shipped with the audio lists utt_ids only.
+# ================================================================================================
+
+_LA2021_SOURCE_URL = "https://www.asvspoof.org/index2021.html"
+_LA2021_SOURCE_CORPUS = "ASVspoof2021_LA"
+_LA2021_LANGUAGE = "en"
+# 2019 and 2021 eval utt_ids share the LA_E_ + 7 digit pattern, so prefix to keep them distinct.
+_LA2021_UTT_PREFIX = "LA21_"
+_LA2021_KEY_FIELDS = ("speaker_id", "utt_id", "codec", "transmission", "attack_id",
+                      "label", "trim", "phase")
+
+
+def _la2021_not_found(path: Path, what: str) -> DatasetNotFoundError:
+    return DatasetNotFoundError(
+        f"{what} not found at '{path}'.\n"
+        f"Download ASVspoof 2021 LA eval audio and keys from {_LA2021_SOURCE_URL} and extract "
+        "them so this path exists (see configs/data.yaml: asvspoof2021.root / audio_dir / cm_key)."
+    )
+
+
+def parse_la2021_cm_key(path: str | Path) -> pd.DataFrame:
+    """Parse the 8-field ASVspoof 2021 LA CM key; raise on malformed lines or labels."""
+    path = Path(path)
+    if not path.exists():
+        raise _la2021_not_found(path, "ASVspoof 2021 LA CM key")
+    rows = []
+    with path.open() as f:
+        for line_no, raw_line in enumerate(f, start=1):
+            fields = raw_line.split()
+            if not fields:
+                continue
+            if len(fields) != len(_LA2021_KEY_FIELDS):
+                raise ValueError(
+                    f"{path}:{line_no}: expected {len(_LA2021_KEY_FIELDS)} whitespace-separated "
+                    f"fields in ASVspoof 2021 CM key line, got {len(fields)}: {raw_line.strip()!r}"
+                )
+            rows.append(dict(zip(_LA2021_KEY_FIELDS, fields)))
+    df = pd.DataFrame(rows, columns=list(_LA2021_KEY_FIELDS))
+    unknown = set(df["label"]) - {"bonafide", "spoof"}
+    if unknown:
+        raise ValueError(f"unrecognised labels {sorted(unknown)} in '{path}'")
+    return df
+
+
+def build_la2021_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
+    """Build the ASVspoof 2021 LA eval manifest with EXACTLY the ASVspoof manifest's columns.
+
+    `split` is `asvspoof2021_<phase>` (eval / progress / hidden), so the caller can write one
+    CSV per phase. `codec` holds the key's transmission codec (none, alaw, ulaw, gsm, g722,
+    opus, pstn) rather than the file format, which is always FLAC. Bona fide `attack_id` is
+    the key's own `"-"`, matching the 2019 convention.
+    """
+    la_cfg = cfg["asvspoof2021"]
+    root = Path(la_cfg["root"])
+    audio_dir = root / la_cfg.get("audio_dir", "ASVspoof2021_LA_eval/flac")
+    expected_clips = la_cfg.get("expected_clips")
+    if not audio_dir.exists():
+        raise _la2021_not_found(audio_dir, "ASVspoof 2021 LA audio directory")
+
+    key = parse_la2021_cm_key(root / la_cfg.get("cm_key", "keys/LA/CM/trial_metadata.txt"))
+    paths = []
+    for utt_id in key["utt_id"]:
+        audio_path = audio_dir / f"{utt_id}.flac"
+        if not audio_path.exists():
+            raise _la2021_not_found(audio_path, f"audio file for utterance '{utt_id}'")
+        paths.append(audio_path)
+
+    records = []
+    for row, audio_path, (sample_rate, duration_s, _fmt) in zip(
+        key.itertuples(index=False), paths,
+        _read_metadata(paths, workers=workers, desc="ASVspoof 2021 LA"),
+        strict=True,
+    ):
+        records.append(
+            {
+                "utt_id": f"{_LA2021_UTT_PREFIX}{row.utt_id}",
+                "path": audio_path.as_posix(),
+                "label": row.label,
+                "speaker_id": row.speaker_id,
+                "attack_id": row.attack_id,
+                "source_corpus": _LA2021_SOURCE_CORPUS,
+                "sample_rate": sample_rate,
+                "duration_s": duration_s,
+                "codec": row.codec,
+                "split": f"asvspoof2021_{row.phase}",
+                "language": _LA2021_LANGUAGE,
+            }
+        )
+
+    manifest = pd.DataFrame.from_records(records)
+
+    if expected_clips is not None and len(manifest) != expected_clips:
+        warnings.warn(
+            f"ASVspoof 2021 LA manifest built {len(manifest)} rows, but "
+            f"configs/data.yaml:asvspoof2021.expected_clips={expected_clips}.",
             stacklevel=2,
         )
 

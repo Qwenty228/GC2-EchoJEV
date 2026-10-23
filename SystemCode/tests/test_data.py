@@ -22,10 +22,12 @@ from audio_df.data.manifests import (
     DatasetNotFoundError,
     assert_no_speaker_overlap,
     build_itw_manifest,
+    build_la2021_manifest,
     build_manifest,
     holdout_attack_families,
     manifest_checksums,
     parse_asvspoof_protocol,
+    parse_la2021_cm_key,
     split_hash,
     stratified_subset,
     summarise_manifest,
@@ -355,6 +357,72 @@ def test_itw_manifest_column_parity_with_la_manifest(tmp_path):
     itw_df = build_itw_manifest(_itw_cfg(itw_root))
 
     assert list(la_df.columns) == list(itw_df.columns)
+
+
+# ----------------------------------------------------------------------------- ASVspoof 2021 LA
+
+# Real 8-field CM key format: SPEAKER UTT_ID CODEC TRANSMISSION ATTACK LABEL TRIM PHASE
+_LA2021_KEY_LINES = [
+    "LA_0009 LA_E_9332881 alaw ita_tx A07 spoof notrim eval",
+    "LA_0009 LA_E_5013670 none - - bonafide notrim progress",
+    "LA_0010 LA_E_1000048 gsm loc_tx A19 spoof only_speech hidden",
+]
+
+
+def _write_la2021_fixture(root: Path, lines: list[str] = _LA2021_KEY_LINES) -> None:
+    _write_protocol(root / "keys" / "LA" / "CM" / "trial_metadata.txt", lines)
+    for line in lines:
+        _write_fake_audio(root / "ASVspoof2021_LA_eval" / "flac" / f"{line.split()[1]}.flac")
+
+
+def _la2021_cfg(root: Path, *, expected_clips: int | None = None) -> dict:
+    return {
+        "asvspoof2021": {
+            "root": str(root),
+            "audio_dir": "ASVspoof2021_LA_eval/flac",
+            "cm_key": "keys/LA/CM/trial_metadata.txt",
+            "expected_clips": expected_clips,
+        },
+        "manifest": {"columns": _real_manifest_columns()},
+    }
+
+
+def test_build_la2021_manifest_columns_and_values(tmp_path):
+    root = tmp_path / "ASVspoof2021"
+    _write_la2021_fixture(root)
+    df = build_la2021_manifest(_la2021_cfg(root))
+
+    assert list(df.columns) == _real_manifest_columns()
+    assert len(df) == len(_LA2021_KEY_LINES)
+    assert all(u.startswith("LA21_LA_E_") for u in df["utt_id"])
+    assert set(df["split"]) == {"asvspoof2021_eval", "asvspoof2021_progress", "asvspoof2021_hidden"}
+    assert all("\\" not in p for p in df["path"]), "paths must use forward slashes"
+    spoof = df[df["utt_id"] == "LA21_LA_E_9332881"].iloc[0]
+    assert (spoof["label"], spoof["attack_id"], spoof["codec"]) == ("spoof", "A07", "alaw")
+    bonafide = df[df["utt_id"] == "LA21_LA_E_5013670"].iloc[0]
+    assert (bonafide["label"], bonafide["attack_id"]) == ("bonafide", "-")
+
+
+def test_build_la2021_manifest_missing_audio_is_actionable(tmp_path):
+    root = tmp_path / "ASVspoof2021"
+    _write_la2021_fixture(root)
+    (root / "ASVspoof2021_LA_eval" / "flac" / "LA_E_1000048.flac").unlink()
+    with pytest.raises(DatasetNotFoundError, match="LA_E_1000048"):
+        build_la2021_manifest(_la2021_cfg(root))
+
+
+def test_parse_la2021_cm_key_rejects_malformed_line(tmp_path):
+    key = tmp_path / "trial_metadata.txt"
+    _write_protocol(key, ["LA_0009 LA_E_9332881 alaw ita_tx A07 spoof"])
+    with pytest.raises(ValueError, match="expected 8"):
+        parse_la2021_cm_key(key)
+
+
+def test_build_la2021_manifest_warns_on_clip_count_mismatch(tmp_path):
+    root = tmp_path / "ASVspoof2021"
+    _write_la2021_fixture(root)
+    with pytest.warns(UserWarning, match="expected_clips"):
+        build_la2021_manifest(_la2021_cfg(root, expected_clips=181566))
 
 
 # ----------------------------------------------------------------------------- stratified_subset
