@@ -21,7 +21,11 @@ data/metadata/*.csv
 
 # --- experiment artifacts ---
 # saved model bundles served by the app
-artifacts/
+artifacts/**
+!artifacts/*/
+# exception: models the tracked notebooks load
+!artifacts/a1/20261020-134519-735144/
+!artifacts/a1/20261020-134519-735144/**
 checkpoints/
 wandb/
 reports/figures/*
@@ -47,6 +51,8 @@ notebooks/_executed/
 runs/*
 !runs/README.md
 !runs/REGISTRY.md
+# exception: runs the tracked notebooks read
+!runs/E-20261020-153158-819171-a1/
 
 # local job logs
 logs/
