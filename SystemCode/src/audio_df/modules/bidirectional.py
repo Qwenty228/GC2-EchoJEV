@@ -20,6 +20,7 @@ class BidirectionalConfig:
     dropout: float = 0.1
     blocks: int = 2
     crop_seconds: float = 4.0
+    layer: int = 12  # WavLM hidden state: 0=CNN output, 12=last layer
 
 
 def time_encoding(times_s: torch.Tensor, width: int, max_period_s: float = 10.0) -> torch.Tensor:
