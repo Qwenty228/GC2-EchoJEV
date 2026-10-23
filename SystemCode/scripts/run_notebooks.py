@@ -3,7 +3,7 @@
 
 Usage:
     uv run python scripts/run_notebooks.py                      # every notebooks/*.ipynb
-    uv run python scripts/run_notebooks.py notebooks/09_a1_playground.ipynb ...
+    uv run python scripts/run_notebooks.py notebooks/03_a1_explained.ipynb ...
 
 The source notebooks are never modified, so they stay output-free in git; the executed
 copies (gitignored) are what you open to read the outputs. Each notebook runs in a fresh
