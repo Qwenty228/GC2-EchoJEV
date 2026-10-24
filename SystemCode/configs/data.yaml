@@ -53,7 +53,9 @@ in_the_wild:
 # silence-trimmed by the organisers (TRIM=only_speech). One manifest per phase.
 asvspoof2021:
   root: data/raw/ASVspoof2021            # gitignored; audio_dir and cm_key are relative to it
-  audio_dir: ASVspoof2021_LA_eval/flac
+  # ffmpeg re-encode of ASVspoof2021_LA_eval/flac (scripts/reencode_flac.py): libsndfile cannot
+  # decode ~30% of the original files; samples are bit-identical.
+  audio_dir: ASVspoof2021_LA_eval/flac_ffmpeg
   cm_key: keys/LA/CM/trial_metadata.txt
   expected_clips: 181566                 # confirmed locally 2026-10-23: 18,452 bona fide + 163,114 spoof
   source_url: https://www.asvspoof.org/index2021.html
