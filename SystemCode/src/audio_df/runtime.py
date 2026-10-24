@@ -234,6 +234,11 @@ class Run:
         print(f"Model saved: {directory}")
         return directory
     
+    def _project_path(self, path: Path) -> str:
+        """Path relative to the project root, POSIX-style, so run records work on any machine."""
+        path = Path(path).resolve()
+        return path.relative_to(self.root).as_posix() if path.is_relative_to(self.root) else str(path)
+
     def validate_testsets(self) -> None:
         """Check registered manifests and reject calibration/test data leakage.
 
@@ -312,7 +317,7 @@ class Run:
         train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,
-            "model_artifact": str(artifact), "testsets": self.testsets,
+            "model_artifact": self._project_path(artifact), "testsets": self.testsets,
             "seed": self.seed,
             # Artifacts saved before preprocessing.json existed were trained on raw audio.
             "train_preprocessing": (json.loads(train_prep.read_text(encoding="utf-8"))["train"]
@@ -462,7 +467,7 @@ class Run:
                 "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."}
         (output / "metrics.json").write_text(json.dumps(reports, indent=2))
         (output / "config.yaml").write_text(yaml.safe_dump({"architecture": self.name, "base": base,
-            "model_artifact": str(artifact), "jev_model_requested": selected_model,
+            "model_artifact": self._project_path(artifact), "jev_model_requested": selected_model,
             "testsets": self.testsets, "limit": limit, "seed": self.seed,
             "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test")
                             for name in [self.threshold_from, *self.testsets]},

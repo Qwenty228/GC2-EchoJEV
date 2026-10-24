@@ -1,6 +1,6 @@
 architecture: a4
 dataset: 2019LA
-model_artifact: D:\MyCode\projects\GC2-EchoJEV\SystemCode\artifacts\a4\20261020-193844-844933
+model_artifact: artifacts/a4/20261020-193844-844933
 testsets:
 - eval
 - eval_clean10k

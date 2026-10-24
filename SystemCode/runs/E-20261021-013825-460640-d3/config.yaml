@@ -1,6 +1,6 @@
 architecture: d3
 dataset: 2019LA
-model_artifact: D:\MyCode\projects\GC2-EchoJEV\SystemCode\artifacts\d3\20261021-013650-100255
+model_artifact: artifacts/d3/20261021-013650-100255
 testsets:
 - eval
 - eval_clean10k
