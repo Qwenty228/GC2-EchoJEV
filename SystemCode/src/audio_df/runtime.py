@@ -309,10 +309,14 @@ class Run:
             "eer_threshold": float(threshold), "n": len(calibration),
             "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
         }, indent=2), encoding="utf-8")
+        train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,
             "model_artifact": str(artifact), "testsets": self.testsets,
             "seed": self.seed,
+            # Artifacts saved before preprocessing.json existed were trained on raw audio.
+            "train_preprocessing": (json.loads(train_prep.read_text(encoding="utf-8"))["train"]
+                                    if train_prep.exists() else "raw"),
             "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test") for name in names},
             "reported_metrics": "held_out_test_only", "threshold_source": self.threshold_from,
             "evaluation_preprocessing": {

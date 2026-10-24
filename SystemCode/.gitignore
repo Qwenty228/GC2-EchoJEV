@@ -52,7 +52,20 @@ runs/*
 !runs/README.md
 !runs/REGISTRY.md
 # exception: runs the tracked notebooks read
+# trained on raw 2019 audio, tested on trimmed (silence-biased; kept for comparison)
+!runs/E-20261020-080344-411189-d2/
 !runs/E-20261020-153158-819171-a1/
+!runs/E-20261020-174446-690990-a2/
+!runs/E-20261020-194017-076363-a4/
+!runs/E-20261020-195806-440102-d1/
+!runs/E-20261020-200216-269207-d2/
+!runs/E-20261021-013825-460640-d3/
+# trained and tested on trimmed audio (after the silence fix)
+!runs/E-20261023-172139-766981-a1/
+!runs/E-20261023-194755-458184-a4/
+!runs/E-20261023-200932-976565-a2/
+!runs/E-20261023-201728-785995-d1/
+!runs/E-20261023-233207-138731-d2/
 
 # local job logs
 logs/
