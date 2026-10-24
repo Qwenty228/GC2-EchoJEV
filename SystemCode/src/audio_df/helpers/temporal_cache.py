@@ -21,31 +21,34 @@ def temporal_pool(frames: np.ndarray, tokens: int) -> np.ndarray:
     return F.adaptive_avg_pool1d(x, tokens)[0].T.numpy()
 
 
-def wavlm_tokens(encoder, waveforms: np.ndarray, tokens: int) -> np.ndarray:
-    """Use the frozen last transformer layer; do not alter WavLM.__call__."""
+def wavlm_tokens(encoder, waveforms: np.ndarray, tokens: int, layer: int = 12) -> np.ndarray:
+    """Use one frozen hidden state (12 = last layer); do not alter WavLM.__call__."""
     model, processor = encoder._load()
     inputs = processor(list(waveforms), sampling_rate=encoder.config.sample_rate,
                        padding=False, return_tensors="pt")
-    kwargs = {}
+    kwargs = {"output_hidden_states": True}
     if "attention_mask" in inputs:
         kwargs["attention_mask"] = inputs["attention_mask"].to(encoder.device)
     with torch.inference_mode():
-        hidden = model(inputs["input_values"].to(encoder.device), **kwargs).last_hidden_state
+        hidden = model(inputs["input_values"].to(encoder.device), **kwargs).hidden_states[layer]
         result = F.adaptive_avg_pool1d(hidden.transpose(1, 2), tokens).transpose(1, 2)
     return result.to(torch.float16).cpu().numpy()
 
 
-def _identity(df, encoder, tokens: int) -> str:
+def _identity(df, encoder, tokens: int, layer: int = 12) -> str:
+    # hidden_states[12] == last_hidden_state exactly, so layer 12 keeps its old caches.
+    representation = ("last_hidden_state_temporal_avg_v1" if layer == encoder.config.n_layers - 1
+                      else f"hidden_state_{layer}_temporal_avg_v1")
     payload = {"manifest": df[["utt_id", "path"]].to_csv(index=False),
                "encoder": encoder.settings, "tokens": tokens,
-               "representation": "last_hidden_state_temporal_avg_v1"}
+               "representation": representation}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
-def temporal_cache(df, encoder, root: Path, split: str, tokens: int = 32) -> Path:
+def temporal_cache(df, encoder, root: Path, split: str, tokens: int = 32, layer: int = 12) -> Path:
     """Return completed chunk directory; each chunk is written atomically and resumably."""
     cfg = encoder.config
-    identity = _identity(df, encoder, tokens)
+    identity = _identity(df, encoder, tokens, layer)
     directory = Path(root) / split / identity[:16]
     directory.mkdir(parents=True, exist_ok=True)
     metadata = directory / "cache.json"
@@ -74,7 +77,7 @@ def temporal_cache(df, encoder, root: Path, split: str, tokens: int = 32) -> Pat
         loader = DataLoader(AudioClips(subset.path, cfg.sample_rate, cfg.crop_seconds),
                             batch_size=cfg.batch_size, num_workers=cfg.num_workers,
                             pin_memory=encoder.device.type == "cuda", shuffle=False)
-        parts = [wavlm_tokens(encoder, batch.numpy(), tokens) for batch in tqdm(
+        parts = [wavlm_tokens(encoder, batch.numpy(), tokens, layer) for batch in tqdm(
             loader, desc=f"Temporal chunk {i+1}/{total}", leave=False, unit="batch")]
         array = np.concatenate(parts)
         if array.shape != (count, tokens, cfg.hidden_dim):

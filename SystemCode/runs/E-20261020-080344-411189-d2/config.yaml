@@ -1,0 +1,19 @@
+architecture: d2
+dataset: 2019LA
+model_artifact: D:\MyCode\projects\GC2-EchoJEV\SystemCode\artifacts\d2\20261020-080344-358634
+testsets:
+- dev
+- eval
+seed: 1337
+train_preprocessing: raw
+evaluation_preprocessing:
+  # Corrected 2026-10-24: commit b5ab793 trimmed dev but recorded "dev: raw".
+  dev: trimmed
+  testsets: trimmed
+  trim_recipe:
+    method: librosa.effects.split
+    top_db: 30.0
+    frame_length: 2048
+    hop_length: 512
+    sample_rate: 16000
+    version: 1

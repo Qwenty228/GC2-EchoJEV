@@ -1,0 +1,22 @@
+{
+  "features": {
+    "sample_rate": 16000,
+    "window_ms": 20,
+    "hop_ms": 10,
+    "n_fft": 512,
+    "n_filters": 20,
+    "fmin": 0.0,
+    "fmax": null,
+    "preemph": 0.97,
+    "delta_window": 3,
+    "spacing": "linear"
+  },
+  "gmm": {
+    "components": 512,
+    "iterations": 10,
+    "chunk_frames": 50000,
+    "variance_floor": 0.001,
+    "init_sample_size": 200000,
+    "seed": 1337
+  }
+}

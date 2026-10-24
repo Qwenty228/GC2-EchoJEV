@@ -45,7 +45,8 @@ class D3Detector:
         return ("wavlm-base-plus", "temporal")
 
     def _dataset(self, df: pd.DataFrame, split: str, cache_dir: Path) -> TemporalPairs:
-        directory = temporal_cache(df, self.ssl, cache_dir, split, self.head.config.tokens)
+        directory = temporal_cache(df, self.ssl, cache_dir, split, self.head.config.tokens,
+                                   self.head.config.layer)
         return TemporalPairs(df, self.ssl, self.acoustic, directory, self.head.config.tokens)
 
     def fit(self, train: pd.DataFrame, cache_dir: Path, seed: int = 1337,
@@ -123,7 +124,8 @@ class D3Detector:
         x = center_crop_repeat(np.asarray(waveform, dtype=np.float32),
                                round(cfg.sample_rate * cfg.crop_seconds))
         a = temporal_pool(self.acoustic(x), self.head.config.tokens)[None]
-        s = wavlm_tokens(self.ssl, x[None], self.head.config.tokens).astype(np.float32)
+        s = wavlm_tokens(self.ssl, x[None], self.head.config.tokens,
+                         self.head.config.layer).astype(np.float32)
         self.head.to(self.device).eval()
         with torch.inference_mode():
             return float(self.head(torch.from_numpy(a).to(self.device),

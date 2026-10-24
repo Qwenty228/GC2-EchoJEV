@@ -64,6 +64,7 @@ class Run:
         self._model_from_arg = model_from
         self._artifact_dir: Path | None = None
         self._run_dir: Path | None = None
+        self._train_preprocessing: str | None = None
 
     @classmethod
     def cli(cls, dataset: str = "2019LA") -> Callable[..., Any]:
@@ -201,15 +202,21 @@ class Run:
         return load_manifest(self.root / "data" / "manifests" / f"{split}.csv", self.root)
 
     def train(self, model: Any) -> Any:
-        # Training and early-stopping development data are always raw.
+        # Match evaluation preprocessing: raw 2019LA silence duration leaks the label.
         cache_dir = feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace)
         train_df = self.manifest("train")
         params = inspect.signature(model.fit).parameters
         extra = {"dev": self.manifest("dev")} if "dev" in params else {}
+        trimmed = self._is_trimmed("dev")
+        if trimmed:
+            train_df = trimmed_manifest(train_df, self.root / "data" / "cache", "train")
+            if "dev" in extra:
+                extra["dev"] = trimmed_manifest(extra["dev"], self.root / "data" / "cache", "dev")
+        self._train_preprocessing = "trimmed" if trimmed else "raw"
         print(f"\n[{self.name.upper()}] TRAIN | dataset={self.dataset} | seed={self.seed}", flush=True)
-        print(f"  train: {len(train_df):,} clips | raw", flush=True)
+        print(f"  train: {len(train_df):,} clips | {self._train_preprocessing}", flush=True)
         if "dev" in extra:
-            print(f"  dev:   {len(extra['dev']):,} clips | raw (training validation)", flush=True)
+            print(f"  dev:   {len(extra['dev']):,} clips | {self._train_preprocessing} (training validation)", flush=True)
         print(f"  feature cache: {cache_dir}", flush=True)
         print(f"  artifact destination: {self.artifact_root}", flush=True)
         return model.fit(train_df, cache_dir, seed=self.seed, **extra)
@@ -217,6 +224,10 @@ class Run:
     def save(self, model: Any) -> Path:
         directory = _new_directory(self.artifact_root, _timestamp())
         model.save(directory)
+        (directory / "preprocessing.json").write_text(json.dumps({
+            "train": self._train_preprocessing,
+            "trim_recipe": TRIM_RECIPE if self._train_preprocessing == "trimmed" else None,
+        }, indent=2), encoding="utf-8")
         # A completion marker is written LAST. Incomplete artifacts are ignored.
         (directory / "COMPLETE").write_text("ok\n", encoding="utf-8")
         self._artifact_dir = directory
@@ -298,10 +309,14 @@ class Run:
             "eer_threshold": float(threshold), "n": len(calibration),
             "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
         }, indent=2), encoding="utf-8")
+        train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,
             "model_artifact": str(artifact), "testsets": self.testsets,
             "seed": self.seed,
+            # Artifacts saved before preprocessing.json existed were trained on raw audio.
+            "train_preprocessing": (json.loads(train_prep.read_text(encoding="utf-8"))["train"]
+                                    if train_prep.exists() else "raw"),
             "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test") for name in names},
             "reported_metrics": "held_out_test_only", "threshold_source": self.threshold_from,
             "evaluation_preprocessing": {

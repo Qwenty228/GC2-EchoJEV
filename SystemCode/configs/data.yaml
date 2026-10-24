@@ -45,6 +45,21 @@ in_the_wild:
   license: CC-BY-SA-4.0                  # HF card; the authors' page says Apache-2.0 — unresolved
                                          # conflict (FC-plan-2026-09-30 3b), flag it in the report
 
+# ASVspoof 2021 LA eval — test-only. Audio is 2019 LA-style speech sent through telephony
+# channels. Labels come from the CM key released after the challenge (keys/LA/CM); the ASV key
+# (speaker verification) and baseline score files under keys/ are not used.
+# Key line: SPEAKER UTT_ID CODEC TRANSMISSION ATTACK LABEL TRIM PHASE
+# PHASE eval (148,176 clips) is the official scoring subset; hidden (16,926) is already
+# silence-trimmed by the organisers (TRIM=only_speech). One manifest per phase.
+asvspoof2021:
+  root: data/raw/ASVspoof2021            # gitignored; audio_dir and cm_key are relative to it
+  # ffmpeg re-encode of ASVspoof2021_LA_eval/flac (scripts/reencode_flac.py): libsndfile cannot
+  # decode ~30% of the original files; samples are bit-identical.
+  audio_dir: ASVspoof2021_LA_eval/flac_ffmpeg
+  cm_key: keys/LA/CM/trial_metadata.txt
+  expected_clips: 181566                 # confirmed locally 2026-10-23: 18,452 bona fide + 163,114 spoof
+  source_url: https://www.asvspoof.org/index2021.html
+
 # Deterministic stratified subsampling (audio_df.data.manifests.stratified_subset). Recorded here so
 # every caller uses the same seed/strata by default instead of each picking its own.
 subsets:

@@ -1,0 +1,41 @@
+architecture: d1
+dataset: 2019LA
+model_artifact: D:\MyCode\projects\GC2-EchoJEV\SystemCode\artifacts\d1\20261020-053911-536394
+testsets:
+- eval
+- eval_clean10k
+- eval_mp3_32k
+- eval_noise_10db
+- eval_opus_16k
+- eval_resample_8k
+- itw
+seed: 1337
+train_preprocessing: raw
+split_roles:
+  dev: validation_threshold
+  eval: held_out_test
+  eval_clean10k: held_out_test
+  eval_mp3_32k: held_out_test
+  eval_noise_10db: held_out_test
+  eval_opus_16k: held_out_test
+  eval_resample_8k: held_out_test
+  itw: held_out_test
+reported_metrics: held_out_test_only
+threshold_source: dev
+evaluation_preprocessing:
+  testsets:
+    dev: trimmed
+    eval: trimmed
+    eval_clean10k: trimmed
+    eval_mp3_32k: trimmed
+    eval_noise_10db: trimmed
+    eval_opus_16k: trimmed
+    eval_resample_8k: trimmed
+    itw: raw
+  trim_recipe:
+    method: librosa.effects.split
+    top_db: 30.0
+    frame_length: 2048
+    hop_length: 512
+    sample_rate: 16000
+    version: 1
