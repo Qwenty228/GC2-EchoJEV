@@ -8,7 +8,7 @@ Run commands from `SystemCode/`. Downloaded audio, generated manifests and featu
 |---|---|---|---|
 | **ASVspoof 2019 LA** | Official train (25,380) / dev (24,844) | Official eval (71,237) | Required |
 | **In-the-Wild** | Never | All 31,779 clips; cross-domain | Required |
-| **ASVspoof 2021 LA / DF** | Never | Official evaluation splits | Optional; manifest builder/keys must be validated |
+| **ASVspoof 2021 LA / DF** | Never | Official evaluation splits | LA and DF wired in |
 | **MUSAN noise** | Never | Noise source for a fixed 2019 LA evaluation subset | Required for controlled noise tests; not a labeled spoof dataset |
 | **SpoofCeleb** | Conditional Stage 2 only, using its designated train/dev partitions | Held-out official evaluation | Optional adaptation; not wired into the current data CLI |
 | **PhonemeDF** | Not in core protocol | Potential future external test | Deferred; not wired into the current data CLI |
@@ -36,17 +36,18 @@ Keep `raw/`, `cache/` and generated manifest CSVs out of Git. Commit the intende
 
 ## Download and prepare
 
-Download with `curl -L -C -` to resume an interrupted transfer, **or download from the linked official page and place the archive in `data/raw/_downloads/`**. Unpack into the locations below.
+Download URLs live in one place: [`scripts/download_data.py`](../scripts/download_data.py). It downloads into `data/raw/_downloads/` (resumable) and unpacks into the layout above:
+
+```bash
+uv run download --asvspoof2019     # or --asvspoof2021la, --asvspoof2021df, --musan, --itw, --all
+```
+
+**Manual download** works too: put the same archive (file names are in the script) in `data/raw/_downloads/` and rerun the command; existing archives are unpacked without downloading. If a server is down, the script names the archive and URL it could not fetch.
 
 ### ASVspoof 2019 LA — required
 
-Source: [Edinburgh DataShare](https://datashare.ed.ac.uk/handle/10283/3336).
-
 ```bash
-mkdir -p data/raw/_downloads data/raw/ASVspoof2019
-curl -L -C - -o data/raw/_downloads/LA.zip \
-  'https://datashare.ed.ac.uk/server/api/core/bitstreams/a9f87c35-f055-4015-80e2-2fdff0d46269/content'
-unzip -q data/raw/_downloads/LA.zip -d data/raw/ASVspoof2019/
+uv run download --asvspoof2019
 uv run data-prepare --workers 4
 ```
 
@@ -54,13 +55,8 @@ Expected: `data/raw/ASVspoof2019/LA/` contains `ASVspoof2019_LA_{train,dev,eval}
 
 ### In-the-Wild — required external test
 
-Source: [Hugging Face — mueller91/In-The-Wild](https://huggingface.co/datasets/mueller91/In-The-Wild).
-
 ```bash
-mkdir -p data/raw/_downloads data/raw/InTheWild
-curl -L -C - -o data/raw/_downloads/release_in_the_wild.zip \
-  'https://huggingface.co/datasets/mueller91/In-The-Wild/resolve/main/release_in_the_wild.zip'
-unzip -q data/raw/_downloads/release_in_the_wild.zip -d data/raw/InTheWild/
+uv run download --itw
 uv run data-prepare --dataset in_the_wild --workers 4
 ```
 
@@ -68,13 +64,8 @@ Expected: `data/raw/InTheWild/release_in_the_wild/`, including `meta.csv` and au
 
 ### MUSAN noise — controlled robustness
 
-Source: [OpenSLR SLR17](https://www.openslr.org/17/). Only the `musan/noise/` portion is needed.
-
 ```bash
-mkdir -p data/raw/_downloads data/raw/musan
-curl -L -C - -o data/raw/_downloads/musan.tar.gz \
-  'https://www.openslr.org/resources/17/musan.tar.gz'
-tar -xzf data/raw/_downloads/musan.tar.gz -C data/raw/ musan/noise
+uv run download --musan            # unpacks only musan/noise/
 ```
 
 MUSAN is **not** a real/spoof classification dataset. It supplies noise for reproducible corruption of ASVspoof evaluation clips.
@@ -93,11 +84,25 @@ uv run data-degrade --conditions all --workers 4
 
 Outputs include `data/manifests/eval_clean10k.csv`, `eval_noise_10db.csv`, `eval_mp3_32k.csv`, `eval_opus_16k.csv` and `eval_resample_8k.csv`, with generated audio under `data/cache/degraded/`. The conditions must use matched source utterances when comparing robustness.
 
-### ASVspoof 2021 LA / DF — optional external tests
+### ASVspoof 2021 LA — external test
 
-Download evaluation audio from [LA (Zenodo)](https://zenodo.org/records/4837263) and [DF (Zenodo)](https://zenodo.org/records/4835108), plus official evaluation keys from [ASVspoof](https://www.asvspoof.org/). Place and extract under `data/raw/ASVspoof2021/`.
+```bash
+uv run download --asvspoof2021la   # Zenodo audio + official keys (keys are only on asvspoof.org)
+uv run python scripts/reencode_flac.py data/raw/ASVspoof2021/ASVspoof2021_LA_eval/flac \
+    data/raw/ASVspoof2021/ASVspoof2021_LA_eval/flac_ffmpeg
+uv run data-prepare --dataset asvspoof2021 --workers 4
+```
 
-**Current limitation:** `data-prepare` does not yet build or validate 2021 LA/DF manifests. Do not include these in `--testsets` until the official keys are parsed, audio paths validated and evaluation manifests generated.
+The re-encode is required: libsndfile cannot decode ~30% of the original LA FLACs, although they match the official archive. It is lossless (bit-identical samples). Outputs: `asvspoof2021_eval.csv` (official 148,176-clip subset), `asvspoof2021_hidden.csv` (16,926 clips, non-speech already removed by the organisers) and `asvspoof2021_progress.csv` (leaderboard subset, not reported). Labels come from the CM key `keys/LA/CM/trial_metadata.txt`. These are scored raw (not trimmed).
+
+### ASVspoof 2021 DF — external test
+
+```bash
+uv run download --asvspoof2021df   # Hugging Face mirror, ~34 GB + ~34 GB unpacked
+uv run data-prepare --dataset asvspoof2021df --workers 4
+```
+
+Comes from a Hugging Face mirror with the official labels and protocol, audio already re-encoded for libsndfile (bit-exact). Unpacks to `data/raw/ASVspoof2021/ASVspoof2021_DF_eval/flac/` plus `labels.csv` (label, speaker, `subset` = eval/progress/hidden, codec, attack, vocoder). Outputs `asvspoof2021df_eval.csv` (official scoring subset), `asvspoof2021df_progress.csv` and `asvspoof2021df_hidden.csv`; scored raw (not trimmed).
 
 ### SpoofCeleb / PhonemeDF — future work
 
@@ -123,4 +128,4 @@ uv run a1 evaluate --i 2019LA --testsets dev,eval,itw
 
 This command requires an existing completed A1 artifact. Include `dev` for the current threshold-selection workflow; never select thresholds using external evaluation labels.
 
-**Split roles:** train learns model parameters; dev is holdout validation for early stopping and threshold calibration (not a final test or cross-validation fold); eval, controlled `eval_*` and external datasets are held-out tests. JEV policy evaluation calibrates on full dev and applies the policy only to sampled test clips. **Evaluation protocol:** train on the official 2019 LA train split, select checkpoints/thresholds on dev, and evaluate on held-out test sets. The runtime trims ASVspoof 2019 LA dev/eval and controlled `eval_*` sets during evaluation; training audio remains raw. External sets such as In-the-Wild remain raw. Generated manifests alone do not apply trimming. Keep preprocessing and metrics consistent across detectors.
+**Split roles:** train learns model parameters; dev is holdout validation for early stopping and threshold calibration (not a final test or cross-validation fold); eval, controlled `eval_*` and external datasets are held-out tests. JEV policy evaluation calibrates on full dev and applies the policy only to sampled test clips. **Evaluation protocol:** train on the official 2019 LA train split, select checkpoints/thresholds on dev, and evaluate on held-out test sets. The runtime trims ASVspoof 2019 LA train, dev, eval and the controlled `eval_*` sets with the same recipe (see `ProjectReport/trim_eval.md` for why training is trimmed too). External sets such as In-the-Wild remain raw. Generated manifests alone do not apply trimming. Keep preprocessing and metrics consistent across detectors.

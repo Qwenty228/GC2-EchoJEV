@@ -22,6 +22,7 @@ from audio_df.data.manifests import (
     DatasetNotFoundError,
     assert_no_speaker_overlap,
     build_itw_manifest,
+    build_df2021_manifest,
     build_la2021_manifest,
     build_manifest,
     holdout_attack_families,
@@ -148,7 +149,7 @@ def test_build_manifest_missing_dataset_root_is_actionable(tmp_path):
         build_manifest(cfg)
     message = str(excinfo.value)
     assert str(tmp_path / "nope" / "LA") in message
-    assert "asvspoof.org" in message.lower()
+    assert "uv run download --asvspoof2019" in message
 
 
 def test_build_manifest_row_values(tmp_path):
@@ -332,7 +333,7 @@ def test_build_itw_manifest_missing_meta_is_actionable(tmp_path):
         build_itw_manifest(_itw_cfg(root))
     message = str(excinfo.value)
     assert "meta.csv" in message
-    assert "huggingface.co" in message.lower()
+    assert "uv run download --itw" in message
 
 
 def test_build_itw_manifest_missing_root_is_actionable(tmp_path):
@@ -423,6 +424,37 @@ def test_build_la2021_manifest_warns_on_clip_count_mismatch(tmp_path):
     _write_la2021_fixture(root)
     with pytest.warns(UserWarning, match="expected_clips"):
         build_la2021_manifest(_la2021_cfg(root, expected_clips=181566))
+
+
+# ----------------------------------------------------------------------------- ASVspoof 2021 DF
+
+
+def _df2021_cfg(root: Path) -> dict:
+    return {"asvspoof2021df": {"root": str(root), "labels": "labels.csv", "expected_clips": None},
+            "manifest": {"columns": _real_manifest_columns()}}
+
+
+def test_build_df2021_manifest_from_hf_layout(tmp_path):
+    root = tmp_path / "ASVspoof2021_DF_eval"
+    rows = [("DF_E_2000011", "spoof", "LA_0023", "progress", "nocodec", "A14"),
+            ("DF_E_2000013", "bonafide", "TEF2", "eval", "low_m4a", "bonafide")]
+    for utt, *_ in rows:
+        _write_fake_audio(root / "flac" / f"{utt}.flac")
+    pd.DataFrame([{"path": f"flac/{u}.flac", "label": lab, "utterance_id": u, "speaker_id": spk,
+                   "subset": sub, "codec": codec, "source": "asvspoof", "attack_id": att, "vocoder": "x"}
+                  for u, lab, spk, sub, codec, att in rows]).to_csv(root / "labels.csv", index=False)
+    df = build_df2021_manifest(_df2021_cfg(root))
+
+    assert list(df.columns) == _real_manifest_columns()
+    assert set(df["split"]) == {"asvspoof2021df_progress", "asvspoof2021df_eval"}
+    bona = df[df["utt_id"] == "DF_E_2000013"].iloc[0]
+    assert (bona["attack_id"], bona["codec"]) == ("-", "low_m4a")
+    assert df[df["utt_id"] == "DF_E_2000011"].iloc[0]["attack_id"] == "A14"
+
+
+def test_build_df2021_manifest_missing_labels_is_actionable(tmp_path):
+    with pytest.raises(DatasetNotFoundError, match="uv run download --asvspoof2021df"):
+        build_df2021_manifest(_df2021_cfg(tmp_path / "nope"))
 
 
 # ----------------------------------------------------------------------------- stratified_subset

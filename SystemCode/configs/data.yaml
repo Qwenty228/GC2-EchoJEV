@@ -3,6 +3,11 @@
 dataset:
   name: asvspoof2019_la
   root: data/raw/ASVspoof2019/LA        # gitignored; set to your local download
+  notes: >-
+    Training corpus. train 25,380 / dev 24,844 / eval 71,237. Attacks A01-A06 in train/dev,
+    A07-A19 only in eval (unseen). About 1 bona fide per 9 spoof. Leading silence leaks the label, so
+    all splits are trimmed. The folders also hold 838 speaker-verification enrollment clips
+    (LA_D_A*, LA_E_A*) that are not in the CM protocol and are never used.
   protocol_dir: data/raw/ASVspoof2019/LA/ASVspoof2019_LA_cm_protocols
   splits:
     train: ASVspoof2019.LA.cm.train.trn.txt
@@ -37,11 +42,13 @@ audio:
 # using this block must fail with an actionable DatasetNotFoundError, never a bare traceback.
 in_the_wild:
   root: data/raw/InTheWild               # gitignored; extract the release here
+  notes: >-
+    Test only. 19,963 bona fide / 11,816 spoof, public-figure speech from the web; 54 speakers in
+    meta.csv (the paper says 58). Scored raw.
   meta_file: meta.csv                    # columns: file,speaker,label ("spoof"|"bona-fide"); confirmed
                                          # on the extracted HF zip 2026-10-01 (release_in_the_wild/)
   expected_clips: 31779                  # confirmed locally 2026-10-01: 19,963 bona fide + 11,816 spoof.
                                          # meta.csv names 54 speakers; the paper says 58 (unresolved)
-  source_url: https://huggingface.co/datasets/mueller91/In-The-Wild
   license: CC-BY-SA-4.0                  # HF card; the authors' page says Apache-2.0 — unresolved
                                          # conflict (FC-plan-2026-09-30 3b), flag it in the report
 
@@ -53,12 +60,35 @@ in_the_wild:
 # silence-trimmed by the organisers (TRIM=only_speech). One manifest per phase.
 asvspoof2021:
   root: data/raw/ASVspoof2021            # gitignored; audio_dir and cm_key are relative to it
+  notes: >-
+    Test only. 2019-style attacks (A07-A19) sent over 7 telephony channels. Key phases: eval 148,176
+    (official) / progress 16,464 / hidden 16,926 (silence removed by organisers). 18,452 bona fide /
+    163,114 spoof. Scored raw, from the re-encoded flac_ffmpeg copy.
   # ffmpeg re-encode of ASVspoof2021_LA_eval/flac (scripts/reencode_flac.py): libsndfile cannot
   # decode ~30% of the original files; samples are bit-identical.
   audio_dir: ASVspoof2021_LA_eval/flac_ffmpeg
   cm_key: keys/LA/CM/trial_metadata.txt
   expected_clips: 181566                 # confirmed locally 2026-10-23: 18,452 bona fide + 163,114 spoof
-  source_url: https://www.asvspoof.org/index2021.html
+
+# ASVspoof 2021 DF eval — test-only, from the Hugging Face mirror (SpeechAntiSpoofingBenchmarks/
+# ASVspoof2021_DF) unpacked by `uv run download --asvspoof2021df`: flac/ plus labels.csv with the
+# official labels/protocol. Audio is already re-encoded so libsndfile can read it (bit-exact).
+# labels.csv `subset` is eval (official scoring subset) / progress / hidden. One manifest per subset.
+asvspoof2021df:
+  root: data/raw/ASVspoof2021/ASVspoof2021_DF_eval   # gitignored
+  notes: >-
+    Test only, Hugging Face mirror. Compressed media codecs and extra vocoders. Subsets: eval 533,928
+    (official) / progress 59,325 / hidden 18,576. 22,617 bona fide / 589,212 spoof. Scored raw.
+  labels: labels.csv
+  expected_clips: 611829                 # official DF eval trial count; check after download
+
+# MUSAN noise — not a spoof dataset; noise source for the eval_noise_10db condition
+# (configs/e4_degradations.yaml: noise_dir reads the same folder).
+musan:
+  root: data/raw/musan/noise              # gitignored; `uv run download --musan`
+  notes: >-
+    Not a spoof dataset. Noise clips mixed into a fixed 10k subset of 2019 eval at 10 dB SNR to make
+    eval_noise_10db (MP3, Opus and 8 kHz copies of the same subset need no extra data).
 
 # Deterministic stratified subsampling (audio_df.data.manifests.stratified_subset). Recorded here so
 # every caller uses the same seed/strata by default instead of each picking its own.
