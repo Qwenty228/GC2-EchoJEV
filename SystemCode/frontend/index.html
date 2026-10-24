@@ -14,10 +14,21 @@
     </header>
 
     <form id="form">
-      <label class="drop" for="file">
-        <input id="file" name="file" type="file" accept=".wav,.flac,.ogg,.mp3,audio/*" required>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab active" data-mode="upload" aria-selected="true">Upload file</button>
+        <button type="button" role="tab" class="tab" data-mode="record" aria-selected="false">Record voice</button>
+      </div>
+
+      <label class="drop" for="file" id="upload-pane">
+        <input id="file" name="file" type="file" accept=".wav,.flac,.ogg,.mp3,audio/*">
         <span id="file-name">Choose a voice clip (WAV, FLAC, OGG or MP3, up to 60 s)</span>
       </label>
+
+      <div class="drop" id="record-pane" hidden>
+        <button type="button" id="record" class="record">● Record</button>
+        <p class="muted" id="record-status">Speak for up to 4 seconds in a quiet room.</p>
+      </div>
+
       <audio id="player" controls hidden></audio>
       <button type="submit" id="submit" disabled>Check</button>
     </form>
@@ -27,13 +38,10 @@
       <dl>
         <dt>Score</dt><dd id="score"></dd>
         <dt>Threshold</dt><dd id="threshold"></dd>
+        <dt>Audio</dt><dd id="audio"></dd>
         <dt>Model</dt><dd id="system"></dd>
         <dt>Time</dt><dd id="latency"></dd>
       </dl>
-      <details>
-        <summary>Evidence</summary>
-        <pre id="evidence"></pre>
-      </details>
     </section>
 
     <p class="error" id="error" hidden></p>
@@ -42,38 +50,142 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const fmt = (x, d = 3) => Number(x).toFixed(d);
+    const MAX_RECORD_MS = 4000;
+    let clip = null;  // { blob, name } sent to /api/detect
 
     fetch("/api/model")
       .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e.detail))))
       .then((m) => { $("model").textContent = `${m.system} · ${m.model_version}`; })
       .catch((e) => { $("model").textContent = String(e); });
 
+    function setClip(blob, name) {
+      clip = blob ? { blob, name } : null;
+      $("submit").disabled = !clip;
+      $("player").hidden = !clip;
+      if (clip) $("player").src = URL.createObjectURL(blob);
+      $("result").hidden = true;
+      $("error").hidden = true;
+    }
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const mode = tab.dataset.mode;
+        document.querySelectorAll(".tab").forEach((t) => {
+          t.classList.toggle("active", t === tab);
+          t.setAttribute("aria-selected", t === tab);
+        });
+        $("upload-pane").hidden = mode !== "upload";
+        $("record-pane").hidden = mode !== "record";
+        setClip(null);
+        $("file").value = "";
+        $("file-name").textContent = "Choose a voice clip (WAV, FLAC, OGG or MP3, up to 60 s)";
+      });
+    });
+
     $("file").addEventListener("change", () => {
       const f = $("file").files[0];
       $("file-name").textContent = f ? f.name : "Choose a voice clip";
-      $("submit").disabled = !f;
-      if (f) { $("player").src = URL.createObjectURL(f); $("player").hidden = false; }
+      setClip(f || null, f && f.name);
+    });
+
+    // Browsers record WebM/Ogg, which the backend cannot decode, so the
+    // recording is decoded here and re-encoded as 16-bit mono WAV.
+    function encodeWav(samples, sampleRate) {
+      const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
+      const text = (o, s) => [...s].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+      text(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); text(8, "WAVE");
+      text(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true); text(36, "data"); view.setUint32(40, samples.length * 2, true);
+      samples.forEach((s, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s)) * 0x7fff, true));
+      return new Blob([view], { type: "audio/wav" });
+    }
+
+    async function toWav(blob) {
+      const ctx = new AudioContext();
+      try {
+        const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
+        const mono = new Float32Array(audio.length);
+        for (let c = 0; c < audio.numberOfChannels; c++) {
+          audio.getChannelData(c).forEach((v, i) => { mono[i] += v / audio.numberOfChannels; });
+        }
+        return { wav: encodeWav(mono, audio.sampleRate), seconds: audio.duration };
+      } finally {
+        ctx.close();
+      }
+    }
+
+    let recorder = null;
+    $("record").addEventListener("click", async () => {
+      if (recorder) { recorder.stop(); return; }
+      setClip(null);
+      $("record").disabled = true;  // until the microphone opens
+      let stream;
+      try {
+        // Browser speech processing rewrites the signal the detector judges.
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+        });
+      } catch (e) {
+        $("error").textContent = `Microphone unavailable: ${e.message}`;
+        $("error").hidden = false;
+        $("record").disabled = false;
+        return;
+      }
+      $("record").disabled = false;
+      const chunks = [];
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      const started = Date.now();
+      const tick = setInterval(() => {
+        const left = Math.max(0, (MAX_RECORD_MS - (Date.now() - started)) / 1000);
+        $("record-status").textContent = `Recording… ${left.toFixed(1)} s left`;
+      }, 100);
+      const timer = setTimeout(() => recorder && recorder.stop(), MAX_RECORD_MS);
+      recorder.onstop = async () => {
+        clearInterval(tick);
+        clearTimeout(timer);
+        stream.getTracks().forEach((t) => t.stop());
+        recorder = null;
+        $("record").textContent = "● Record again";
+        try {
+          const { wav, seconds } = await toWav(new Blob(chunks, { type: chunks[0]?.type }));
+          setClip(wav, "recording.wav");
+          $("record-status").textContent = `Recorded ${seconds.toFixed(1)} s. Play it back, then Check.`;
+        } catch (e) {
+          $("record-status").textContent = `Could not read recording: ${e.message}`;
+        }
+      };
+      recorder.start();
+      $("record").textContent = "■ Stop";
     });
 
     $("form").addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!clip) return;
       $("error").hidden = true;
       $("submit").disabled = true;
       $("submit").textContent = "Checking…";
+      const started = performance.now();
       try {
         const body = new FormData();
-        body.append("file", $("file").files[0]);
+        body.append("file", clip.blob, clip.name);
         const r = await fetch("/api/detect", { method: "POST", body });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
-        const real = data.label === "bonafide";
-        $("verdict").textContent = real ? "Likely real (bona fide)" : "Likely fake (spoof)";
-        $("verdict").className = "verdict " + (real ? "real" : "fake");
-        $("score").textContent = fmt(data.score);
-        $("threshold").textContent = fmt(data.threshold);
+        const verdicts = {
+          bonafide: ["Likely real (bona fide)", "real"],
+          spoof: ["Likely fake (spoof)", "fake"],
+        };
+        const [text, cls] = verdicts[data.verdict] || ["No verdict: threshold not configured", ""];
+        $("verdict").textContent = text;
+        $("verdict").className = "verdict " + cls;
+        $("score").textContent = `${fmt(data.score)} (higher = more likely real)`;
+        $("threshold").textContent = data.threshold == null ? "not set" : fmt(data.threshold);
+        $("audio").textContent = `${fmt(data.speech_s, 1)} s scored of ${fmt(data.duration_s, 1)} s (silence trimmed)`;
         $("system").textContent = `${data.system} · ${data.model_version}`;
-        $("latency").textContent = `${fmt(data.latency_ms, 0)} ms for ${fmt(data.duration_s, 1)} s of audio`;
-        $("evidence").textContent = JSON.stringify(data.evidence, null, 2);
+        $("latency").textContent = `${fmt(performance.now() - started, 0)} ms`;
         $("result").hidden = false;
       } catch (e) {
         $("error").textContent = e.message;

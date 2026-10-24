@@ -8,6 +8,9 @@ ADF_SYSTEM selects a1, a2, a4, d1, d2, or d3. ADF_MODEL_FROM optionally
 pins an artifact directory; otherwise the latest COMPLETE artifact is used.
 ADF_THRESHOLD must be calibrated for that exact artifact before a verdict
 is returned. Without it, /api/detect returns a continuous score only.
+
+Uploads are silence-trimmed with the same recipe as the trimmed dev set the
+thresholds are calibrated on; silent or too-short clips are rejected.
 """
 from __future__ import annotations
 
@@ -23,6 +26,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
 from audio_df.helpers.audio import load_audio  # noqa: F401 - shared resampling convention
+from audio_df.helpers.eval_audio import trim_silence
 from audio_df.modules.detector import GMMDetector
 from audio_df.modules.ssl_detector import SSLDetector
 from audio_df.modules.lfcc_neural import LFCCDetector
@@ -44,6 +48,8 @@ ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT / "frontend"
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_SECONDS = 60.0
+MIN_SPEECH_SECONDS = 1.0
+SILENT_PEAK = 1e-3  # about -60 dBFS
 
 
 def resolve_artifact(root: Path, system: str) -> Path:
@@ -144,6 +150,13 @@ def create_app(
         model = detector()
         target_sr = _sample_rate(model, selected)
         waveform = _mono_resample(x, sr, target_sr)
+        if np.abs(waveform).max() < SILENT_PEAK:
+            raise HTTPException(422, "No sound detected; check the microphone")
+        waveform = trim_silence(waveform)
+        speech_s = len(waveform) / target_sr
+        if speech_s < MIN_SPEECH_SECONDS:
+            raise HTTPException(422, f"Only {speech_s:.1f} s of sound after trimming silence; "
+                                     f"need at least {MIN_SPEECH_SECONDS:g} s of speech")
         try:
             score = float(model.score_audio(waveform))
         except Exception as exc:
@@ -154,6 +167,7 @@ def create_app(
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
+            "speech_s": round(speech_s, 3),
             "system": selected,
             "model_version": state["artifact"].name,
             "score": score,
