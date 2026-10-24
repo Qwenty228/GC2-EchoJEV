@@ -1,6 +1,6 @@
 architecture: a1
 dataset: 2019LA
-model_artifact: D:\MyCode\projects\GC2-EchoJEV\SystemCode\artifacts\a1\20261023-171757-192173
+model_artifact: artifacts/a1/20261023-171757-192173
 testsets:
 - eval
 - eval_clean10k
@@ -9,6 +9,8 @@ testsets:
 - eval_opus_16k
 - eval_resample_8k
 - itw
+- asvspoof2021_eval
+- asvspoof2021_hidden
 seed: 1337
 train_preprocessing: trimmed
 split_roles:
@@ -32,6 +34,8 @@ evaluation_preprocessing:
     eval_opus_16k: trimmed
     eval_resample_8k: trimmed
     itw: raw
+    asvspoof2021_eval: raw
+    asvspoof2021_hidden: raw
   trim_recipe:
     method: librosa.effects.split
     top_db: 30.0
@@ -40,4 +44,5 @@ evaluation_preprocessing:
     sample_rate: 16000
     version: 1
 notes: finished from saved scores after a crash on asvspoof2021_eval (libsndfile FLAC
-  decode)
+  decode); asvspoof2021_eval, asvspoof2021_hidden merged from E-20261024-044859-322217-a1
+  (same artifact, identical dev scores)
