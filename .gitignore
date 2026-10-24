@@ -13,3 +13,7 @@ Miscellaneous/research/**/*.pdf
 Miscellaneous/research/knowledge/papers/*
 !Miscellaneous/research/knowledge/papers/README.md
 SystemCode/.env
+
+# --- claude code ---
+# local Claude Code state; the two shared agent definitions in .claude/agents/ stay tracked
+.claude/

@@ -12,14 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 MANIFESTS = ROOT / "data" / "manifests"
 AUDIO_EXT = {".flac", ".wav", ".mp3", ".opus", ".ogg", ".m4a"}
-DOWNLOAD = (
-    "mkdir -p data/raw/_downloads data/raw/ASVspoof2019\n"
-    'curl -L -C - -o data/raw/_downloads/LA.zip '
-    '"https://datashare.ed.ac.uk/server/api/core/bitstreams/'
-    'a9f87c35-f055-4015-80e2-2fdff0d46269/content"\n'
-    "unzip -q data/raw/_downloads/LA.zip -d data/raw/ASVspoof2019/\n"
-    "uv run data-prepare"
-)
+DOWNLOAD = "uv run download --asvspoof2019\nuv run data-prepare"
 SPLITS = {
     "train": ("ASVspoof2019_LA_train/flac", 25380),
     "dev": ("ASVspoof2019_LA_dev/flac", 24844),

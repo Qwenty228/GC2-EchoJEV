@@ -27,6 +27,7 @@ dependencies = [
 ]
 
 [project.scripts]
+download = "scripts.download_data:main" # --asvspoof2019 | --asvspoof2021la | --asvspoof2021df | --musan | --itw | --all
 data-check = "scripts.check_data:main" # --verify --paths
 data-prepare = "scripts.prepare_data:main"
 data-degrade = "scripts.make_degraded:main"

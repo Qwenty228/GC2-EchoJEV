@@ -32,6 +32,7 @@ import yaml
 from audio_df.data.manifests import (
     build_itw_manifest,
     build_la2021_manifest,
+    build_df2021_manifest,
     build_manifest,
     manifest_checksums,
     split_hash,
@@ -66,9 +67,10 @@ def _write_manifests(cfg: dict, dataset: str, workers: int = 4) -> Path:
         print()
         print("Manifest summary (counts by split / class / attack, with speaker counts):")
         print(summarise_manifest(manifest).to_string(index=False))
-    elif dataset == "asvspoof2021":
-        manifest = build_la2021_manifest(cfg, workers=workers)
-        # One CSV per key phase; asvspoof2021_eval.csv is the official scoring subset.
+    elif dataset in ("asvspoof2021", "asvspoof2021df"):
+        build = build_la2021_manifest if dataset == "asvspoof2021" else build_df2021_manifest
+        manifest = build(cfg, workers=workers)
+        # One CSV per key phase/subset; <dataset>_eval.csv is the official scoring subset.
         for split, split_df in manifest.groupby("split"):
             out_path = out_dir / f"{split}.csv"
             split_df.to_csv(out_path, index=False)
@@ -113,7 +115,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dataset",
-        choices=["asvspoof2019_la", "in_the_wild", "asvspoof2021"],
+        choices=["asvspoof2019_la", "in_the_wild", "asvspoof2021", "asvspoof2021df"],
         default="asvspoof2019_la",
         help="Which dataset to build a manifest for (default: asvspoof2019_la)",
     )

@@ -10,9 +10,14 @@ import yaml
 from audio_df.helpers.metrics import compute_eer
 
 
-def train_audio(cfg: dict) -> str:
+def artifact_key(model_artifact: str) -> str:
+    """'<model>/<timestamp>' from a project-relative or old absolute (Windows or POSIX) path."""
+    return "/".join(model_artifact.replace("\\", "/").rstrip("/").split("/")[-2:])
+
+
+def train_audio(cfg: dict, root: Path) -> str:
     """Training audio from config.yaml; older runs: the artifact's preprocessing.json, else raw."""
-    prep = Path(cfg.get("model_artifact", "")) / "preprocessing.json"
+    prep = root / "artifacts" / artifact_key(cfg.get("model_artifact", "")) / "preprocessing.json"
     return cfg.get("train_preprocessing") or (json.loads(prep.read_text())["train"] if prep.exists() else "raw")
 
 
@@ -29,14 +34,14 @@ def collect(runs_dir: str | Path, models: list[str]) -> dict[tuple[str, str], di
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
         if cfg.get("architecture") not in models:
             continue
-        entry = by_artifact.setdefault(cfg["model_artifact"], {
-            "model": cfg["architecture"], "train": train_audio(cfg), "runs": [], "scores": {}})
+        entry = by_artifact.setdefault(artifact_key(cfg["model_artifact"]), {
+            "model": cfg["architecture"], "train": train_audio(cfg, Path(runs_dir).parent), "runs": [], "scores": {}})
         entry["runs"].append(run.name)
         entry["scores"].update({p.stem: pd.read_csv(p) for p in sorted(run.glob("scores/*.csv"))})
     newest: dict[tuple[str, str], dict] = {}
-    for artifact in sorted(by_artifact, key=lambda a: Path(a).name):  # artifact names are timestamps
+    for artifact in sorted(by_artifact, key=lambda a: a.split("/")[-1]):  # artifact names are timestamps
         entry = by_artifact[artifact]
-        newest[(entry["model"], entry["train"])] = {"artifact": Path(artifact).name, "runs": entry["runs"],
+        newest[(entry["model"], entry["train"])] = {"artifact": artifact.split("/")[-1], "runs": entry["runs"],
                                                     "scores": entry["scores"]}
     return newest
 

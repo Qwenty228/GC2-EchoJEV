@@ -1,0 +1,7 @@
+{
+  "source": "dev",
+  "eer": 0.0537720615280972,
+  "eer_threshold": 1.40927255153656,
+  "n": 24844,
+  "preprocessing": "trimmed"
+}

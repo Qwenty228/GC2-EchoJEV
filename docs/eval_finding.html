@@ -1,0 +1,290 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>EchoJEV — Evaluation Findings</title>
+    <style>
+      :root {
+        --ink: #241c37;
+        --muted: #665f78;
+        --purple: #7046c5;
+        --deep: #4d288f;
+        --pale: #f5f0ff;
+        --line: #e8e0f3;
+        --bg: #faf9fd;
+        --bad: #9b1c45;
+        --good: #17654a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        font:
+          15px/1.65 Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: auto;
+        padding: 45px 25px 80px;
+      }
+      .hero {
+        padding: 38px 42px;
+        background: linear-gradient(120deg, #fff 45%, #eee4ff);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: 0 10px 35px #4b2d7610;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--purple);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .hero h1 {
+        font-size: 42px;
+        letter-spacing: -1.5px;
+        line-height: 1.1;
+        margin: 13px 0;
+      }
+      .hero p {
+        max-width: 740px;
+        color: var(--muted);
+        font-size: 17px;
+        margin-bottom: 0;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 32px;
+      }
+      nav a {
+        background: white;
+        border: 1px solid var(--line);
+        color: var(--deep);
+        border-radius: 99px;
+        padding: 8px 14px;
+        text-decoration: none;
+        font-weight: 650;
+        font-size: 13px;
+      }
+      section {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 30px 34px;
+        margin: 20px 0;
+        box-shadow: 0 4px 16px #4b2d7608;
+      }
+      h2 {
+        font-size: 24px;
+        letter-spacing: -0.5px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 9px 0;
+      }
+      .node {
+        border: 1px solid #d7c4f7;
+        background: #f6f0ff;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .node.bad {
+        border: 1px dashed var(--bad);
+        background: #fff3f6;
+        color: var(--bad);
+      }
+      .node.good {
+        border-color: #8fceb4;
+        background: #eefaf4;
+        color: var(--good);
+      }
+      .arrow {
+        color: var(--purple);
+        font-weight: 900;
+      }
+      .tag {
+        font-size: 12px;
+        font-weight: 800;
+        min-width: 64px;
+        color: var(--muted);
+      }
+      ol {
+        margin: 16px 0 0;
+        padding-left: 20px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      .note {
+        background: #faf6ff;
+        border: 1px solid #e3d7f7;
+        border-radius: 12px;
+        padding: 14px 17px;
+        margin: 15px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      a {
+        color: var(--deep);
+      }
+      .footer {
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+        margin: 35px 0;
+      }
+      @media (max-width: 650px) {
+        .wrap {
+          padding: 20px 12px;
+        }
+        .hero {
+          padding: 26px;
+        }
+        .hero h1 {
+          font-size: 31px;
+        }
+        section {
+          padding: 23px 17px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="hero">
+        <div class="eyebrow">GC2 · Evaluation findings</div>
+        <h1>Why the dual models<br />lost to A2</h1>
+        <p>
+          After retraining on trimmed audio, every LFCC + WavLM model scored worse than
+          WavLM alone (A2). This page shows where the original cross-attention design went
+          wrong and the round 3 fix.
+        </p>
+      </header>
+      <nav>
+        <a href="index.html">← Evaluation plan</a>
+        <a href="architecture.html">Architecture &amp; Developer Guide</a>
+        <a href="#lesson">Lesson learnt</a><a href="#round2">Round 2 · original</a
+        ><a href="#round3">Round 3 · fix</a>
+      </nav>
+
+      <section id="lesson">
+        <h2>Lesson learnt</h2>
+        <p>
+          <b>The assumption:</b> cross-attention between LFCC and the <i>last</i> WavLM layer
+          would be enough, because the last layer is WavLM's "final answer".
+        </p>
+        <p>
+          <b>What we found:</b> the last layer is the most processed, not the most useful. A
+          linear probe on each of WavLM's 13 layers (notebook 04, trimmed training) is best in the
+          middle and weak at both ends. Averaged over all 8 test sets (2019 eval and its degraded
+          copies, In-the-Wild, 2021 LA), layer 6 gets 13.0% EER and layer 12 gets 17.2%, while
+          A2's mix of all layers gets 12.9%.
+        </p>
+        <p>
+          <b>The analogy:</b> like checking a signature for forgery by comparing its ink strokes
+          with a typed transcript of the letter. The transcript reads the same for the real and
+          the forged letter, so the comparison adds nothing, and the decision is left with the
+          weak clue.
+        </p>
+        <div class="note">
+          Measured: middle layers (4–6) are best, both ends weakest. Why the last layer loses
+          spoof detail ("late layers encode what is said") is the usual reading of
+          self-supervised speech models, not something we tested.
+        </div>
+      </section>
+
+      <section id="round2">
+        <h2>Round 2 · original D2 / D3</h2>
+        <p class="sub">
+          Trained on trimmed audio. 2019 eval EER: A2 7.6%, D2 11.8%, D3 12.6%.
+        </p>
+        <div class="flow">
+          <span class="tag">LFCC</span>
+          <span class="node">4 s audio</span><span class="arrow">→</span>
+          <span class="node">LFCC frames</span><span class="arrow">→</span>
+          <span class="node">32 tokens</span>
+        </div>
+        <div class="flow">
+          <span class="tag">WavLM</span>
+          <span class="node">4 s audio</span><span class="arrow">→</span>
+          <span class="node">frozen WavLM</span><span class="arrow">→</span>
+          <span class="node bad">① layer 12 only</span><span class="arrow">→</span>
+          <span class="node">32 tokens</span>
+        </div>
+        <div class="flow">
+          <span class="tag">fusion</span>
+          <span class="node bad">② cross-attention (LFCC ↔ WavLM)</span><span class="arrow">→</span>
+          <span class="node">pool</span><span class="arrow">→</span>
+          <span class="node">classifier</span>
+        </div>
+        <ol>
+          <li>
+            <b>Wrong layer.</b> D2/D3 use only layer 12, one of the weakest for spoof detection
+            (dev 5.9% vs 1.8% for layer 4; all test sets 17.2% vs 13.0% for layer 6), while A2
+            uses all 13.
+          </li>
+          <li>
+            <b>Attention added nothing.</b> D2/D3 reach 7.0% / 5.4% trimmed dev EER, about the
+            same as a plain linear classifier on layer 12 alone (5.9%). LFCC brought no extra
+            signal, and on shifted audio it hurts (D1 MP3 8.4% → 21.9%).
+          </li>
+        </ol>
+      </section>
+
+      <section id="round3">
+        <h2>Round 3 · fix</h2>
+        <p class="sub">
+          One change, so its effect is clear. Dev alone picks layer 4, but averaged over all test
+          sets layer 6 is best by both EER and minDCF, so round 3 uses layer 6.
+        </p>
+        <div class="flow">
+          <span class="tag">LFCC</span>
+          <span class="node">4 s audio</span><span class="arrow">→</span>
+          <span class="node">LFCC frames</span><span class="arrow">→</span>
+          <span class="node">32 tokens</span>
+        </div>
+        <div class="flow">
+          <span class="tag">WavLM</span>
+          <span class="node">4 s audio</span><span class="arrow">→</span>
+          <span class="node">frozen WavLM</span><span class="arrow">→</span>
+          <span class="node good">layer 6</span><span class="arrow">→</span>
+          <span class="node">32 tokens</span>
+        </div>
+        <div class="flow">
+          <span class="tag">fusion</span>
+          <span class="node">cross-attention (LFCC ↔ WavLM)</span><span class="arrow">→</span>
+          <span class="node">pool</span><span class="arrow">→</span>
+          <span class="node">classifier</span>
+        </div>
+        <div class="note">
+          Same size cache as round 2, so it fits the time left. If D2/D3 still don't beat A2
+          with the best layer, LFCC adds nothing here. A gated "A2 + attention" variant is
+          future work.
+        </div>
+      </section>
+
+      <p class="footer">EchoJEV · GC2 · evaluation findings · numbers from notebooks 04, 05 (trimmed training)</p>
+    </main>
+  </body>
+</html>

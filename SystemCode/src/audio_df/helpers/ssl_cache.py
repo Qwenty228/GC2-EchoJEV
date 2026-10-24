@@ -32,11 +32,16 @@ class AudioClips(Dataset):
         return center_crop_repeat(load_audio(self.paths[i], self.sample_rate), self.samples)
 
 
+def pooled_identity(df, encoder):
+    """Cache identity: manifest order and paths plus encoder settings."""
+    return hashlib.sha256((df[['utt_id', 'path']].to_csv(index=False) +
+        json.dumps(encoder.settings, sort_keys=True)).encode()).hexdigest()
+
+
 def iter_pooled_chunks(df, encoder, directory, name):
     """Yield cached [chunk,L,D] arrays in manifest order, without joining all in RAM."""
     cfg = encoder.config
-    identity = hashlib.sha256((df[['utt_id', 'path']].to_csv(index=False) +
-        json.dumps(encoder.settings, sort_keys=True)).encode()).hexdigest()
+    identity = pooled_identity(df, encoder)
     # A changed manifest or preprocessing recipe gets its own cache.
     directory = Path(directory) / name / identity[:16]
     directory.mkdir(parents=True, exist_ok=True)

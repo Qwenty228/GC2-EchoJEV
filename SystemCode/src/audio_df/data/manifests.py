@@ -38,16 +38,13 @@ __all__ = [
     "summarise_manifest",
     "build_itw_manifest",
     "build_la2021_manifest",
+    "build_df2021_manifest",
     "parse_la2021_cm_key",
     "stratified_subset",
     "manifest_checksums",
     "write_checksums",
     "verify_checksums",
 ]
-
-# Where to send someone whose dataset is missing. ASVspoof 2019 predates the 2021 challenge
-# site referenced elsewhere in this repo's docs; this is the 2019-specific download page.
-_ASVSPOOF_DOWNLOAD_PAGE = "https://www.asvspoof.org/index2019.html"
 
 # Audio container extensions we'll look for under a split's audio directory. The official
 # ASVspoof 2019 LA release ships `.flac`; `.wav` is included so synthetic test fixtures (and
@@ -119,8 +116,8 @@ def _split_protocol_line(line: str, *, source: Path, line_no: int) -> dict[str, 
 def _dataset_not_found(path: Path, what: str) -> DatasetNotFoundError:
     return DatasetNotFoundError(
         f"{what} not found at '{path}'.\n"
-        f"Download the ASVspoof 2019 dataset from {_ASVSPOOF_DOWNLOAD_PAGE} and extract it "
-        "so that this path exists (see configs/data.yaml: dataset.root / dataset.protocol_dir)."
+        "Run `uv run download --asvspoof2019` so that this path exists "
+        "(see configs/data.yaml: dataset.root / dataset.protocol_dir)."
     )
 
 
@@ -325,7 +322,6 @@ def summarise_manifest(df: pd.DataFrame) -> pd.DataFrame:
 # the full note this section is derived from.
 # ================================================================================================
 
-_ITW_SOURCE_URL = "https://huggingface.co/datasets/mueller91/In-The-Wild"
 _ITW_SOURCE_CORPUS = "InTheWild"
 _ITW_LANGUAGE = "en"
 _ITW_SPLIT = "itw"
@@ -347,8 +343,8 @@ _ITW_LABEL_MAP = {
 def _itw_not_found(path: Path, what: str) -> DatasetNotFoundError:
     return DatasetNotFoundError(
         f"{what} not found at '{path}'.\n"
-        f"Download In-the-Wild from {_ITW_SOURCE_URL} and extract it so that either "
-        "'<in_the_wild.root>/meta.csv' or '<in_the_wild.root>/release_in_the_wild/meta.csv' "
+        "Run `uv run download --itw` so that either '<in_the_wild.root>/meta.csv' or "
+        "'<in_the_wild.root>/release_in_the_wild/meta.csv' "
         "exists (see configs/data.yaml: in_the_wild.root / in_the_wild.meta_file)."
     )
 
@@ -470,7 +466,6 @@ def build_itw_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
 # (keys/LA/CM/trial_metadata.txt); the .trl.txt shipped with the audio lists utt_ids only.
 # ================================================================================================
 
-_LA2021_SOURCE_URL = "https://www.asvspoof.org/index2021.html"
 _LA2021_SOURCE_CORPUS = "ASVspoof2021_LA"
 _LA2021_LANGUAGE = "en"
 # 2019 and 2021 eval utt_ids share the LA_E_ + 7 digit pattern, so prefix to keep them distinct.
@@ -482,8 +477,10 @@ _LA2021_KEY_FIELDS = ("speaker_id", "utt_id", "codec", "transmission", "attack_i
 def _la2021_not_found(path: Path, what: str) -> DatasetNotFoundError:
     return DatasetNotFoundError(
         f"{what} not found at '{path}'.\n"
-        f"Download ASVspoof 2021 LA eval audio and keys from {_LA2021_SOURCE_URL} and extract "
-        "them so this path exists (see configs/data.yaml: asvspoof2021.root / audio_dir / cm_key)."
+        "Run `uv run download --asvspoof2021la`, then re-encode the audio with "
+        "`uv run python scripts/reencode_flac.py data/raw/ASVspoof2021/ASVspoof2021_LA_eval/flac "
+        "data/raw/ASVspoof2021/ASVspoof2021_LA_eval/flac_ffmpeg`, so this path exists "
+        "(see configs/data.yaml: asvspoof2021.root / audio_dir / cm_key)."
     )
 
 
@@ -562,6 +559,74 @@ def build_la2021_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
         warnings.warn(
             f"ASVspoof 2021 LA manifest built {len(manifest)} rows, but "
             f"configs/data.yaml:asvspoof2021.expected_clips={expected_clips}.",
+            stacklevel=2,
+        )
+
+    columns = list(cfg["manifest"]["columns"])
+    return manifest[columns] if len(manifest) else pd.DataFrame(columns=columns)
+
+
+# ================================================================================================
+# ASVspoof 2021 DF eval — test-only, from the Hugging Face mirror unpacked by
+# scripts/download_data.py: <root>/flac/*.flac plus <root>/labels.csv (official labels/protocol).
+# ================================================================================================
+
+_DF2021_SOURCE_CORPUS = "ASVspoof2021_DF"
+_DF2021_LANGUAGE = "en"
+
+
+def build_df2021_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
+    """Build the ASVspoof 2021 DF eval manifest with EXACTLY the ASVspoof manifest's columns.
+
+    `split` is `asvspoof2021df_<subset>` (eval / progress / hidden); eval is the official
+    scoring subset. `codec` is the DF media codec (e.g. nocodec, low_m4a). DF utt_ids
+    (DF_E_*) cannot collide with 2019 or 2021 LA ids, so they are kept as released.
+    """
+    df_cfg = cfg["asvspoof2021df"]
+    root = Path(df_cfg["root"])
+    labels_path = root / df_cfg.get("labels", "labels.csv")
+    if not labels_path.exists():
+        raise DatasetNotFoundError(
+            f"ASVspoof 2021 DF labels not found at '{labels_path}'.\n"
+            "Run `uv run download --asvspoof2021df` (see configs/data.yaml: asvspoof2021df.root)."
+        )
+    labels = pd.read_csv(labels_path, dtype=str)
+    paths = [root / p for p in labels["path"]]
+    missing = [p for p in paths if not p.exists()]
+    if missing:
+        raise DatasetNotFoundError(
+            f"{len(missing)} ASVspoof 2021 DF audio files listed in '{labels_path}' are missing "
+            f"(first: '{missing[0]}'). Rerun `uv run download --asvspoof2021df`."
+        )
+
+    records = []
+    for row, audio_path, (sample_rate, duration_s, _fmt) in zip(
+        labels.itertuples(index=False), paths,
+        _read_metadata(paths, workers=workers, desc="ASVspoof 2021 DF"),
+        strict=True,
+    ):
+        records.append(
+            {
+                "utt_id": row.utterance_id,
+                "path": audio_path.as_posix(),
+                "label": row.label,
+                "speaker_id": row.speaker_id,
+                "attack_id": "-" if row.label == "bonafide" else row.attack_id,
+                "source_corpus": _DF2021_SOURCE_CORPUS,
+                "sample_rate": sample_rate,
+                "duration_s": duration_s,
+                "codec": row.codec,
+                "split": f"asvspoof2021df_{row.subset}",
+                "language": _DF2021_LANGUAGE,
+            }
+        )
+
+    manifest = pd.DataFrame.from_records(records)
+    expected_clips = df_cfg.get("expected_clips")
+    if expected_clips is not None and len(manifest) != expected_clips:
+        warnings.warn(
+            f"ASVspoof 2021 DF manifest built {len(manifest)} rows, but "
+            f"configs/data.yaml:asvspoof2021df.expected_clips={expected_clips}.",
             stacklevel=2,
         )
 
