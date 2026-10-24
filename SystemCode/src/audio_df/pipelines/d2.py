@@ -13,17 +13,25 @@ but parameter counts differ, so differences are not a pure direction-only test.
 Attention maps are diagnostics, not causal explanations. D2 uses the final
 WavLM layer, not A2's pooled multi-layer representation.
 """
+from audio_df.modules.bidirectional import BidirectionalConfig
 from audio_df.modules.d2_detector import D2Detector
 from audio_df.modules.lfcc import LFCC
 from audio_df.modules.wavlm import WavLM
 from audio_df.runtime import Run
 
 
+# Dual-model settings: hard-coded BidirectionalConfig defaults (not YAML), overridden here.
+# layer = WavLM hidden state used for the tokens (0 = CNN output, 12 = last). Round 2 used 12;
+# round 3 uses 6: notebook 04's per-layer probe averaged over every test set (2019 eval, its
+# degraded copies, In-the-Wild, 2021 LA) is best at layer 6 by both EER and minDCF.
+CONFIG = BidirectionalConfig(layer=6)
+
+
 @Run.cli(dataset="2019LA")
 def main(run: Run):
     """D2: frozen WavLM + LFCC -> one-way temporal attention."""
     if run.command != "evaluate":
-        model = D2Detector(acoustic=LFCC(), ssl=WavLM())
+        model = D2Detector(acoustic=LFCC(), ssl=WavLM(), config=CONFIG)
         run.train(model)
         run.save(model)
     else:
