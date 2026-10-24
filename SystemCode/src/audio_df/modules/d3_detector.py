@@ -21,8 +21,9 @@ from audio_df.modules.bidirectional import BidirectionalConfig, BidirectionalHea
 from audio_df.modules.lfcc import LFCC, LFCCConfig
 from audio_df.modules.wavlm import WavLM, WavLMConfig
 
-# LFCC is computed per clip on the CPU while batches load; workers keep the GPU fed.
-LOADER_WORKERS = 6
+# LFCC is computed per clip on the CPU while batches load; workers keep the GPU fed. Each worker
+# is a full Python process (~1-1.5 GB), and loaders are not persistent, so at most this many exist.
+LOADER_WORKERS = 3
 
 
 class D3Detector:
@@ -61,10 +62,10 @@ class D3Detector:
         validation = self._dataset(dev, "dev", cache_dir)
         cfg = self.train_config
         loader = DataLoader(training, batch_size=cfg.batch_size, shuffle=True,
-                            num_workers=LOADER_WORKERS, persistent_workers=True,
+                            num_workers=LOADER_WORKERS,
                             generator=torch.Generator().manual_seed(seed))
         dev_loader = DataLoader(validation, batch_size=cfg.batch_size, shuffle=False,
-                                num_workers=LOADER_WORKERS, persistent_workers=True)
+                                num_workers=LOADER_WORKERS)
         weight = float((train.label == "spoof").sum()) / max(float((train.label == "bonafide").sum()), 1.)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(weight, device=self.device))
         head = self.head.to(self.device)
