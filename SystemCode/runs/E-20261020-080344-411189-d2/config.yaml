@@ -6,6 +6,7 @@ testsets:
 - eval
 seed: 1337
 train_preprocessing: raw
+wavlm_layer: 12
 evaluation_preprocessing:
   # Corrected 2026-10-24: commit b5ab793 trimmed dev but recorded "dev: raw".
   dev: trimmed

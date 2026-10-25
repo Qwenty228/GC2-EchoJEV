@@ -69,6 +69,9 @@ runs/*
 !runs/E-20261023-201728-785995-d1/
 !runs/E-20261023-233207-138731-d2/
 !runs/E-20261024-050110-191049-d3/
+# round 3: D2/D3 with WavLM layer 6 (trimmed training)
+!runs/E-20261024-171010-159987-d3/
+!runs/E-20261024-214524-879357-d2/
 
 # local job logs
 logs/
