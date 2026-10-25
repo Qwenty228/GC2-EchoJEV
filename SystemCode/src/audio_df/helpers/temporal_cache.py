@@ -89,10 +89,14 @@ def temporal_cache(df, encoder, root: Path, split: str, tokens: int = 32, layer:
 
 
 class TemporalPairs(torch.utils.data.Dataset):
-    """Lazy chunk reader: no full SSL cache concatenation in RAM."""
+    """Lazy chunk reader: no full SSL cache concatenation in RAM.
+
+    Keeps only the encoder's settings, not the encoder, so DataLoader workers can copy it
+    without the loaded WavLM model.
+    """
     def __init__(self, df, encoder, acoustic, directory: Path, tokens: int):
         self.df = df.reset_index(drop=True)
-        self.encoder = encoder
+        self.cfg = encoder.config
         self.acoustic = acoustic
         self.directory = directory
         self.tokens = tokens
@@ -121,7 +125,7 @@ class TemporalPairs(torch.utils.data.Dataset):
         from audio_df.helpers.audio import load_audio
         from audio_df.helpers.ssl_cache import center_crop_repeat
 
-        cfg = self.encoder.config
+        cfg = self.cfg
         audio = load_audio(row.path, cfg.sample_rate)
         audio = center_crop_repeat(
             audio,

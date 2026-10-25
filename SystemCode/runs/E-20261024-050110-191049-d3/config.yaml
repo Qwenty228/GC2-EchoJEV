@@ -12,6 +12,8 @@ testsets:
 - asvspoof2021_eval
 - asvspoof2021_hidden
 seed: 1337
+train_preprocessing: trimmed
+wavlm_layer: 12
 split_roles:
   dev: validation_threshold
   eval: held_out_test

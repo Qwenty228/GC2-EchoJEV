@@ -11,6 +11,7 @@ testsets:
 - itw
 seed: 1337
 train_preprocessing: raw
+wavlm_layer: 12
 split_roles:
   dev: validation_threshold
   eval: held_out_test

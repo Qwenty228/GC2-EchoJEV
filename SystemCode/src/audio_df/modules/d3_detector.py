@@ -21,6 +21,10 @@ from audio_df.modules.bidirectional import BidirectionalConfig, BidirectionalHea
 from audio_df.modules.lfcc import LFCC, LFCCConfig
 from audio_df.modules.wavlm import WavLM, WavLMConfig
 
+# LFCC is computed per clip on the CPU while batches load; workers keep the GPU fed. Each worker
+# is a full Python process (~1-1.5 GB), and loaders are not persistent, so at most this many exist.
+LOADER_WORKERS = 3
+
 
 class D3Detector:
     def __init__(self, acoustic: LFCC, ssl: WavLM,
@@ -57,9 +61,11 @@ class D3Detector:
         training = self._dataset(train, "train", cache_dir)
         validation = self._dataset(dev, "dev", cache_dir)
         cfg = self.train_config
-        loader = DataLoader(training, batch_size=cfg.batch_size, shuffle=True, num_workers=0,
+        loader = DataLoader(training, batch_size=cfg.batch_size, shuffle=True,
+                            num_workers=LOADER_WORKERS,
                             generator=torch.Generator().manual_seed(seed))
-        dev_loader = DataLoader(validation, batch_size=cfg.batch_size, shuffle=False, num_workers=0)
+        dev_loader = DataLoader(validation, batch_size=cfg.batch_size, shuffle=False,
+                                num_workers=LOADER_WORKERS)
         weight = float((train.label == "spoof").sum()) / max(float((train.label == "bonafide").sum()), 1.)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(weight, device=self.device))
         head = self.head.to(self.device)
@@ -104,7 +110,8 @@ class D3Detector:
     def score_manifest(self, df: pd.DataFrame, destination: Path, *, split: str,
                        cache_dir: Path) -> pd.DataFrame:
         dataset = self._dataset(df, split, cache_dir)
-        loader = DataLoader(dataset, batch_size=self.train_config.batch_size, shuffle=False, num_workers=0)
+        loader = DataLoader(dataset, batch_size=self.train_config.batch_size, shuffle=False,
+                            num_workers=LOADER_WORKERS)
         self.head.to(self.device).eval()
         scores = []
         with torch.inference_mode():

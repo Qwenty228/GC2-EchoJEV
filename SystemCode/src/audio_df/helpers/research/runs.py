@@ -21,8 +21,22 @@ def train_audio(cfg: dict, root: Path) -> str:
     return cfg.get("train_preprocessing") or (json.loads(prep.read_text())["train"] if prep.exists() else "raw")
 
 
+def wavlm_layer(cfg: dict, root: Path) -> int | None:
+    """D2/D3 WavLM layer from config.yaml, else the artifact's model.json; None for other models.
+
+    Artifacts saved before the layer was configurable used the last layer (12).
+    """
+    if cfg.get("architecture") not in ("d2", "d3"):
+        return None
+    if "wavlm_layer" in cfg:
+        return cfg["wavlm_layer"]
+    meta = root / "artifacts" / artifact_key(cfg.get("model_artifact", "")) / "model.json"
+    return json.loads(meta.read_text())["fusion"].get("layer", 12) if meta.exists() else 12
+
+
 def collect(runs_dir: str | Path, models: list[str]) -> dict[tuple[str, str], dict]:
-    """Score files of the newest artifact per (model, training audio).
+    """Score files of the newest artifact per (model, training audio). D2/D3 models are labelled
+    with their WavLM layer ("d2 L6"), so attention variants are kept apart.
 
     Every run of the same artifact is merged, so a later 2021-only evaluation adds its test
     sets to the earlier run; when two runs scored the same set, the later run wins.
@@ -34,8 +48,10 @@ def collect(runs_dir: str | Path, models: list[str]) -> dict[tuple[str, str], di
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
         if cfg.get("architecture") not in models:
             continue
+        root, layer = Path(runs_dir).parent, wavlm_layer(cfg, Path(runs_dir).parent)
+        label = cfg["architecture"] if layer is None else f"{cfg['architecture']} L{layer}"
         entry = by_artifact.setdefault(artifact_key(cfg["model_artifact"]), {
-            "model": cfg["architecture"], "train": train_audio(cfg, Path(runs_dir).parent), "runs": [], "scores": {}})
+            "model": label, "train": train_audio(cfg, root), "runs": [], "scores": {}})
         entry["runs"].append(run.name)
         entry["scores"].update({p.stem: pd.read_csv(p) for p in sorted(run.glob("scores/*.csv"))})
     newest: dict[tuple[str, str], dict] = {}
