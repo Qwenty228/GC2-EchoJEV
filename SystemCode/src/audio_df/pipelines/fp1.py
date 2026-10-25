@@ -15,7 +15,7 @@ DETECTORS = {
     "d3": D3Detector,
 }
 
-BASE = "d3"  # Switch to "d1" or "d2" for an ablation.
+BASE = "d2"  # round 3 D2 (WavLM layer 6), best dual model; "d1" or "d3" for an ablation.
 
 
 @Run.cli(dataset="2019LA")
