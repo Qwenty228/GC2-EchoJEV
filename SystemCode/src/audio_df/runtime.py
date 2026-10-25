@@ -322,6 +322,9 @@ class Run:
             # Artifacts saved before preprocessing.json existed were trained on raw audio.
             "train_preprocessing": (json.loads(train_prep.read_text(encoding="utf-8"))["train"]
                                     if train_prep.exists() else "raw"),
+            # D2/D3 only: which WavLM hidden state the attention used, so rounds stay distinguishable.
+            **({"wavlm_layer": layer} if (layer := getattr(getattr(getattr(model, "head", None), "config", None),
+                                                           "layer", None)) is not None else {}),
             "split_roles": {name: ("validation_threshold" if name == self.threshold_from else "held_out_test") for name in names},
             "reported_metrics": "held_out_test_only", "threshold_source": self.threshold_from,
             "evaluation_preprocessing": {

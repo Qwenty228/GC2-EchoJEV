@@ -41,3 +41,11 @@ def test_collect_reads_training_audio_from_artifact_when_config_lacks_it(tmp_pat
     table = eer_table(collect(tmp_path / "runs", ["d1"]))
     assert list(table.index) == [("d1", "trimmed")]
     assert table.loc[("d1", "trimmed"), "dev"] == 0.0
+
+
+def test_collect_labels_attention_models_by_wavlm_layer(tmp_path):
+    for name, art, layer in [("E-20261023-000000-d3", "20261023-000000", 12), ("E-20261024-000000-d3", "20261024-000000", 6)]:
+        _run(tmp_path, name, "d3", art, ["dev"], train="trimmed")
+        cfg = tmp_path / "runs" / name / "config.yaml"
+        cfg.write_text(cfg.read_text() + f"wavlm_layer: {layer}\n")
+    assert set(collect(tmp_path / "runs", ["d3"])) == {("d3 L12", "trimmed"), ("d3 L6", "trimmed")}
