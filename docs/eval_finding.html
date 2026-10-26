@@ -278,9 +278,10 @@
           <span class="node">classifier</span>
         </div>
         <div class="note">
-          <b>Result:</b> with layer 6 both attention models now beat A2. Mean EER over the 8 test
-          sets: D2 11.1%, D3 11.3%, A2 12.8% (round 2: D2 17.3%, D3 18.0%). Biggest gains: 2021 LA
-          eval 14.3% → 10.1%, MUSAN noise 17.0% → 12.0% (D3). In-the-Wild stays around 20% for
+          <b>Result:</b> with layer 6 both attention models now beat A2. Mean EER over the 10 test
+          sets: D2 11.0%, D3 11.5%, A2 12.5% (on the 8 sets round 2 was scored on: round 2 D2 17.3%,
+          D3 18.0%). Biggest gains: 2021 LA eval 14.3% → 10.1%, MUSAN noise 17.0% → 12.0% (D3); on
+          2021 DF D2 gets 10.0% vs A2's 10.7%. In-the-Wild stays around 20% for
           every model; no single WavLM layer gets it below 20.7%, so that is a limit of frozen WavLM
           trained on 2019 LA, not of the fusion.
         </div>
