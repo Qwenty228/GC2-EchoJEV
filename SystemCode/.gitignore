@@ -12,6 +12,7 @@
 # --- data ---
 data/raw/*
 data/cache/*
+data/models/*
 !data/**/.gitkeep
 data/manifests/*.csv
 data/metadata/*.csv

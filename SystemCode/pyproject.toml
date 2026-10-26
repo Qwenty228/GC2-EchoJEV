@@ -24,6 +24,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "typesafe-sdk>=0.7.5",
     "python-dotenv>=1.2.4",
+    "laya>=0.4.15",
 ]
 
 [project.scripts]
@@ -39,7 +40,11 @@ d1 = "audio_df.pipelines.d1:main"
 d2 = "audio_df.pipelines.d2:main"
 d3 = "audio_df.pipelines.d3:main"
 fp1 = "audio_df.pipelines.fp1:main"
+fp2 = "audio_df.pipelines.fp2:main"
+a3-laya = "audio_df.pipelines.a3_laya:main"
 p1 = "audio_df.pipelines.p1:main" # not an audio detection pipeline;
+compare = "scripts.compare_policies:main"
+evaluate-laya = "scripts.evaluate_laya_on_scores:main"
 
 [project.optional-dependencies]
 viz = ["seaborn>=0.13", "umap-learn>=0.5"]

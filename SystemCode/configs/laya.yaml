@@ -1,0 +1,26 @@
+# LAYA (Phase 2 P2 Decision Policy) configuration
+# Evaluates audio deepfake evidence locally via Convai LAYA (open-source ModernBERT).
+model: convaiinnovations/laya
+device: auto  # auto | cuda | cpu
+prompt: >-
+  Decide whether the supplied detector evidence supports bona fide or spoof.
+  Only detector scores and acoustic margins are provided; do not invent facts.
+  Abstain when evidence is insufficient or ambiguous.
+questions:
+  decision:
+    type: choice
+    instructions: Choose the audio verdict supported by the detector evidence.
+    criteria:
+      bonafide: Evidence favors authentic, human-produced speech.
+      spoof: Evidence favors synthetic, cloned, or spoofed speech.
+      uncertain: Evidence is ambiguous or insufficient for a reliable verdict.
+  evidence_quality:
+    type: score
+    instructions: How sufficient and conclusive is the supplied evidence?
+    criteria:
+      - Insufficient: Near threshold margin or contradictory indicators.
+      - Limited: Weak margin favoring one class with minor uncertainty.
+      - Strong: Decisive margin far from threshold with consistent acoustic profile.
+  ambiguity:
+    type: noul
+    instructions: Is the supplied detector evidence ambiguous or near the operating threshold?
