@@ -1,0 +1,53 @@
+{
+  "method": "pandas.DataFrame.sample",
+  "seed": 1337,
+  "limit_per_testset": 20,
+  "selected_utt_ids": {
+    "asvspoof2021df_eval": [
+      "DF_E_4050903",
+      "DF_E_2502740",
+      "DF_E_2328159",
+      "DF_E_3550731",
+      "DF_E_4905536",
+      "DF_E_3593643",
+      "DF_E_2432677",
+      "DF_E_4899702",
+      "DF_E_3508699",
+      "DF_E_4687797",
+      "DF_E_3534908",
+      "DF_E_2074484",
+      "DF_E_2249916",
+      "DF_E_3204695",
+      "DF_E_4904860",
+      "DF_E_4798663",
+      "DF_E_4719309",
+      "DF_E_3574452",
+      "DF_E_3215061",
+      "DF_E_2893077"
+    ],
+    "asvspoof2021df_hidden": [
+      "DF_E_4407737",
+      "DF_E_2626662",
+      "DF_E_3797183",
+      "DF_E_4911454",
+      "DF_E_3718544",
+      "DF_E_2394846",
+      "DF_E_2339250",
+      "DF_E_4509721",
+      "DF_E_4029490",
+      "DF_E_3118759",
+      "DF_E_3010852",
+      "DF_E_3454494",
+      "DF_E_2852240",
+      "DF_E_3831644",
+      "DF_E_3089598",
+      "DF_E_3244443",
+      "DF_E_3041084",
+      "DF_E_3169027",
+      "DF_E_2748496",
+      "DF_E_3770894"
+    ]
+  },
+  "calibration_source": "dev",
+  "calibration": "full dataset for threshold calibration"
+}

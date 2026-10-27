@@ -1,0 +1,23 @@
+architecture: fp1
+base: d2
+model_artifact: artifacts/d2/20261024-134449-960661
+jev_model_requested: jev-latest
+testsets:
+- asvspoof2021df_eval
+- asvspoof2021df_hidden
+limit: 20
+seed: 1337
+split_roles:
+  dev: validation_threshold
+  asvspoof2021df_eval: held_out_test
+  asvspoof2021df_hidden: held_out_test
+policy_evaluated_testsets:
+- asvspoof2021df_eval
+- asvspoof2021df_hidden
+threshold_source: dev
+sampling: seeded random without replacement, before preprocessing
+dev_threshold: -0.9904876351356506
+preprocessing:
+  dev: trimmed
+  asvspoof2021df_eval: raw
+  asvspoof2021df_hidden: raw

@@ -1,0 +1,24 @@
+{
+  "asvspoof2021df_eval": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 6.5,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "asvspoof2021df_hidden": {
+    "n": 20,
+    "base_accuracy": 0.85,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.85,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 5.967999999993481,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  }
+}
