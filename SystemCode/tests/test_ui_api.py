@@ -79,11 +79,11 @@ def test_compare_models(client: TestClient) -> None:
     sf.write(buf, waveform, sr, format="WAV")
     wav_bytes = buf.getvalue()
 
-    # Compare a1 with a1 (valid available model)
+    # Compare a2 with a2: the tracked a2 artifact matches artifacts/a2/threshold.json
     r = client.post(
         "/api/compare",
         files={"file": ("test.wav", wav_bytes, "audio/wav")},
-        data={"model_a": "a1", "model_b": "a1", "abstain_margin": 0.25},
+        data={"model_a": "a2", "model_b": "a2", "abstain_margin": 0.25},
     )
     assert r.status_code == 200
     res = r.json()

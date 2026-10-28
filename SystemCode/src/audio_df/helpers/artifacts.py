@@ -1,12 +1,12 @@
-"""Trained model artifacts: which systems this machine has, and each one's decision threshold.
+"""Trained model artifacts: which systems this machine has, and each system's decision threshold.
 
 Weights live in <root>/artifacts/<system>/<timestamp>/; a COMPLETE file marks a finished one.
 Set ADF_ARTIFACTS to use another folder instead (e.g. a volume mounted into a container; the image
 ships code only, never weights).
 
-Each evaluated artifact keeps a copy of its latest calibration in threshold.json, written by the
-runtime after every evaluation, so the threshold travels with the weights. For artifacts evaluated
-before that existed: `uv run python -m audio_df.helpers.artifacts` (see backfill_thresholds).
+Each system has one artifacts/<system>/threshold.json: the latest dev calibration and the artifact
+it was made for. The runtime replaces it after every evaluation; older thresholds stay in
+runs/*/calibration.json (copy one over to use it). It is only used for the artifact it names.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from typing import Any
 import yaml
 
 __all__ = ["SYSTEMS", "artifacts_dir", "latest", "available", "save_threshold", "threshold",
-           "backfill_thresholds"]
+           "write_latest_thresholds"]
 
 SYSTEMS = ("a1", "a2", "a4", "d1", "d2", "d3")
 THRESHOLD_FILE = "threshold.json"
@@ -46,47 +46,41 @@ def available(root: str | Path) -> dict[str, Path]:
 
 
 def save_threshold(artifact: str | Path, calibration: dict[str, Any], run: str) -> None:
-    """Store a run's calibration (eer_threshold, source, ...) with the artifact it calibrated."""
-    record = {**calibration, "run": run}
-    (Path(artifact) / THRESHOLD_FILE).write_text(json.dumps(record, indent=2), encoding="utf-8")
+    """Make a run's calibration the system's threshold, replacing the previous one."""
+    artifact = Path(artifact)
+    record = {"artifact": artifact.name, "run": run, **calibration}
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    (artifact.parent / THRESHOLD_FILE).write_text(json.dumps(record, indent=2), encoding="utf-8")
 
 
 def threshold(artifact: str | Path) -> dict[str, Any] | None:
-    """The artifact's stored calibration, or None when it was never evaluated."""
-    path = Path(artifact) / THRESHOLD_FILE
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+    """The system's stored calibration if it was made for this artifact, else None."""
+    artifact = Path(artifact)
+    path = artifact.parent / THRESHOLD_FILE
+    if not path.is_file():
+        return None
+    record = json.loads(path.read_text(encoding="utf-8"))
+    return record if record.get("artifact") == artifact.name else None
 
 
-def backfill_thresholds(root: str | Path) -> dict[str, str]:
-    """Write threshold.json from the newest runs/*/calibration.json of each artifact that has none.
-
-    Covers every artifact present on this machine, plus each system's newest evaluated artifact
-    even when its weights are elsewhere: that folder then holds only threshold.json (no COMPLETE,
-    so it is not available here) and the file joins the weights on the machine that has them.
-    """
+def write_latest_thresholds(root: str | Path) -> dict[str, str]:
+    """threshold.json per system from runs/: newest calibration of its newest evaluated artifact."""
     from audio_df.helpers.research.runs import artifact_key
 
-    newest_run: dict[str, Path] = {}  # "system/timestamp" -> newest run that calibrated it
+    newest: dict[str, tuple[str, Path]] = {}  # system -> (artifact timestamp, its newest run)
     for run in sorted((Path(root) / "runs").glob("E-*")):  # run names start with a timestamp
         cfg_path = run / "config.yaml"
         if (run / "calibration.json").is_file() and cfg_path.is_file():
             cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-            key = artifact_key(cfg.get("model_artifact", ""))
-            if key.split("/")[0] in SYSTEMS:
-                newest_run[key] = run
-    newest_artifact = {s: max((k for k in newest_run if k.startswith(f"{s}/")), default=None)
-                       for s in SYSTEMS}
-    done = {}
-    for key, run in sorted(newest_run.items()):
-        artifact = artifacts_dir(root) / key
-        if (artifact.is_dir() or key in newest_artifact.values()) and threshold(artifact) is None:
-            artifact.mkdir(parents=True, exist_ok=True)
-            calibration = json.loads((run / "calibration.json").read_text(encoding="utf-8"))
-            save_threshold(artifact, calibration, run.name)
-            done[key] = run.name
-    return done
+            system, _, stamp = artifact_key(cfg.get("model_artifact", "")).partition("/")
+            if system in SYSTEMS and stamp >= newest.get(system, ("", None))[0]:
+                newest[system] = (stamp, run)
+    for system, (stamp, run) in newest.items():
+        calibration = json.loads((run / "calibration.json").read_text(encoding="utf-8"))
+        save_threshold(artifacts_dir(root) / system / stamp, calibration, run.name)
+    return {system: f"{stamp} from {run.name}" for system, (stamp, run) in newest.items()}
 
 
 if __name__ == "__main__":
-    for key, run in backfill_thresholds(Path.cwd()).items():
-        print(f"{key}: threshold from {run}")
+    for system, source in write_latest_thresholds(Path.cwd()).items():
+        print(f"{system}: {source}")

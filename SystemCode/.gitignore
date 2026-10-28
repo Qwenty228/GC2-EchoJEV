@@ -25,6 +25,8 @@ data/metadata/*.csv
 # saved model bundles served by the app
 artifacts/**
 !artifacts/*/
+# one dev threshold per system, replaced by every evaluation (helpers/artifacts.py)
+!artifacts/*/threshold.json
 # exception: models the tracked notebooks load
 !artifacts/a1/20261020-134519-735144/
 !artifacts/a1/20261020-134519-735144/**
