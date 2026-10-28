@@ -276,63 +276,60 @@
     <!-- ========================================== -->
     <section id="view-rankings" hidden>
       <div class="section-head">
-        <h2 class="section-title">Model Leaderboard & Policy Rankings</h2>
+        <h2 class="section-title">Leaderboard</h2>
         <p class="section-subtitle">
-          Empirical evaluation matrix across ASVspoof 2019 Logical Access and In-The-Wild benchmarks.
-          Ranking models by autonomous accuracy, risk-coverage trade-off, and net error recovery.
+          Every detector on every test set, from its evaluation runs. Lower EER is better.
         </p>
       </div>
 
       <div class="card">
-        <!-- Benchmark Split Toggle -->
-        <div class="leaderboard-filters">
-          <button type="button" class="filter-btn active" data-dataset="asvspoof2019_eval">
-            ASVspoof 2019 Eval (N=71,237)
-          </button>
-          <button type="button" class="filter-btn" data-dataset="in_the_wild">
-            In-The-Wild OOD (N=31,779)
-          </button>
-        </div>
-
-        <p class="drop-hint" id="rankings-description" style="margin-bottom: 1rem;">
-          Standard in-domain benchmark evaluating synthetic speech across 13 unseen neural vocoders.
-        </p>
-
-        <!-- Ranking Table -->
+        <div class="leaderboard-filters" id="rankings-tabs"></div>
+        <p class="drop-hint" id="rankings-description" style="margin-bottom: 1rem;"></p>
         <div class="table-responsive">
           <table class="leaderboard-table">
             <thead>
               <tr>
-                <th style="width: 50px;">Rank</th>
-                <th>Model / Policy Configuration</th>
-                <th>Type</th>
-                <th>Accuracy</th>
-                <th>Coverage</th>
+                <th style="width: 50px;">#</th>
+                <th>Detector</th>
                 <th>EER</th>
-                <th>Net Error Gain</th>
-                <th>Escalations</th>
+                <th>Missed spoofs</th>
+                <th>False alarms</th>
+                <th>Clips</th>
               </tr>
             </thead>
             <tbody id="rankings-body">
-              <tr>
-                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                  Loading leaderboard benchmark data…
-                </td>
-              </tr>
+              <tr><td colspan="6" class="drop-hint" style="text-align: center; padding: 2rem;">Loading…</td></tr>
             </tbody>
           </table>
         </div>
-
-        <!-- Theoretical Insights Box -->
         <div class="theory-box">
-          <div class="theory-title">
-            <span>💡</span>
-            <span>Why LAYA/JEV Decision Policies Outperform Single Acoustic Detectors</span>
-          </div>
+          <div class="theory-title"><span>How to read this</span></div>
           <p class="theory-text">
-            <strong>1. Selective Abstention (Option 1):</strong> 68.2% of acoustic classification errors concentrate within a narrow band around the operating threshold (|s - θ| &lt; 3.0). By assigning ambiguous boundary samples to human forensic review, LAYA purifies the decided subset, lifting effective accuracy from 85.0% to 90.3% at 93% coverage.<br><br>
-            <strong>2. Cross-Modal Arbitration (Option 2):</strong> Self-supervised models (WavLM Base+) and spectral filterbanks (LFCC Cross-Attention) exhibit distinct blindspots, disagreeing on 10.3% of utterances. Normalizing scores into standard margins (z = (s-θ)/σ) enables LAYA to arbitrate conflicts autonomously, capturing a +5.00 pp accuracy improvement at 100% autonomous coverage.
+            <strong>EER</strong>: error rate when missed spoofs equal false alarms; 50% is chance.<br>
+            <strong>Missed spoofs / false alarms</strong>: what the app decides at the detector's own
+            threshold, set on 2019 dev audio.<br>
+            <strong>Overall</strong>: mean EER over all test sets.
           </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="section-title" style="font-size: 1.15rem; text-align: left;">Decision layer: arbitration</h3>
+        <p class="drop-hint" id="arbitration-description" style="margin-bottom: 1rem;"></p>
+        <div class="table-responsive">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Judge</th>
+                <th>Request</th>
+                <th>Detectors listed</th>
+                <th>Decided</th>
+                <th>Right on decided</th>
+                <th>Best single detector</th>
+              </tr>
+            </thead>
+            <tbody id="arbitration-body"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -381,7 +378,7 @@
         Object.entries(views).forEach(([vKey, el]) => {
           el.hidden = (vKey !== targetView);
         });
-        if (targetView === "rankings") loadRankings("asvspoof2019_eval");
+        if (targetView === "rankings" && !rankings) loadRankings();
       });
     });
 
@@ -712,47 +709,78 @@
     }
 
     // --- Leaderboard & Rankings Logic ---
-    document.querySelectorAll(".filter-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        loadRankings(btn.dataset.dataset);
-      });
-    });
+    // --- Leaderboard (artifacts/rankings.json via /api/rankings) ---
+    let rankings = null;
+    const pct = (x) => (x == null ? "-" : `${Number(x).toFixed(1)}%`);
 
-    async function loadRankings(datasetId) {
-      const tbody = $("rankings-body");
+    async function loadRankings() {
       try {
-        const r = await fetch(`/api/rankings?dataset=${datasetId}`);
+        const r = await fetch("/api/rankings");
         const json = await r.json();
-        if (!r.ok) throw new Error(json.detail);
-
-        $("rankings-description").textContent = json.data.description;
-        const items = json.data.items || [];
-
-        tbody.innerHTML = items.map((it) => {
-          const rankClass = it.rank === 1 ? "rank-1" : (it.rank === 2 ? "rank-2" : (it.rank === 3 ? "rank-3" : "rank-other"));
-          const policyClass = it.type.includes("Ensemble") ? "ensemble" : (it.type.includes("Rejection") ? "rejection" : "base");
-          return `
-            <tr>
-              <td><span class="rank-pill ${rankClass}">${it.rank}</span></td>
-              <td>
-                <div class="system-title">${it.name}</div>
-                <div class="drop-hint">${it.system}</div>
-                <div class="policy-badge ${policyClass}">${it.policy}</div>
-              </td>
-              <td><span class="drop-hint">${it.type}</span></td>
-              <td class="num-cell">${it.accuracy.toFixed(2)}%</td>
-              <td class="num-cell">${it.coverage.toFixed(1)}%</td>
-              <td class="num-cell">${it.eer.toFixed(2)}%</td>
-              <td class="num-cell ${it.ner.startsWith("+") ? "stat-gain" : ""}">${it.ner}</td>
-              <td class="num-cell">${it.escalated}</td>
-            </tr>
-          `;
-        }).join("");
+        if (!r.ok) throw new Error(json.detail || r.statusText);
+        rankings = json;
+        const tabs = [{ id: "overall", short: "Overall" }, ...json.testsets];
+        $("rankings-tabs").innerHTML = tabs.map((t, i) =>
+          `<button type="button" class="filter-btn${i ? "" : " active"}" data-set="${t.id}">${t.short}</button>`
+        ).join("");
+        document.querySelectorAll("#rankings-tabs .filter-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            document.querySelectorAll("#rankings-tabs .filter-btn").forEach((b) => b.classList.toggle("active", b === btn));
+            renderLeaderboard(btn.dataset.set);
+          });
+        });
+        renderLeaderboard("overall");
+        renderArbitration();
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="color: var(--fake); text-align: center; padding: 1.5rem;">Failed to load leaderboard: ${err.message}</td></tr>`;
+        $("rankings-body").innerHTML = `<tr><td colspan="6" style="color: var(--fake); text-align: center; padding: 1.5rem;">${err.message}</td></tr>`;
       }
+    }
+
+    function renderLeaderboard(setId) {
+      const set = rankings.testsets.find((t) => t.id === setId);
+      $("rankings-description").textContent = set
+        ? `${set.label} · ${set.group}`
+        : `Mean EER over all ${rankings.testsets.length} test sets · generated ${rankings.generated.slice(0, 10)}`;
+      const rows = rankings.detectors
+        .map((d) => ({ d, m: setId === "overall" ? { eer: d.overall_eer } : d.metrics[setId] }))
+        .filter((x) => x.m && x.m.eer != null)
+        .sort((a, b) => a.m.eer - b.m.eer);
+      $("rankings-body").innerHTML = rows.map(({ d, m }, i) => `
+        <tr>
+          <td><span class="rank-pill ${i < 3 ? `rank-${i + 1}` : "rank-other"}">${i + 1}</span></td>
+          <td>
+            <div class="system-title">${d.name}${d.final ? ' <span class="final-tag">final model</span>' : ""}</div>
+            <div class="drop-hint">artifact ${d.artifact}</div>
+          </td>
+          <td class="num-cell">
+            <div class="eer-bar"><span style="width: ${Math.min(100, (m.eer / 50) * 100)}%"></span></div>
+            ${pct(m.eer)}
+          </td>
+          <td class="num-cell">${pct(m.missed_spoofs)}</td>
+          <td class="num-cell">${pct(m.false_alarms)}</td>
+          <td class="num-cell">${setId === "overall" ? "all sets" : m.clips.toLocaleString()}</td>
+        </tr>`).join("");
+    }
+
+    function renderArbitration() {
+      const rows = rankings.arbitration;
+      if (!rows.length) {
+        $("arbitration-description").textContent = "No arbitration results yet.";
+        return;
+      }
+      const first = rows[0];
+      $("arbitration-description").textContent =
+        `${first.clips} In-the-Wild clips where ${first.detectors.map((m) => m.toUpperCase()).join(", ")} disagree. ` +
+        "The judge sees each detector's verdict and evidence, listed in two orders; a fair judge gives the same answer for both.";
+      $("arbitration-body").innerHTML = rows.map((a) => `
+        <tr>
+          <td>${a.judge.toUpperCase()}</td>
+          <td>${a.request}</td>
+          <td class="drop-hint">${a.order}</td>
+          <td class="num-cell">${pct(a.decided)}</td>
+          <td class="num-cell ${a.decided === 100 && a.accuracy_on_decided > a.best_single.accuracy ? "stat-gain" : ""}">${pct(a.accuracy_on_decided)}</td>
+          <td class="num-cell">${a.best_single.id.toUpperCase()} · ${pct(a.best_single.accuracy)}</td>
+        </tr>`).join("");
     }
   </script>
 </body>

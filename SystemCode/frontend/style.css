@@ -929,3 +929,33 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+.eer-bar {
+  height: 6px;
+  width: 100%;
+  min-width: 80px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.eer-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+}
+
+.final-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--real-bg);
+  color: var(--real);
+  margin-left: 6px;
+}
+
+.leaderboard-filters {
+  flex-wrap: wrap;
+}

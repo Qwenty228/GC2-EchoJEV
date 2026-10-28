@@ -179,7 +179,9 @@ ADF_ARTIFACTS=/models ADF_SYSTEM=d2 uv run uvicorn backend.app:app --port 8000
 ```
 Each detector's threshold is read from `SystemCode/artifacts/<system>/threshold.json` (dev EER, updated by every
 evaluation); `ADF_THRESHOLD` overrides it for the start-up system only. Pages: single detector, compare & arbitrate
-(two detectors + a LAYA/JEV judge; JEV needs `TYPESAFE_API_KEY`), rankings.
+(two detectors + a LAYA/JEV judge; JEV needs `TYPESAFE_API_KEY`), rankings. The rankings page reads
+`SystemCode/artifacts/rankings.json`, built from `runs/` by `uv run make-rankings` (not tracked; copy it into the
+deployed volume after new evaluations).
 Open **`http://127.0.0.1:8000`** in any modern web browser to access the **Voice Spoof Check** interface.
 
 ---

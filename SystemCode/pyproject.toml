@@ -43,6 +43,7 @@ fp1 = "audio_df.pipelines.fp1:main"
 fp2 = "audio_df.pipelines.fp2:main"
 a3-laya = "audio_df.pipelines.a3_laya:main"
 arbitration = "audio_df.pipelines.arbitration:main"
+make-rankings = "scripts.make_rankings:main"
 p1 = "audio_df.pipelines.p1:main" # not an audio detection pipeline;
 compare = "scripts.compare_policies:main"
 evaluate-laya = "scripts.evaluate_laya_on_scores:main"

@@ -517,6 +517,11 @@ ADF_ARTIFACTS=/models ADF_SYSTEM=d2 uv run uvicorn backend.app:app</code></pre>
           (written after every evaluation). JEV is offered only when
           <code>TYPESAFE_API_KEY</code> is set.
         </p>
+        <p>
+          The rankings page reads <code>artifacts/rankings.json</code>, built from
+          <code>runs/</code> by <code>uv run make-rankings</code>; copy it into the
+          deployed volume after new evaluations. It is not tracked in git.
+        </p>
       </section>
       <p class="foot">
         EchoJEV · Architecture reference · final detector D2 (WavLM layer 6) ·

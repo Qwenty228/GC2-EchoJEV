@@ -17,11 +17,12 @@ thresholds are calibrated on; silent or too-short clips are rejected.
 from __future__ import annotations
 
 import io
+import json
 import os
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import numpy as np
 import soundfile as sf
@@ -94,226 +95,12 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "sample_rate": 16000,
     },
     "d3": {
-        "name": "Multi-Scale Fusion",
-        "description": "Multi-resolution spectral pyramid cross-attended with self-supervised tokens",
-        "domain": "Multi-Resolution Cross-Attention",
+        "name": "Two-Way Cross-Attention",
+        "description": "LFCC and WavLM layer-6 tokens attend to each other",
+        "domain": "Two-Way Spectral & SSL Attention",
         "sample_rate": 16000,
     },
 }
-
-RANKINGS_DATA: dict[str, Any] = {
-    "asvspoof2019_eval": {
-        "id": "asvspoof2019_eval",
-        "title": "ASVspoof 2019 Logical Access (Evaluation Partition, N=71,237)",
-        "description": "Standard in-domain benchmark evaluating synthetic speech across 13 unseen neural vocoders and synthesis techniques (A07-A19).",
-        "items": [
-            {
-                "rank": 1,
-                "name": "EchoJEV Combined Policy",
-                "system": "A2 (WavLM) + D2 (Cross-Attn)",
-                "policy": "Arbitration + Selective Abstention (τ_arb=0.25)",
-                "accuracy": 90.62,
-                "coverage": 96.0,
-                "eer": 1.15,
-                "ner": "+3 clips",
-                "escalated": "4.0%",
-                "type": "Policy Ensemble",
-                "badge": "Top Performer",
-                "notes": "Arbitrates decisive conflicts; escalates high-entropy ties under Chow's Rule.",
-            },
-            {
-                "rank": 2,
-                "name": "LAYA Option 1: Selective Abstention",
-                "system": "A2 (WavLM Base+)",
-                "policy": "Margin-Based Risk Rejection (τ=3.0)",
-                "accuracy": 90.32,
-                "coverage": 93.0,
-                "eer": 1.08,
-                "ner": "Error Filtered",
-                "escalated": "7.0%",
-                "type": "Risk Rejection",
-                "badge": "High Assurance",
-                "notes": "Rejects 68.2% of baseline misclassifications located in the boundary uncertainty band.",
-            },
-            {
-                "rank": 3,
-                "name": "LAYA Option 2: Pure Arbitration",
-                "system": "A2 (WavLM) + D2 (Cross-Attn)",
-                "policy": "Multi-Detector Margin Dominance (τ=0.0)",
-                "accuracy": 90.00,
-                "coverage": 100.0,
-                "eer": 1.22,
-                "ner": "+5 clips",
-                "escalated": "0.0%",
-                "type": "Autonomous Ensemble",
-                "badge": "100% Autonomous",
-                "notes": "Zero human escalation; recovers +5 net error clips autonomously over A2.",
-            },
-            {
-                "rank": 4,
-                "name": "Base D2: Cross-Attention Fusion",
-                "system": "D2 (LFCC + WavLM L6)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 87.00,
-                "coverage": 100.0,
-                "eer": 1.72,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "Dual Acoustic",
-                "notes": "Cross-attends spectral filterbanks with self-supervised Layer-6 transformer tokens.",
-            },
-            {
-                "rank": 5,
-                "name": "Base A2: WavLM Base+",
-                "system": "A2 (WavLM Base+)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 85.00,
-                "coverage": 100.0,
-                "eer": 1.32,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "SSL Acoustic",
-                "notes": "Temporal average pooling over fine-tuned WavLM Base+ contextual representations.",
-            },
-            {
-                "rank": 6,
-                "name": "Base A4: LFCC-MLP",
-                "system": "A4 (LFCC + MLP)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 83.50,
-                "coverage": 100.0,
-                "eer": 4.21,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "MLP Acoustic",
-                "notes": "MLP on time-averaged LFCCs; no temporal modelling and no foundation model.",
-            },
-            {
-                "rank": 7,
-                "name": "Base A1: LFCC-GMM",
-                "system": "A1 (LFCC + GMM)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 80.16,
-                "coverage": 100.0,
-                "eer": 9.56,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "B02 Baseline",
-                "notes": "Official ASVspoof 2019 B02 baseline (512-component diagonal Gaussian Mixture Models).",
-            },
-        ],
-    },
-    "in_the_wild": {
-        "id": "in_the_wild",
-        "title": "In-The-Wild Evaluation Partition (N=31,779)",
-        "description": "Challenging out-of-domain benchmark gathered from public deepfakes, podcasts, compression artifacts, and real-world audio channels.",
-        "items": [
-            {
-                "rank": 1,
-                "name": "LAYA Option 1: Selective Abstention",
-                "system": "A2 (WavLM Base+)",
-                "policy": "Margin-Based Risk Rejection (τ=3.0)",
-                "accuracy": 73.03,
-                "coverage": 89.0,
-                "eer": 12.10,
-                "ner": "Error Filtered",
-                "escalated": "11.0%",
-                "type": "Risk Rejection",
-                "badge": "Top OOD Robustness",
-                "notes": "Filters acoustic ambiguity under heavy channel shift; delivers +5.03pp gain on decided speech.",
-            },
-            {
-                "rank": 2,
-                "name": "Base A2: WavLM Base+",
-                "system": "A2 (WavLM Base+)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 68.00,
-                "coverage": 100.0,
-                "eer": 13.32,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "Strongest Single Base",
-                "notes": "Self-supervised representations maintain strong generalization across out-of-domain codecs.",
-            },
-            {
-                "rank": 3,
-                "name": "LAYA Option 2: Pure Arbitration",
-                "system": "A2 (WavLM) + D2 (Cross-Attn)",
-                "policy": "Multi-Detector Margin Dominance (τ=0.0)",
-                "accuracy": 67.00,
-                "coverage": 100.0,
-                "eer": 14.15,
-                "ner": "+11.00pp vs D2",
-                "escalated": "0.0%",
-                "type": "Autonomous Ensemble",
-                "badge": "Robust Ensemble",
-                "notes": "Shields D2 weakness on OOD data (+11pp gain over D2) while retaining 100% coverage.",
-            },
-            {
-                "rank": 4,
-                "name": "EchoJEV Combined Policy",
-                "system": "A2 (WavLM) + D2 (Cross-Attn)",
-                "policy": "Arbitration + Selective Abstention (τ_arb=0.25)",
-                "accuracy": 64.89,
-                "coverage": 94.0,
-                "eer": 13.80,
-                "ner": "+8.89pp vs D2",
-                "escalated": "6.0%",
-                "type": "Policy Ensemble",
-                "badge": "Balanced OOD",
-                "notes": "Selectively abstains on ambiguous boundary conflicts in out-of-domain recordings.",
-            },
-            {
-                "rank": 5,
-                "name": "Base D2: Cross-Attention Fusion",
-                "system": "D2 (LFCC + WavLM L6)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 56.00,
-                "coverage": 100.0,
-                "eer": 18.50,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "Handcrafted + SSL",
-                "notes": "Handcrafted LFCC features suffer greater distribution shift on diverse unconstrained audio.",
-            },
-            {
-                "rank": 6,
-                "name": "Base A4: LFCC-MLP",
-                "system": "A4 (LFCC + MLP)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 52.30,
-                "coverage": 100.0,
-                "eer": 28.40,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "MLP Acoustic",
-                "notes": "Struggles with out-of-domain acoustic environments without foundation model pre-training.",
-            },
-            {
-                "rank": 7,
-                "name": "Base A1: LFCC-GMM",
-                "system": "A1 (LFCC + GMM)",
-                "policy": "Acoustic Classifier Alone",
-                "accuracy": 41.96,
-                "coverage": 100.0,
-                "eer": 58.04,
-                "ner": "0 (Baseline)",
-                "escalated": "0.0%",
-                "type": "Acoustic Base",
-                "badge": "B02 Baseline",
-                "notes": "Catastrophic degradation under unconstrained acoustic environments and codecs.",
-            },
-        ],
-    },
-}
-
 
 def artifact_threshold(artifact: Path | None) -> tuple[float | None, str]:
     """The artifact's stored dev EER threshold (threshold.json) and where it came from."""
@@ -383,10 +170,12 @@ def create_app(
         with lock:
             if sys_name not in model_pool:
                 source_path = source if (sys_name == selected and source is not None) else None
-                chosen = Path(source_path) if source_path is not None else artifacts.latest(sys_name, ROOT)
+                chosen = (Path(source_path) if source_path is not None
+                          else artifacts.latest(sys_name, ROOT))
                 if chosen is None:
+                    present = ", ".join(artifacts.available(ROOT)) or "none"
                     raise HTTPException(503, f"{sys_name} is not available on this machine; "
-                                             f"available: {', '.join(artifacts.available(ROOT)) or 'none'}")
+                                             f"available: {present}")
                 if not chosen.is_absolute():
                     chosen = ROOT / chosen
                 chosen = chosen.resolve()
@@ -426,7 +215,8 @@ def create_app(
         if speech_s < MIN_SPEECH_SECONDS:
             raise HTTPException(
                 422,
-                f"Only {speech_s:.1f} s of sound after trimming silence; need at least {MIN_SPEECH_SECONDS:g} s of speech",
+                f"Only {speech_s:.1f} s of sound after trimming silence; "
+                f"need at least {MIN_SPEECH_SECONDS:g} s of speech",
             )
         try:
             score = float(model.score_audio(waveform))
@@ -479,7 +269,7 @@ def create_app(
 
     @api.get("/api/models")
     def list_models() -> dict[str, Any]:
-        """Supported detectors (which are on this machine, with their thresholds) and usable judges."""
+        """Supported detectors (which are on this machine, their thresholds) and usable judges."""
         present = artifacts.available(ROOT)
         models_list = [
             {
@@ -501,22 +291,23 @@ def create_app(
                 "default_judge": load_config(ArbitratorConfig).judge}
 
     @api.get("/api/rankings")
-    def get_rankings(dataset: str = "asvspoof2019_eval") -> dict[str, Any]:
-        """Return benchmark model rankings evaluated with JEV/LAYA decision policies."""
-        if dataset not in RANKINGS_DATA:
-            dataset = "asvspoof2019_eval"
-        return {
-            "dataset": dataset,
-            "available_datasets": list(RANKINGS_DATA.keys()),
-            "data": RANKINGS_DATA[dataset],
-        }
+    def get_rankings() -> dict[str, Any]:
+        """Leaderboard from <artifacts>/rankings.json, built by `uv run make-rankings`."""
+        path = artifacts.artifacts_dir(ROOT) / "rankings.json"
+        if not path.is_file():
+            raise HTTPException(404, "No rankings yet: run `uv run make-rankings` and copy "
+                                     "rankings.json into the artifacts folder")
+        return json.loads(path.read_text(encoding="utf-8"))
 
     @api.post("/api/detect")
     def detect(
-        file: UploadFile = File(...), policy: str = Form("none"), system: str = Form("")
+        file: Annotated[UploadFile, File()],
+        policy: Annotated[str, Form()] = "none",
+        system: Annotated[str, Form()] = "",
     ) -> dict[str, Any]:
         if policy != "none" and policy not in POLICIES:
-            raise HTTPException(400, f"Unknown policy {policy!r}; choose none, {', '.join(POLICIES)}")
+            choices = ", ".join(POLICIES)
+            raise HTTPException(400, f"Unknown policy {policy!r}; choose none, {choices}")
         sys_name = require_available("system", system)
         x, sr = read_upload(file)
         model, artifact = get_loaded_detector(sys_name)
@@ -538,17 +329,18 @@ def create_app(
 
     @api.post("/api/compare")
     def compare(
-        file: UploadFile = File(...),
-        model_a: str = Form("a2"),
-        model_b: str = Form("a1"),
-        judge: str = Form(""),
+        file: Annotated[UploadFile, File()],
+        model_a: Annotated[str, Form()] = "a2",
+        model_b: Annotated[str, Form()] = "a1",
+        judge: Annotated[str, Form()] = "",
     ) -> dict[str, Any]:
-        """Score one clip with two detectors; the judge (LAYA or JEV) arbitrates via modules/arbitrator."""
+        """Score one clip with two detectors; a LAYA or JEV judge arbitrates."""
         config = load_config(ArbitratorConfig)
         judge = judge or config.judge
         usable = arbitrator.judges()
         if judge not in usable:
-            raise HTTPException(400, f"Judge {judge!r} is not usable here; choose from {list(usable)}")
+            raise HTTPException(400, f"Judge {judge!r} is not usable here; "
+                                     f"choose from {list(usable)}")
         if (model_a or selected).lower().strip() == (model_b or selected).lower().strip():
             raise HTTPException(400, "Pick two different detectors to arbitrate between")
         x, sr = read_upload(file)
@@ -561,8 +353,8 @@ def create_app(
             stored = artifacts.threshold(artifact)
             p = artifacts.p_bonafide(stored, score)
             if thr is None or p is None:
-                raise HTTPException(409, f"No stored calibration for {sys_name}; evaluate it or run "
-                                         "`python -m audio_df.helpers.artifacts`")
+                raise HTTPException(409, f"No stored calibration for {sys_name}; evaluate it "
+                                         "or run `python -m audio_df.helpers.artifacts`")
             sides.append({
                 "system": sys_name, "name": detector_name(sys_name), "artifact": artifact.name,
                 "score": score, "threshold": thr, "margin": score - thr, "p_bonafide": p,
@@ -583,7 +375,8 @@ def create_app(
         agreement = sides[0]["prediction"] == sides[1]["prediction"]
         backers = [s["name"] for s in sides if s["prediction"] == verdict]
         if verdict == "uncertain":
-            status, rationale = "escalated", f"{usable[judge]} abstained: the evidence is too mixed to decide."
+            status = "escalated"
+            rationale = f"{usable[judge]} abstained: the evidence is too mixed to decide."
         else:
             status = "unanimous" if agreement and backers else "arbitrated"
             sided = f"siding with {' and '.join(backers)}" if backers else "against both detectors"

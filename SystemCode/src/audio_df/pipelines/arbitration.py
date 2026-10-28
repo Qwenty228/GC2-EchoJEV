@@ -6,8 +6,8 @@ from notebook 05, "Arbitration test case". The runtime only provides the CLI and
 directory.
 
 Writes runs/E-<time>-arbitration/cases.csv: each detector's verdict and P(bona fide), then the
-judge's answer per request variant and listing order. Accuracy and confusion matrices are in
-notebook 06.
+judge's answer per request variant and listing order; judge.json records the judge. Accuracy and
+confusion matrices are in notebook 06.
 """
 import json
 from pathlib import Path
@@ -17,7 +17,8 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
-from audio_df.modules.arbitrator import VARIANTS, decide, request
+from audio_df.helpers.config import load_config
+from audio_df.modules.arbitrator import VARIANTS, ArbitratorConfig, decide, request
 from audio_df.runtime import Run
 
 RUNS = {  # latest trimmed-training run per detector
@@ -84,6 +85,9 @@ def main(run: Run) -> None:
             cases[f"{variant} | {name}"] = [decide(req)["choice"] for req in requests]
             print(f"  {variant} | {name}: done", flush=True)
     cases.to_csv(run.output / "cases.csv", index=False)
+    meta = {"judge": load_config(ArbitratorConfig).judge,
+            "detectors": {m: d["name"] for m, d in det.items()}}
+    (run.output / "judge.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"Saved: {run.output / 'cases.csv'}")
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 
 import numpy as np
 import pytest
@@ -42,18 +43,14 @@ def test_models_list(client: TestClient) -> None:
     assert a1_meta["available"] is True
 
 
-def test_rankings(client: TestClient) -> None:
-    for dataset in ["asvspoof2019_eval", "in_the_wild"]:
-        r = client.get(f"/api/rankings?dataset={dataset}")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["dataset"] == dataset
-        assert len(data["data"]["items"]) >= 5
-        # Top rank should be present
-        top = data["data"]["items"][0]
-        assert top["rank"] == 1
-        assert "accuracy" in top
-        assert "coverage" in top
+def test_rankings(client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    monkeypatch.setenv("ADF_ARTIFACTS", str(tmp_path))
+    assert client.get("/api/rankings").status_code == 404  # no rankings.json yet
+    data = {"final": "d2", "testsets": [], "detectors": [{"id": "d2"}], "arbitration": []}
+    (tmp_path / "rankings.json").write_text(json.dumps(data))
+    r = client.get("/api/rankings")
+    assert r.status_code == 200
+    assert r.json() == data
 
 
 def test_detect_audio(client: TestClient) -> None:
@@ -85,7 +82,8 @@ def _calibrated_pair() -> list[str]:
     from audio_df.helpers import artifacts
     from backend.app import ROOT
 
-    ok = [s for s, a in artifacts.available(ROOT).items() if (artifacts.threshold(a) or {}).get("platt")]
+    present = artifacts.available(ROOT).items()
+    ok = [s for s, a in present if (artifacts.threshold(a) or {}).get("platt")]
     return ok[:2]
 
 
