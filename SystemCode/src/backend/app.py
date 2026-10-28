@@ -5,9 +5,11 @@ From SystemCode/:
     ADF_SYSTEM=a2 ADF_THRESHOLD=0.5 uv run uvicorn backend.app:app
 
 ADF_SYSTEM selects a1, a2, a4, d1, d2, or d3. ADF_MODEL_FROM optionally
-pins an artifact directory; otherwise the latest COMPLETE artifact is used.
-ADF_THRESHOLD must be calibrated for that exact artifact before a verdict
-is returned. Without it, /api/detect returns a continuous score only.
+pins an artifact directory; otherwise the latest COMPLETE artifact is used, from
+ADF_ARTIFACTS when set (e.g. weights mounted into a container), else artifacts/.
+Only systems with an artifact on this machine can be loaded or compared.
+The threshold is ADF_THRESHOLD when set, else the artifact's threshold.json
+(its dev EER threshold, written by the runtime after evaluation).
 
 Uploads are silence-trimmed with the same recipe as the trimmed dev set the
 thresholds are calibrated on; silent or too-short clips are rejected.
@@ -15,7 +17,6 @@ thresholds are calibrated on; silent or too-short clips are rejected.
 from __future__ import annotations
 
 import io
-import json
 import os
 import threading
 import time
@@ -24,10 +25,10 @@ from typing import Any
 
 import numpy as np
 import soundfile as sf
-import yaml
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
+from audio_df.helpers import artifacts
 from audio_df.helpers.audio import load_audio  # noqa: F401 - shared resampling convention
 from audio_df.helpers.eval_audio import trim_silence
 from audio_df.modules.detector import GMMDetector
@@ -36,7 +37,6 @@ from audio_df.modules.lfcc_neural import LFCCDetector
 from audio_df.modules.fusion_detector import FusionDetector
 from audio_df.modules.d3_detector import D3Detector
 from audio_df.modules.d2_detector import D2Detector
-from audio_df.helpers.research.runs import artifact_key
 from audio_df.modules import jev, laya
 
 __all__ = ["app", "create_app"]
@@ -65,7 +65,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "LFCC-GMM (B02)",
         "description": "512-component diagonal Gaussian Mixture Models over 60-dim LFCCs",
         "domain": "Spectral Envelope & Acoustic Ensembles",
-        "threshold": 0.738177,
         "std": 1.825,
         "sample_rate": 16000,
     },
@@ -73,7 +72,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "WavLM Base+ (SSL)",
         "description": "Pre-trained WavLM Base+ transformer with temporal average pooling",
         "domain": "Deep Contextual Semantics & Representations",
-        "threshold": -0.002726,
         "std": 13.513,
         "sample_rate": 16000,
     },
@@ -81,7 +79,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "LFCC-MLP",
         "description": "Small MLP over time-averaged 60-dim LFCCs",
         "domain": "Spectral Envelope (Time-Averaged)",
-        "threshold": -0.354,
         "std": 0.610,
         "sample_rate": 16000,
     },
@@ -89,7 +86,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "Feature Fusion (Early)",
         "description": "Early concatenation of LFCC features and WavLM SSL representations",
         "domain": "Concatenated Multi-Modal Features",
-        "threshold": -7.775,
         "std": 6.554,
         "sample_rate": 16000,
     },
@@ -97,7 +93,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "Cross-Attention Fusion",
         "description": "Cross-attention fusion between LFCC filterbanks and WavLM Layer-6 tokens",
         "domain": "Cross-Attended Spectral & Contextual Representations",
-        "threshold": -0.990488,
         "std": 5.354,
         "sample_rate": 16000,
     },
@@ -105,7 +100,6 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "Multi-Scale Fusion",
         "description": "Multi-resolution spectral pyramid cross-attended with self-supervised tokens",
         "domain": "Multi-Resolution Cross-Attention",
-        "threshold": -4.072,
         "std": 4.382,
         "sample_rate": 16000,
     },
@@ -325,29 +319,12 @@ RANKINGS_DATA: dict[str, Any] = {
 }
 
 
-def resolve_artifact(root: Path, system: str) -> Path:
-    parent = root / "artifacts" / system
-    valid = sorted(p for p in parent.iterdir() if p.is_dir() and (p / "COMPLETE").is_file()) if parent.is_dir() else []
-    if not valid:
-        raise FileNotFoundError(f"No completed {system} artifact under {parent}")
-    return valid[-1]
-
-
-def has_artifact(root: Path, system: str) -> bool:
-    parent = root / "artifacts" / system
-    return parent.is_dir() and any(p.is_dir() and (p / "COMPLETE").is_file() for p in parent.iterdir())
-
-
-def dev_threshold(root: Path, system: str, artifact: Path) -> tuple[float, str] | None:
-    """Dev EER threshold from the newest evaluation run of this artifact (what FP1/FP2 use)."""
-    key = f"{system}/{artifact.name}"
-    for run in sorted((root / "runs").glob("E-*"), reverse=True):
-        cfg_path, cal_path = run / "config.yaml", run / "calibration.json"
-        if cfg_path.is_file() and cal_path.is_file():
-            cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-            if cfg.get("architecture") == system and artifact_key(cfg.get("model_artifact", "")) == key:
-                return float(json.loads(cal_path.read_text(encoding="utf-8"))["eer_threshold"]), f"dev EER ({run.name})"
-    return None
+def artifact_threshold(artifact: Path | None) -> tuple[float | None, str]:
+    """The artifact's stored dev EER threshold (threshold.json) and where it came from."""
+    stored = artifacts.threshold(artifact) if artifact is not None else None
+    if stored is None:
+        return None, "not set"
+    return float(stored["eer_threshold"]), f"{stored['source']} EER ({stored['run']})"
 
 
 def decode_audio(data: bytes) -> tuple[np.ndarray, int]:
@@ -407,7 +384,10 @@ def create_app(
         with lock:
             if sys_name not in model_pool:
                 source_path = source if (sys_name == selected and source is not None) else None
-                chosen = Path(source_path) if source_path is not None else resolve_artifact(ROOT, sys_name)
+                chosen = Path(source_path) if source_path is not None else artifacts.latest(sys_name, ROOT)
+                if chosen is None:
+                    raise HTTPException(503, f"{sys_name} is not available on this machine; "
+                                             f"available: {', '.join(artifacts.available(ROOT)) or 'none'}")
                 if not chosen.is_absolute():
                     chosen = ROOT / chosen
                 chosen = chosen.resolve()
@@ -417,14 +397,10 @@ def create_app(
             return model_pool[sys_name]
 
     def selected_threshold(artifact: Path) -> tuple[float | None, str]:
-        """ADF_THRESHOLD, else this artifact's dev EER threshold, else the system default."""
+        """ADF_THRESHOLD, else this artifact's stored dev threshold."""
         if configured_threshold is not None:
             return configured_threshold, "ADF_THRESHOLD"
-        found = dev_threshold(ROOT, selected, artifact)
-        if found is not None:
-            return found
-        default = SYSTEM_METADATA.get(selected, {}).get("threshold")
-        return (default, "SYSTEM_METADATA default") if default is not None else (None, "not set")
+        return artifact_threshold(artifact)
 
     def detector() -> Any:
         m, artifact = get_loaded_detector(selected)
@@ -499,18 +475,20 @@ def create_app(
     def list_models() -> dict[str, Any]:
         """List all supported detectors with their artifacts and calibration parameters."""
         models_list = []
+        present = artifacts.available(ROOT)
         for sys_id, meta in SYSTEM_METADATA.items():
-            avail = has_artifact(ROOT, sys_id)
+            artifact = present.get(sys_id)
             models_list.append(
                 {
                     "id": sys_id,
                     "name": meta["name"],
                     "description": meta["description"],
                     "domain": meta["domain"],
-                    "threshold": meta["threshold"],
+                    "threshold": artifact_threshold(artifact)[0],
                     "std": meta["std"],
                     "sample_rate": meta["sample_rate"],
-                    "available": avail,
+                    "available": artifact is not None,
+                    "artifact": artifact.name if artifact else None,
                     "is_current": (sys_id == selected),
                 }
             )
@@ -584,10 +562,11 @@ def create_app(
 
         sys_a = model_a.lower().strip()
         sys_b = model_b.lower().strip()
-        if sys_a not in DETECTORS:
-            raise HTTPException(400, f"Unsupported model_a={sys_a!r}; choose from {list(DETECTORS.keys())}")
-        if sys_b not in DETECTORS:
-            raise HTTPException(400, f"Unsupported model_b={sys_b!r}; choose from {list(DETECTORS.keys())}")
+        present = artifacts.available(ROOT)
+        for label, sys_name in (("model_a", sys_a), ("model_b", sys_b)):
+            if sys_name not in present:
+                raise HTTPException(400, f"{label}={sys_name!r} is not available on this machine; "
+                                         f"choose from {list(present)}")
 
         try:
             m_a, art_a = get_loaded_detector(sys_a)
@@ -604,9 +583,12 @@ def create_app(
         meta_a = SYSTEM_METADATA.get(sys_a, {})
         meta_b = SYSTEM_METADATA.get(sys_b, {})
 
-        th_a = (dev_threshold(ROOT, sys_a, art_a) or (meta_a.get("threshold", 0.0),))[0]
+        th_a, th_b = artifact_threshold(art_a)[0], artifact_threshold(art_b)[0]
+        missing = [name for name, th in ((sys_a, th_a), (sys_b, th_b)) if th is None]
+        if missing:
+            raise HTTPException(409, f"No stored threshold for {', '.join(missing)}; evaluate it or run "
+                                     "`python -m audio_df.helpers.artifacts`")
         std_a = meta_a.get("std", 1.0)
-        th_b = (dev_threshold(ROOT, sys_b, art_b) or (meta_b.get("threshold", 0.0),))[0]
         std_b = meta_b.get("std", 1.0)
 
         margin_a = score_a - th_a

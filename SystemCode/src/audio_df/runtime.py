@@ -12,6 +12,7 @@ from collections.abc import Callable
 import yaml
 
 from audio_df.data.manifests import load_manifest
+from audio_df.helpers.artifacts import artifacts_dir, save_threshold
 from audio_df.helpers.cache import feature_cache_dir
 from audio_df.evaluation import evaluate_scores
 from audio_df.helpers.eval_audio import trimmed_manifest, TRIM_RECIPE
@@ -52,7 +53,7 @@ class Run:
         self.dataset = dataset
         self.root = Path(root).resolve()
         self.output_root = (self.root / output).resolve()
-        self.artifact_root = self.root / "artifacts" / name
+        self.artifact_root = artifacts_dir(self.root) / name
         self.seed = seed
         self.testsets = [part.strip() for part in testsets.split(",") if part.strip()]
         self.threshold_from = threshold_from.strip()
@@ -183,10 +184,10 @@ class Run:
             selected = (self.root / self._model_from_arg).resolve()
             if not (selected / "COMPLETE").is_file():
                 raise FileNotFoundError(f"Model artifact is not complete: {selected}")
-            if selected.parent != (self.root / "artifacts" / architecture).resolve():
+            if selected.parent != (artifacts_dir(self.root) / architecture).resolve():
                 raise ValueError(f"--model-from must select an {architecture} artifact")
             return selected
-        parent = self.root / "artifacts" / architecture
+        parent = artifacts_dir(self.root) / architecture
         valid = sorted(p for p in parent.iterdir() if p.is_dir() and (p / "COMPLETE").is_file()) if parent.is_dir() else []
         if not valid:
             raise FileNotFoundError(f"No completed {architecture} artifact found")
@@ -309,11 +310,13 @@ class Run:
         (output / "metrics.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
         from audio_df.helpers.metrics import compute_eer
         cal_eer, threshold = compute_eer(calibration.score, calibration.label, higher_is_spoof=False)
-        (output / "calibration.json").write_text(json.dumps({
+        calibration_record = {
             "source": self.threshold_from, "eer": float(cal_eer),
             "eer_threshold": float(threshold), "n": len(calibration),
             "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
-        }, indent=2), encoding="utf-8")
+        }
+        (output / "calibration.json").write_text(json.dumps(calibration_record, indent=2), encoding="utf-8")
+        save_threshold(artifact, calibration_record, output.name)  # the threshold travels with the weights
         train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,
