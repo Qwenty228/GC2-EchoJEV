@@ -34,10 +34,10 @@ Recent advances in neural speech synthesis—particularly diffusion vocoders, ne
 - **P2 · LAYA (Local Open-Source Decision Policy):** Zero-cost, local execution decision engine based on `convaiinnovations/laya`, executing identical question criteria without external API costs or latency overhead.
 
 ### Major Empirical Findings:
-1. **The Silence Shortcut Trap:** An audit of the ASVspoof 2019 LA dataset revealed a severe artifact: bona fide clips possess systematically longer leading silence than spoofed utterances (median 1.02s vs. 0.74s). A trivial single-feature silence probe achieves an AUC of **0.837**. When silence is trimmed at evaluation time, classical A1 EER jumps from **9.56% to 19.84%**, and raw-trained A2 EER degrades from **0.96% to 13.27%**, underscoring the absolute necessity of silence-trimmed evaluation protocols.
-2. **Generalization Collapse on Real-World Speech:** On the unconstrained In-the-Wild (ITW) dataset, the classical A1 detector collapses to chance (**58.04% EER**). In contrast, SSL-based A2 retains strong discriminative ranking (**14.70% EER, 0.93 AUC**); however, its benchmark-calibrated operating threshold rejects over 50% of bona fide real-world clips, proving that ranking survives distribution shifts while decision calibration does not.
-3. **WavLM Layer Probing & The Round 3 Fusion Breakthrough:** Initial fusion attempts (D2/D3) utilizing WavLM's final layer (Layer 12) unexpectedly underperformed standalone A2 (A2 eval EER: 7.6% vs D2: 11.8%, D3: 12.6%). Linear probing across all 13 WavLM layers demonstrated that late layers specialize in phonetic transcription, discarding low-level synthesis and vocoder artifacts. Middle layers (Layers 4–6) retain optimal acoustic spoof signatures. Rebuilding D2 and D3 with **WavLM Layer 6** yielded the best overall detector: mean EER across all 8 evaluation splits dropped to **11.1% (D2)** and **11.3% (D3)**, conclusively outperforming standalone A2 (12.8%).
-4. **Decision Layer Policy Value (JEV & LAYA):** Rather than forcing hard binary labels on boundary scores, both JEV and LAYA successfully isolate high-uncertainty samples (abstentions) and significantly improve precision on decided clips. LAYA matches JEV's policy performance with zero API marginal cost, providing a fully offline, privacy-compliant deployment path.
+1. **The Silence Shortcut Trap:** In ASVspoof 2019 LA, bona fide clips start with much longer silence than spoofs (median 0.96 s vs 0.03 s on eval). Leading silence alone reaches AUC **0.84** (leakage audit). Trimming silence at test time moves A1 EER from **9.56% to 19.84%** and raw-trained A2 from **0.96% to 13.27%**, so all final models train and test on trimmed audio.
+2. **Generalization Collapse on Real-World Speech:** On In-the-Wild (ITW), A1 falls to chance (**58.04% EER**). A2 still ranks well (**14.70% EER, 0.93 AUC**), but its 2019 dev threshold rejects about half (48.9%) of real-world bona fide clips: ranking survives the shift, calibration does not.
+3. **WavLM Layer 6, not 12:** Fusion on WavLM's last layer (12) lost to A2 (2019 eval EER: A2 7.6%, D2 11.8%, D3 12.6%). A per-layer probe shows middle layers (4–6) separate spoofs best and the last layers worst (why is not tested). With **layer 6**, mean EER over 8 test sets drops to **11.1% (D2)** and **11.3% (D3)**, below A2 (12.9%); D2 is the final model.
+4. **Decision layer:** JEV or LAYA on one detector's score added nothing (FP1: JEV repeated D2 on all 180 sampled clips). Phase 2 therefore tests **arbitration**: several detectors score a clip and a judge (LAYA or JEV) decides when they disagree. So far LAYA mostly follows the detector listed first (notebook 06); prompt work continues.
 
 ---
 
@@ -158,17 +158,28 @@ uv run evaluate-laya --arch d2 --limit 200
 uv run compare --runs-dir runs
 ```
 
+#### C. Arbitration between detectors (current Phase 2)
+The judge (`laya` or `jev`) and the request it receives are set in `configs/arbitrator.yaml`:
+```bash
+# Fixed In-the-Wild test: A1, A2, A4 disagreement clips -> judge answers in runs/E-*-arbitration/
+uv run arbitration
+```
+Results and the prompt playground: notebook 06, section 2.
+
 ### [ 5 ] Starting the Interactive Web Application & API Backend
 
 The system includes a production-ready **FastAPI** backend that performs audio ingestion, silence trimming, inference, and threshold comparison, connected to an interactive frontend for audio upload and live microphone recording.
 
 ```bash
-# Start backend serving the trained D2 cross-attention model:
+# Start with D2; the UI lists every detector with weights on this machine
 ADF_SYSTEM=d2 uv run uvicorn backend.app:app --reload --port 8000
 
-# Or specify a calibrated operating threshold:
-ADF_SYSTEM=d2 ADF_THRESHOLD=-0.9905 uv run uvicorn backend.app:app --reload --port 8000
+# Weights in another folder (e.g. a mounted volume)
+ADF_ARTIFACTS=/models ADF_SYSTEM=d2 uv run uvicorn backend.app:app --port 8000
 ```
+Each detector's threshold is read from `SystemCode/artifacts/<system>/threshold.json` (dev EER, updated by every
+evaluation); `ADF_THRESHOLD` overrides it for the start-up system only. Pages: single detector, compare & arbitrate
+(two detectors + a LAYA/JEV judge; JEV needs `TYPESAFE_API_KEY`), rankings.
 Open **`http://127.0.0.1:8000`** in any modern web browser to access the **Voice Spoof Check** interface.
 
 ---
