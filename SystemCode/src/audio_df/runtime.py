@@ -348,7 +348,7 @@ class Run:
         import time
         import pandas as pd
         from audio_df.helpers.metrics import compute_eer
-        from audio_df.modules.jev import JEVState
+        from audio_df.modules.jev import detector_case
 
         self.validate_testsets()
         if limit <= 0:
@@ -401,18 +401,7 @@ class Run:
             for row in table.itertuples(index=False):
                 score = float(row.score)
                 base_label = "bonafide" if score >= threshold else "spoof"
-                case = JEVState(
-                    context={"base_score": score, "dev_threshold": float(threshold),
-                             "base_verdict": base_label, "signed_margin": score - float(threshold),
-                             "score_direction": "higher means bonafide"},
-                    prompt="Decide whether the supplied detector evidence supports bona fide or spoof. Only one detector score is provided; do not invent acoustic evidence. Abstain when insufficient.",
-                    questions={
-                        "decision": {"type": "choice", "instructions": "Choose the audio verdict supported by the detector evidence.",
-                                     "criteria": {"bonafide": "Evidence favors authentic speech.", "spoof": "Evidence favors spoofed speech.", "uncertain": "Evidence is insufficient for a reliable verdict."}},
-                        "evidence_quality": {"type": "score", "instructions": "How sufficient is the supplied evidence?", "criteria": ["Insufficient", "Limited", "Strong"]},
-                        "ambiguity": {"type": "noul", "instructions": "Is the supplied evidence ambiguous?"},
-                    },
-                )
+                case = detector_case(score, threshold)
                 # Keep clip identifiers and ground truth out of API evidence. Cache
                 # identity additionally includes the trained detector provenance.
                 key = hashlib.sha256(json.dumps({"context": dict(case.context), "prompt": case.prompt,

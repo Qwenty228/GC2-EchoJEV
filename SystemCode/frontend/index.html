@@ -30,6 +30,9 @@
       </div>
 
       <audio id="player" controls hidden></audio>
+      <label class="field">Decision layer
+        <select id="policy" name="policy"><option value="none">Detector only</option></select>
+      </label>
       <button type="submit" id="submit" disabled>Check</button>
     </form>
 
@@ -42,6 +45,16 @@
         <dt>Model</dt><dd id="system"></dd>
         <dt>Time</dt><dd id="latency"></dd>
       </dl>
+      <div id="policy-result" hidden>
+        <p class="policy-verdict" id="policy-verdict"></p>
+        <details>
+          <summary>Reasoning</summary>
+          <pre id="policy-answers"></pre>
+          <details><summary>System prompt</summary><pre id="policy-prompt"></pre></details>
+          <details><summary>State and context</summary><pre id="policy-state"></pre></details>
+          <details><summary>Questions</summary><pre id="policy-questions"></pre></details>
+        </details>
+      </div>
     </section>
 
     <p class="error" id="error" hidden></p>
@@ -55,7 +68,12 @@
 
     fetch("/api/model")
       .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e.detail))))
-      .then((m) => { $("model").textContent = `${m.system} · ${m.model_version}`; })
+      .then((m) => {
+        $("model").textContent = `${m.system} · ${m.model_version}`;
+        Object.entries(m.policies || {}).filter(([k]) => k !== "none").forEach(([value, label]) => {
+          $("policy").append(new Option(label, value));
+        });
+      })
       .catch((e) => { $("model").textContent = String(e); });
 
     function setClip(blob, name) {
@@ -171,6 +189,7 @@
       try {
         const body = new FormData();
         body.append("file", clip.blob, clip.name);
+        body.append("policy", $("policy").value);
         const r = await fetch("/api/detect", { method: "POST", body });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
@@ -182,7 +201,17 @@
         $("verdict").textContent = text;
         $("verdict").className = "verdict " + cls;
         $("score").textContent = `${fmt(data.score)} (higher = more likely real)`;
-        $("threshold").textContent = data.threshold == null ? "not set" : fmt(data.threshold);
+        $("threshold").textContent = data.threshold == null ? "not set" : `${fmt(data.threshold)} (${data.threshold_source})`;
+        const p = data.policy;
+        $("policy-result").hidden = !p;
+        if (p) {
+          const names = { bonafide: "real (bona fide)", spoof: "fake (spoof)", uncertain: "uncertain" };
+          $("policy-verdict").textContent = `${p.label}: ${names[p.decision] || p.decision} · ${fmt(p.latency_s, 2)} s`;
+          $("policy-answers").textContent = JSON.stringify(p.answers, null, 2);
+          $("policy-prompt").textContent = p.request.system_prompt;
+          $("policy-state").textContent = JSON.stringify(p.request.state, null, 2);
+          $("policy-questions").textContent = JSON.stringify(p.request.questions, null, 2);
+        }
         $("audio").textContent = `${fmt(data.speech_s, 1)} s scored of ${fmt(data.duration_s, 1)} s (silence trimmed)`;
         $("system").textContent = `${data.system} · ${data.model_version}`;
         $("latency").textContent = `${fmt(performance.now() - started, 0)} ms`;

@@ -11,6 +11,8 @@ testsets:
 - itw
 - asvspoof2021_eval
 - asvspoof2021_hidden
+- asvspoof2021df_eval
+- asvspoof2021df_hidden
 seed: 1337
 train_preprocessing: trimmed
 split_roles:
@@ -36,6 +38,8 @@ evaluation_preprocessing:
     itw: raw
     asvspoof2021_eval: raw
     asvspoof2021_hidden: raw
+    asvspoof2021df_eval: raw
+    asvspoof2021df_hidden: raw
   trim_recipe:
     method: librosa.effects.split
     top_db: 30.0
@@ -45,4 +49,7 @@ evaluation_preprocessing:
     version: 1
 notes: finished from saved scores after a crash on asvspoof2021_eval (libsndfile FLAC
   decode); asvspoof2021_eval, asvspoof2021_hidden merged from E-20261024-070047-512761-a2
-  (same artifact, identical dev scores)
+  (same artifact, identical dev scores); asvspoof2021df_eval, asvspoof2021df_hidden
+  merged from E-20261025-070608-675409-a2 (same artifact, identical dev scores); asvspoof2021df_eval,
+  asvspoof2021df_hidden merged from E-20261025-093615-477722-a2 (same artifact, identical
+  dev scores)

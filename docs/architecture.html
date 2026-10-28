@@ -207,11 +207,40 @@
         </p>
       </header>
       <nav>
-        <a href="index.html">← Evaluation plan</a><a href="#data">Add data</a
+        <a href="index.html">← Evaluation plan</a><a href="#final">Final model (D2)</a
+        ><a href="#data">Add data</a
         ><a href="#code">Code structure</a
         ><a href="#models">Detectors & policies</a
         ><a href="#app">Application</a>
       </nav>
+      <section id="final">
+        <h2>0 · Final model · D2, one-way cross-attention (WavLM layer 6)</h2>
+        <p class="muted">
+          Best of all detectors over the 10 test sets. LFCC tokens query frozen WavLM tokens from layer 6; the WavLM
+          tokens are never modified, so the classifier always keeps a clean WavLM view.
+          <a href="model_d2_architecture.png">PNG</a> · <a href="model_d2_architecture.svg">SVG</a>
+        </p>
+        <img src="model_d2_architecture.svg" alt="D2 architecture: LFCC and WavLM layer 6 branches merged by one-way cross-attention" style="width: 100%; height: auto; border: 1px solid #e8e0f3; border-radius: 12px" />
+        <div class="grid" style="margin-top: 16px">
+          <div class="tile">
+            <strong>Layer 6, not the last layer</strong>A per-layer probe (notebook 04) is best in the middle of WavLM and
+            weak at both ends; averaged over all test sets layer 6 is best (13.0% EER vs 17.2% for layer 12).
+          </div>
+          <div class="tile">
+            <strong>One-way attention</strong>Only LFCC is updated. D3 (two-way) fits 2019 audio slightly better but
+            generalises worse; likely because LFCC's 2019 recording and codec cues stay out of the WavLM view in D2
+            (not yet tested directly).
+          </div>
+          <div class="tile">
+            <strong>Results (EER, lower is better)</strong>Mean over 10 test sets 11.0% (A2 12.5%, D3 11.5%) ·
+            2021 LA eval 10.1% (A2 14.3%) · 2021 DF eval 10.0% (A2 10.7%) · In-the-Wild 19.9% (A2 19.2%).
+          </div>
+          <div class="tile">
+            <strong>Training</strong>Trimmed ASVspoof 2019 LA train, early stopping on dev loss, single run. WavLM
+            stays frozen; only projections, two attention blocks and the classifier are trained.
+          </div>
+        </div>
+      </section>
       <section id="data">
         <h2>
           1 · Add a dataset (Everything is done inside SystemCode/) [Chandu]
@@ -354,8 +383,8 @@ uv run data-degrade --conditions all --workers 4</code></pre>
                 <td><code>pipelines/d1.py</code></td>
               </tr>
               <tr>
-                <td>D2</td>
-                <td>Temporal LFCC → WavLM cross-attention</td>
+                <td><strong>D2 (final)</strong></td>
+                <td>Temporal LFCC → WavLM layer 6 cross-attention</td>
                 <td><code>pipelines/d2.py</code></td>
               </tr>
               <tr>
@@ -429,14 +458,19 @@ ADF_SYSTEM=a2 ADF_MODEL_FROM=artifacts/a2/&lt;id&gt; \
           <strong>Swap models without changing API code:</strong>
           <code>ADF_SYSTEM</code> selects A1/A2/A4/D1/D2/D3;
           <code>ADF_MODEL_FROM</code> selects a specific completed artifact.
-          <code>ADF_THRESHOLD</code> must match that artifact's development
-          calibration. Without a threshold, the API returns a score without a
-          verdict. P1/P2 integration is future work.
+          Without <code>ADF_THRESHOLD</code>, the backend uses the artifact's dev EER
+          threshold from its newest evaluation run.
+        </p>
+        <p>
+          <strong>Decision layer:</strong> the UI can apply P1 JEV (paid API) or P2 LAYA (local) to the detector
+          score (<code>/api/detect</code> with <code>policy=jev|laya</code>). They receive the same evidence as the
+          A3/FP1/FP2 runs (<code>jev.detector_case</code>); the reasoning box shows their answers, system prompt,
+          state and questions.
         </p>
       </section>
       <p class="foot">
-        EchoJEV · Architecture reference · Phase 1 detectors implemented; Phase
-        2 decision policies planned
+        EchoJEV · Architecture reference · final detector D2 (WavLM layer 6);
+        JEV and LAYA decision layers in the app
       </p>
     </main>
   </body>

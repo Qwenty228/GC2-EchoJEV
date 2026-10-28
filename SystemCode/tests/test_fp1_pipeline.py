@@ -24,12 +24,11 @@ class FakeRun:
 @pytest.mark.parametrize("base", ["d1", "d2", "d3"])
 def test_fp1_reuses_fusion_detector_and_policy(monkeypatch, base):
     sentinel = object()
-    monkeypatch.setattr(fp1, "BASE", base)
     monkeypatch.setitem(fp1.DETECTORS, base, type("FakeLoader", (), {
         "load": staticmethod(lambda path: sentinel)
     }))
     run = FakeRun()
-    assert fp1.main.__wrapped__(run, limit=2, jev_model="test") == {"eval": {"n": 2}}
+    assert fp1.main.__wrapped__(run, limit=2, jev_model="test", base=base) == {"eval": {"n": 2}}
     assert run.selected == base
     assert run.called == (sentinel, fp1.decide, base, 2, "test")
 
