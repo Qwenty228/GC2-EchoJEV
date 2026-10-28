@@ -184,12 +184,13 @@
       <nav>
         <a href="index.html">← Evaluation plan</a>
         <a href="architecture.html">Architecture &amp; Developer Guide</a>
-        <a href="#lesson">Lesson learnt</a><a href="#round2">Round 2 · original</a
+        <a href="#lesson">Lessons learnt</a><a href="#round2">Round 2 · original</a
         ><a href="#round3">Round 3 · fix</a>
       </nav>
 
       <section id="lesson">
-        <h2>Lesson learnt</h2>
+        <h2>Lessons learnt</h2>
+        <h3>1 · The last WavLM layer is not the best</h3>
         <p>
           <b>The assumption:</b> cross-attention between LFCC and the <i>last</i> WavLM layer
           would be enough, because the last layer is WavLM's "final answer".
@@ -212,6 +213,22 @@
           spoof detail ("late layers encode what is said") is the usual reading of
           self-supervised speech models, not something we tested.
         </div>
+
+        <h3>2 · Use JEV / LAYA as a judge, not as a helper</h3>
+        <p>
+          <b>The assumption:</b> JEV works like LAYA (a BERT classifier): given one
+          detector's result plus context about the clip, it would find hidden similarities the
+          detector missed and fix its errors.
+        </p>
+        <p>
+          <b>What we found:</b> it only echoed the detector. FP1: JEV repeated D2 on all 180
+          clips and corrected no errors. With one score as its main input, the score decides.
+        </p>
+        <p>
+          <b>What we do now:</b> arbitration. Several detectors score the clip and JEV or LAYA
+          judges between them when they disagree (Phase 2, notebook 06). So far LAYA still
+          follows the first-listed detector and never abstains; prompt work continues.
+        </p>
       </section>
 
       <section id="round2">
@@ -287,7 +304,7 @@
         </div>
       </section>
 
-      <p class="footer">EchoJEV · GC2 · evaluation findings · numbers from notebooks 04, 05 (trimmed training)</p>
+      <p class="footer">EchoJEV · GC2 · evaluation findings · numbers from notebooks 04, 05 (trimmed training), 06 (JEV / LAYA)</p>
     </main>
   </body>
 </html>
