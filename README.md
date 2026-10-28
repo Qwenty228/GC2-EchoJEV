@@ -5,10 +5,6 @@
 
 ---
 
-### <<<<<<<<<<<<<<<<<<<< Start of Project Submission >>>>>>>>>>>>>>>>>>>>
-
----
-
 ## SECTION 1 : PROJECT TITLE
 ## EchoJEV: Comparative Analysis & Evaluation of Deepfake Audio Detection Methodologies and Evidence-Based Decision Classifiers (JEV & LAYA)
 
@@ -49,8 +45,8 @@ Recent advances in neural speech synthesis—particularly diffusion vocoders, ne
 
 | Official Full Name | Student ID (MTech Applicable) | Work Items (Who Did What) | Email |
 | :----------------- | :---------------------------: | :------------------------ | :---- |
-| **Chakit Kalra** | — | Designed and implemented the **LAYA** anf **JEV** decision policy module (`audio_df.modules.laya`), local agent integration (`DryRunLayaClient` / `convaiinnovations/laya`), comparative policy evaluation suite (`evaluate_laya_on_scores.py`, `compare_policies.py`), policy pipeline orchestrations (`a3_laya.py`, `fp2.py`), offline unit test suites (`test_laya_pipeline.py`, `test_laya_config.py`), and decision layer comparative analysis. | chakitkalra@gmail.com |
-| **Nathan Kittichaikoonkij** | — | Core repository architect; implemented base detector modules (A1, A2, A4, D1–D3), feature extraction and caching pipelines (LFCC, WavLM pooling/temporal caches), cross-attention heads, Round 3 Layer-6 ablation study, CLI experiment runtime (`runtime.py`), FastAPI backend (`app.py`), and research notebooks (01–07). | natsg90@gmail.com |
+| **Chakit Kalra** | A0352070R | Designed and implemented the **LAYA** anf **JEV** decision policy module (`audio_df.modules.laya`), local agent integration (`DryRunLayaClient` / `convaiinnovations/laya`), comparative policy evaluation suite (`evaluate_laya_on_scores.py`, `compare_policies.py`), policy pipeline orchestrations (`a3_laya.py`, `fp2.py`), offline unit test suites (`test_laya_pipeline.py`, `test_laya_config.py`), and decision layer comparative analysis. | chakitkalra@u.nus.edu |
+| **Nathan Kittichaikoonkij** | A0352270M | Core repository architect; implemented base detector modules (A1, A2, A4, D1–D3), feature extraction and caching pipelines (LFCC, WavLM pooling/temporal caches), cross-attention heads, Round 3 Layer-6 ablation study, CLI experiment runtime (`runtime.py`), FastAPI backend (`app.py`), and research notebooks (01–07). | nathan.kit@u.nus.edu |
 
 ---
 
@@ -179,7 +175,7 @@ Open **`http://127.0.0.1:8000`** in any modern web browser to access the **Voice
 
 ## SECTION 6 : PROJECT REPORT / PAPER
 
-`Refer to project report documentation in Github Folder: ProjectReport`
+`Refer to our final project report documentation in Github Folder: ProjectReport. The following is our project's preliminary documentation.`
 
 ### Comprehensive Documentation Index:
 1. **Interactive Evaluation & Architecture Portals:**
@@ -236,10 +232,6 @@ Maintained under strict evidentiary discipline:
 
 ### [ 3 ] Standardized Experiment Registry (`SystemCode/runs/REGISTRY.md`)
 Every training and evaluation run records an immutable audit trail containing timestamp, Git commit SHA, dataset hash, random seed, hardware specifications, execution wall-clock time, peak RSS memory, and official metric results.
-
----
-
-### <<<<<<<<<<<<<<<<<<<< End of Project Submission >>>>>>>>>>>>>>>>>>>>
 
 ---
 
