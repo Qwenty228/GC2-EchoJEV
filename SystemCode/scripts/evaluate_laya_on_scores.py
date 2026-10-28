@@ -46,65 +46,68 @@ def run_laya_on_score_file(
     records = []
     total_latency = 0.0
 
+    questions = {
+        "decision": {
+            "type": "choice",
+            "instructions": "Choose the audio verdict supported by the detector evidence.",
+            "criteria": {
+                "bonafide": "Evidence favors authentic speech.",
+                "spoof": "Evidence favors spoofed speech.",
+                "uncertain": "Evidence is insufficient for a reliable verdict.",
+            },
+        },
+        "evidence_quality": {
+            "type": "score",
+            "instructions": "How sufficient is the supplied evidence?",
+            "criteria": ["Insufficient", "Limited", "Strong"],
+        },
+        "ambiguity": {
+            "type": "noul",
+            "instructions": "Is the supplied evidence ambiguous?",
+        },
+    }
+
     print(f"Evaluating LAYA on {split_name} ({len(df)} clips)...", flush=True)
+
+    from audio_df.modules.laya import get_laya_agent
+    agent = get_laya_agent(model)
+
     for row in tqdm(df.itertuples(index=False), total=len(df), desc=split_name):
         score = float(row.score)
         signed_margin = score - threshold
         base_label = "bonafide" if score >= threshold else "spoof"
 
-        case = JEVState(
-            context={
+        state_payload = {
+            "context": {
                 "base_score": score,
                 "dev_threshold": threshold,
                 "base_verdict": base_label,
                 "signed_margin": signed_margin,
                 "score_direction": "higher means bonafide",
             },
-            prompt=(
+            "decision_guidance": (
                 "Decide whether the supplied detector evidence supports bona fide or spoof. "
                 "Only one detector score is provided; do not invent acoustic evidence. "
                 "Abstain when insufficient."
             ),
-            questions={
-                "decision": {
-                    "type": "choice",
-                    "instructions": "Choose the audio verdict supported by the detector evidence.",
-                    "criteria": {
-                        "bonafide": "Evidence favors authentic speech.",
-                        "spoof": "Evidence favors spoofed speech.",
-                        "uncertain": "Evidence is insufficient for a reliable verdict.",
-                    },
-                },
-                "evidence_quality": {
-                    "type": "score",
-                    "instructions": "How sufficient is the supplied evidence?",
-                    "criteria": ["Insufficient", "Limited", "Strong"],
-                },
-                "ambiguity": {
-                    "type": "noul",
-                    "instructions": "Is the supplied evidence ambiguous?",
-                },
-            },
-        )
+        }
 
         start = time.monotonic()
-        response = decide(case, model=model)
+        resp = agent.system_one(state_payload, questions)
         latency = time.monotonic() - start
         total_latency += latency
 
-        answer = response.get("answers", {}).get("decision", {})
+        answer = resp.get("answers", {}).get("decision", {})
         verdict = answer.get("choice", "uncertain")
 
-        records.append(
-            {
-                "clip_id": str(row.clip_id),
-                "label": str(row.label),
-                "score": score,
-                "base": base_label,
-                "jev": verdict,
-                "latency_s": latency,
-            }
-        )
+        records.append({
+            "clip_id": str(row.clip_id),
+            "label": str(row.label),
+            "score": score,
+            "base": base_label,
+            "jev": verdict,
+            "latency_s": latency,
+        })
 
     paired = pd.DataFrame(records)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -130,7 +133,12 @@ def run_laya_on_score_file(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate local LAYA policy on pre-scored runs.")
     parser.add_argument(
-        "--base", choices=["a2", "d2"], default="a2", help="Base detector (a2 or d2)"
+        "--base",
+        "--arch",
+        dest="base",
+        choices=["a2", "d2"],
+        default="a2",
+        help="Base detector (a2 or d2)",
     )
     parser.add_argument(
         "--splits", default="eval,itw", help="Comma-separated split names to evaluate"

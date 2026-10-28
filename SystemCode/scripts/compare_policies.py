@@ -104,19 +104,19 @@ def plot_comparisons(df: pd.DataFrame, output_path: Path) -> None:
         color="#7046c5",
     )
     axes[0].bar(
-        x, summary["policy_accuracy"], width=width, label="Policy Acc (Decided) %", color="#17654a"
+        x, summary["policy_accuracy"], width=width, label="JEV/LAYA Policy Acc %", color="#17654a"
     )
     axes[0].bar(
         [i + width for i in x],
         summary["coverage"],
         width=width,
-        label="Coverage %",
+        label="JEV/LAYA Coverage %",
         color="#e67e22",
     )
     axes[0].set_xticks(list(x))
-    axes[0].set_xticklabels(labels, rotation=25, ha="right", fontsize=9)
-    axes[0].set_ylabel("Percentage (%)")
-    axes[0].set_title("Accuracy & Coverage Comparison")
+    axes[0].set_xticklabels([l.replace("LAYA", "JEV/LAYA") for l in labels], rotation=20, ha="right", fontsize=9)
+    axes[0].set_ylabel("JEV/LAYA Metric Score (%) [Accuracy & Coverage]")
+    axes[0].set_title("Base Detector vs JEV/LAYA Policy: Accuracy & Coverage")
     axes[0].legend()
     axes[0].grid(axis="y", linestyle="--", alpha=0.5)
 
@@ -129,20 +129,20 @@ def plot_comparisons(df: pd.DataFrame, output_path: Path) -> None:
         .reset_index()
     )
 
-    err_labels = [f"{r.base_detector}+{r.policy} ({r.split})" for _, r in err_summary.iterrows()]
+    err_labels = [f"{r.base_detector}+JEV/LAYA ({r.split})" for _, r in err_summary.iterrows()]
     x_err = range(len(err_labels))
     axes[1].bar(
         [i - width / 2 for i in x_err],
         err_summary["corrected_errors"],
         width=width,
-        label="Corrected Errors",
+        label="Errors Corrected by JEV/LAYA",
         color="#27ae60",
     )
     axes[1].bar(
         [i + width / 2 for i in x_err],
         err_summary["introduced_errors"],
         width=width,
-        label="Introduced Errors",
+        label="Errors Introduced by JEV/LAYA",
         color="#c0392b",
     )
     axes[1].plot(
@@ -150,13 +150,13 @@ def plot_comparisons(df: pd.DataFrame, output_path: Path) -> None:
         err_summary["net_error_reduction"],
         "o--",
         color="#2980b9",
-        label="Net Error Reduction",
+        label="JEV/LAYA Net Error Reduction",
         linewidth=2,
     )
     axes[1].set_xticks(list(x_err))
-    axes[1].set_xticklabels(err_labels, rotation=25, ha="right", fontsize=9)
-    axes[1].set_ylabel("Utterance Count")
-    axes[1].set_title("Decision Transitions (Net Gain)")
+    axes[1].set_xticklabels(err_labels, rotation=20, ha="right", fontsize=9)
+    axes[1].set_ylabel("Utterance Count (Evaluated by JEV/LAYA)")
+    axes[1].set_title("JEV/LAYA Decision Transitions (Net Error Gain)")
     axes[1].legend()
     axes[1].grid(axis="y", linestyle="--", alpha=0.5)
 
