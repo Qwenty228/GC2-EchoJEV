@@ -5,5 +5,10 @@
   "eer": 0.013730349306237358,
   "eer_threshold": -0.0027256272733211517,
   "n": 24844,
-  "preprocessing": "trimmed"
+  "preprocessing": "trimmed",
+  "platt": [
+    0.6754008579495707,
+    -1.9552208482748317
+  ],
+  "error_rate_pct": 14.3
 }

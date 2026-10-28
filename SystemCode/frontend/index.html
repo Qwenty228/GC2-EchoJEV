@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EchoJEV · Voice Deepfake Detection & LAYA Arbitration</title>
+  <title>EchoJEV · Voice Deepfake Detection & Arbitration</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -69,6 +69,12 @@
           <div class="record-box drop" id="record-pane" hidden>
             <button type="button" id="record" class="btn-record record">● Record voice</button>
             <p class="record-status" id="record-status">Speak for up to 4 seconds in a quiet room.</p>
+          </div>
+
+          <!-- Detector (systems with an artifact on this machine) -->
+          <div class="select-group">
+            <label for="single-system">Detector</label>
+            <select id="single-system" class="select-control"></select>
           </div>
 
           <!-- Audio Preview Player -->
@@ -142,43 +148,27 @@
     <!-- ========================================== -->
     <section id="view-compare" hidden>
       <div class="section-head">
-        <h2 class="section-title">Dual Model Comparison & LAYA Arbitration</h2>
+        <h2 class="section-title">Dual Model Comparison & Arbitration</h2>
         <p class="section-subtitle">
-          Evaluate two acoustic architectures side-by-side on the same utterance. When detectors conflict, 
-          Convai LAYA arbitrates normalized margin dominance under Chow's Rule of Rejection.
+          Score the same utterance with two detectors. The selected judge (LAYA or JEV) then reads both
+          verdicts and calibrated probabilities and decides which to trust, or abstains.
         </p>
       </div>
 
       <div class="card">
         <div class="compare-controls">
           <div class="select-group">
-            <label for="compare-model-a">Detector A (Contextual / SSL)</label>
-            <select id="compare-model-a" class="select-control">
-              <option value="a2" selected>A2: WavLM Base+ (SSL Transformer)</option>
-              <option value="a1">A1: LFCC-GMM (B02 Baseline)</option>
-              <option value="d2">D2: Cross-Attention Fusion (LFCC + WavLM)</option>
-            </select>
+            <label for="compare-model-a">Detector A</label>
+            <select id="compare-model-a" class="select-control"></select>
           </div>
           <div class="select-group">
-            <label for="compare-model-b">Detector B (Spectral / Baseline)</label>
-            <select id="compare-model-b" class="select-control">
-              <option value="a1" selected>A1: LFCC-GMM (B02 Baseline)</option>
-              <option value="a2">A2: WavLM Base+ (SSL Transformer)</option>
-              <option value="d2">D2: Cross-Attention Fusion (LFCC + WavLM)</option>
-            </select>
+            <label for="compare-model-b">Detector B</label>
+            <select id="compare-model-b" class="select-control"></select>
           </div>
-        </div>
-
-        <!-- Chow's Rule Rejection Bound Slider -->
-        <div class="slider-group">
-          <div class="slider-header">
-            <span class="slider-label">Selective Abstention Bound (τ_arb)</span>
-            <span class="slider-val" id="tau-val">0.25</span>
+          <div class="select-group">
+            <label for="compare-judge">Judge</label>
+            <select id="compare-judge" class="select-control"></select>
           </div>
-          <input type="range" id="tau-slider" class="slider-input" min="0.0" max="1.0" step="0.05" value="0.25">
-          <p class="drop-hint" style="margin-top: 0.35rem;">
-            When normalized margin gap |Δz| &lt; τ_arb, LAYA classifies the utterance as high-entropy ambiguity and abstains to human review.
-          </p>
         </div>
 
         <!-- Shared Audio Input -->
@@ -197,12 +187,12 @@
 
       <!-- Compare & Arbitration Results -->
       <div id="compare-result" hidden>
-        <!-- LAYA Arbitration Hero Card -->
+        <!-- Arbitration Hero Card -->
         <div class="arbitration-hero">
           <div class="arb-header">
             <div class="arb-title">
               <span>🤖</span>
-              <span>LAYA System-1 Decision Policy</span>
+              <span id="arb-judge">Judge decision</span>
             </div>
             <span id="arb-badge" class="arb-badge">Arbitrated</span>
           </div>
@@ -238,6 +228,10 @@
               </div>
             </div>
           </div>
+          <details class="arb-request">
+            <summary>Request sent to the judge</summary>
+            <pre id="arb-request"></pre>
+          </details>
         </div>
 
         <!-- Side-by-Side Model Cards -->
@@ -253,7 +247,7 @@
             </div>
             <div class="margin-bar-box">
               <div>Acoustic Score: <strong id="card-score-a">-</strong> (θ = <span id="card-th-a">-</span>)</div>
-              <div>Normalized Margin (z): <strong id="card-z-a">-</strong></div>
+              <div>P(bona fide): <strong id="card-p-a">-</strong></div>
             </div>
           </div>
 
@@ -268,7 +262,7 @@
             </div>
             <div class="margin-bar-box">
               <div>Acoustic Score: <strong id="card-score-b">-</strong> (θ = <span id="card-th-b">-</span>)</div>
-              <div>Normalized Margin (z): <strong id="card-z-b">-</strong></div>
+              <div>P(bona fide): <strong id="card-p-b">-</strong></div>
             </div>
           </div>
         </div>
@@ -404,24 +398,30 @@
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((data) => {
         availableModels = data.models || [];
-        populateModelDropdowns(availableModels);
+        populateModelDropdowns(availableModels, data.current_system);
+        populateJudges(data.judges || {}, data.default_judge);
       })
       .catch(() => {});
 
-    function populateModelDropdowns(models) {
-      const optHtml = models.map((m) => 
-        `<option value="${m.id}" ${m.available ? "" : "disabled"}>${m.name} ${m.available ? "" : "(artifact pending)"}</option>`
+    function populateModelDropdowns(models, current) {
+      const optHtml = models.map((m) =>
+        `<option value="${m.id}" ${m.available ? "" : "disabled"}>${m.id.toUpperCase()}: ${m.name}${m.available ? "" : " (not on this machine)"}</option>`
       ).join("");
-      
-      const selA = $("compare-model-a");
-      const selB = $("compare-model-b");
-      if (selA && selB) {
-        selA.innerHTML = optHtml;
-        selB.innerHTML = optHtml;
-        // Defaults: a2 vs a1
-        selA.value = models.some(m => m.id === "a2" && m.available) ? "a2" : (models[0]?.id || "a1");
-        selB.value = models.some(m => m.id === "a1" && m.available) ? "a1" : (models[1]?.id || "a2");
-      }
+      const usable = models.filter((m) => m.available).map((m) => m.id);
+      const pick = (preferred, fallback) => usable.includes(preferred) ? preferred : (fallback || "");
+      $("single-system").innerHTML = optHtml;
+      $("single-system").value = pick(current, usable[0]);
+      $("compare-model-a").innerHTML = optHtml;
+      $("compare-model-b").innerHTML = optHtml;
+      $("compare-model-a").value = pick("a2", usable[0]);
+      $("compare-model-b").value = pick("a1", usable[1] || usable[0]);
+    }
+
+    function populateJudges(judges, preferred) {
+      $("compare-judge").innerHTML = Object.entries(judges).map(([id, j]) =>
+        `<option value="${id}" ${j.available ? "" : "disabled"}>${j.label}${j.available ? "" : " (no API key)"}</option>`
+      ).join("");
+      $("compare-judge").value = judges[preferred]?.available ? preferred : "laya";
     }
 
     // --- Single View Form Handlers ---
@@ -561,6 +561,7 @@
       try {
         const body = new FormData();
         body.append("file", singleClip.blob, singleClip.name);
+        body.append("system", $("single-system").value);
         const r = await fetch("/api/detect", { method: "POST", body });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
@@ -601,12 +602,6 @@
     });
 
     // --- Compare & Arbitration Logic ---
-    const tauSlider = $("tau-slider");
-    const tauVal = $("tau-val");
-    tauSlider.addEventListener("input", () => {
-      tauVal.textContent = Number(tauSlider.value).toFixed(2);
-    });
-
     function setCompareClip(blob, name) {
       compareClip = blob ? { blob, name } : null;
       $("compare-submit").disabled = !compareClip;
@@ -646,14 +641,14 @@
       if (!compareClip) return;
       $("compare-error").hidden = true;
       $("compare-submit").disabled = true;
-      $("compare-submit").innerHTML = "<span>Executing dual inference & LAYA arbitration…</span>";
+      $("compare-submit").innerHTML = "<span>Scoring both detectors and asking the judge…</span>";
 
       try {
         const formData = new FormData();
         formData.append("file", compareClip.blob, compareClip.name);
         formData.append("model_a", $("compare-model-a").value);
         formData.append("model_b", $("compare-model-b").value);
-        formData.append("abstain_margin", $("tau-slider").value);
+        formData.append("judge", $("compare-judge").value);
 
         const r = await fetch("/api/compare", { method: "POST", body: formData });
         const res = await r.json();
@@ -679,6 +674,8 @@
       badge.className = "arb-badge " + (arb.status === "unanimous" ? "unanimous" : (arb.status === "escalated" ? "escalated" : "arbitrated"));
       badge.textContent = arb.status.toUpperCase();
       $("arb-rationale").textContent = arb.rationale;
+      $("arb-judge").textContent = `${arb.judge_label} · request: ${arb.variant}`;
+      $("arb-request").textContent = JSON.stringify(arb.request, null, 2);
 
       // Probabilities
       const pReal = (arb.probabilities.bonafide * 100).toFixed(0);
@@ -696,7 +693,7 @@
       $("card-features-a").textContent = mA.features;
       $("card-score-a").textContent = fmt(mA.score, 3);
       $("card-th-a").textContent = fmt(mA.threshold, 3);
-      $("card-z-a").textContent = `${mA.norm_margin_z >= 0 ? "+" : ""}${fmt(mA.norm_margin_z, 2)}σ`;
+      $("card-p-a").textContent = fmt(mA.p_bonafide, 3);
       const chipA = $("card-verdict-a");
       chipA.className = "model-verdict-chip " + mA.prediction;
       chipA.textContent = mA.prediction.toUpperCase();
@@ -706,7 +703,7 @@
       $("card-features-b").textContent = mB.features;
       $("card-score-b").textContent = fmt(mB.score, 3);
       $("card-th-b").textContent = fmt(mB.threshold, 3);
-      $("card-z-b").textContent = `${mB.norm_margin_z >= 0 ? "+" : ""}${fmt(mB.norm_margin_z, 2)}σ`;
+      $("card-p-b").textContent = fmt(mB.p_bonafide, 3);
       const chipB = $("card-verdict-b");
       chipB.className = "model-verdict-chip " + mB.prediction;
       chipB.textContent = mB.prediction.toUpperCase();

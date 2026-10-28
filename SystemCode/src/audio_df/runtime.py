@@ -12,7 +12,7 @@ from collections.abc import Callable
 import yaml
 
 from audio_df.data.manifests import load_manifest
-from audio_df.helpers.artifacts import artifacts_dir, save_threshold
+from audio_df.helpers.artifacts import artifacts_dir, platt, save_threshold
 from audio_df.helpers.cache import feature_cache_dir
 from audio_df.evaluation import evaluate_scores
 from audio_df.helpers.eval_audio import trimmed_manifest, TRIM_RECIPE
@@ -316,7 +316,10 @@ class Run:
             "preprocessing": "trimmed" if self._is_trimmed(self.threshold_from) else "raw",
         }
         (output / "calibration.json").write_text(json.dumps(calibration_record, indent=2), encoding="utf-8")
-        save_threshold(artifact, calibration_record, output.name)  # the threshold travels with the weights
+        la_2021 = results.get("asvspoof2021_eval")  # error rate shown to arbitration judges
+        save_threshold(artifact, {**calibration_record, "platt": platt(calibration),
+                                  "error_rate_pct": round(100 * la_2021["eer"], 1) if la_2021 else None},
+                       output.name)
         train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,

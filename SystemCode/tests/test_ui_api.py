@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import io
+
 import numpy as np
-import soundfile as sf
 import pytest
+import soundfile as sf
 from fastapi.testclient import TestClient
 
 from backend.app import create_app
@@ -71,27 +72,60 @@ def test_detect_audio(client: TestClient) -> None:
     assert res["system"] == "a1"
 
 
-def test_compare_models(client: TestClient) -> None:
+def _tone_wav() -> bytes:
     sr = 16000
     t = np.linspace(0, 1.5, int(sr * 1.5), endpoint=False)
-    waveform = 0.5 * np.sin(2 * np.pi * 440 * t).astype(np.float32)
     buf = io.BytesIO()
-    sf.write(buf, waveform, sr, format="WAV")
-    wav_bytes = buf.getvalue()
+    sf.write(buf, (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32), sr, format="WAV")
+    return buf.getvalue()
 
-    # Compare a2 with a2: the tracked a2 artifact matches artifacts/a2/threshold.json
+
+def _calibrated_pair() -> list[str]:
+    """Two detectors on this machine whose artifact matches its stored calibration."""
+    from audio_df.helpers import artifacts
+    from backend.app import ROOT
+
+    ok = [s for s, a in artifacts.available(ROOT).items() if (artifacts.threshold(a) or {}).get("platt")]
+    return ok[:2]
+
+
+def test_compare_models(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    pair = _calibrated_pair()
+    if len(pair) < 2:
+        pytest.skip("needs two calibrated detectors on this machine")
+    monkeypatch.setenv("LAYA_DRY_RUN", "1")  # deterministic offline judge
     r = client.post(
         "/api/compare",
-        files={"file": ("test.wav", wav_bytes, "audio/wav")},
-        data={"model_a": "a2", "model_b": "a2", "abstain_margin": 0.25},
+        files={"file": ("test.wav", _tone_wav(), "audio/wav")},
+        data={"model_a": pair[0], "model_b": pair[1], "judge": "laya"},
     )
     assert r.status_code == 200
     res = r.json()
-    assert "arbitration" in res
-    assert res["arbitration"]["agreement"] is True
-    assert res["arbitration"]["status"] == "unanimous"
-    assert "model_a" in res
-    assert "model_b" in res
+    arb = res["arbitration"]
+    assert arb["judge"] == "laya"
+    assert arb["verdict"] in {"bonafide", "spoof", "uncertain"}
+    assert set(arb["probabilities"]) == {"bonafide", "spoof", "uncertain"}
+    assert len(arb["request"]["context"]) == 2
+    assert 0.0 <= res["model_a"]["p_bonafide"] <= 1.0
+
+
+def test_compare_same_detector(client: TestClient) -> None:
+    r = client.post(
+        "/api/compare",
+        files={"file": ("test.wav", _tone_wav(), "audio/wav")},
+        data={"model_a": "a2", "model_b": "a2"},
+    )
+    assert r.status_code == 400
+
+
+def test_compare_jev_needs_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    r = client.post(
+        "/api/compare",
+        files={"file": ("test.wav", _tone_wav(), "audio/wav")},
+        data={"model_a": "a2", "model_b": "a2", "judge": "jev"},
+    )
+    assert r.status_code == 400
 
 
 def test_compare_invalid_model(client: TestClient) -> None:

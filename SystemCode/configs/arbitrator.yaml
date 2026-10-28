@@ -1,3 +1,5 @@
 # Judge used by audio_df.modules.arbitrator when detectors disagree on a clip.
 # laya: local Convai LAYA, free. jev: TypeSafe JEV API, paid per call (needs TYPESAFE_API_KEY).
 judge: laya
+# Request the web app sends (see VARIANTS in arbitrator.py); change it when notebook 06 finds a better one.
+variant: probabilities

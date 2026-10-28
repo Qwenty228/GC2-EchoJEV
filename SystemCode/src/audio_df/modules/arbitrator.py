@@ -1,10 +1,12 @@
 """Arbitrator: a judge (LAYA or JEV) decides which verdict to trust when detectors disagree.
 
-The judge is fixed in configs/arbitrator.yaml. A request carries each detector's evidence in listing
-order (name, verdict, P(bona fide), error rate); it never carries a clip id or label.
+The default judge and request variant are set in configs/arbitrator.yaml; a caller may pick another
+judge per call. A request carries each detector's evidence in listing order (name, verdict,
+P(bona fide), error rate); it never carries a clip id or label.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,15 +14,17 @@ from audio_df.helpers.config import load_config
 from audio_df.modules import jev, laya
 from audio_df.modules.jev import JEVState
 
-__all__ = ["ArbitratorConfig", "VARIANTS", "request", "decide"]
+__all__ = ["ArbitratorConfig", "VARIANTS", "judges", "request", "decide"]
 
 
 @dataclass(frozen=True)
 class ArbitratorConfig:
     judge: str = "laya"
+    variant: str = "probabilities"
 
 
 JUDGES = {"laya": laya.decide, "jev": jev.decide}
+LABELS = {"laya": "LAYA (local, free)", "jev": "JEV (TypeSafe API, paid per call)"}
 VARIANTS = ("verdicts", "probabilities", "reliability", "reliability order", "combined")
 FIELDS = {
     "verdicts": ("verdict",),
@@ -68,10 +72,19 @@ def request(evidence: list[dict[str, Any]], variant: str) -> JEVState:
     return JEVState(ctx, BASE + extra, QUESTION)
 
 
-def decide(state: JEVState, config: ArbitratorConfig | None = None) -> dict[str, Any]:
-    """The configured judge's decision: choice (bonafide, spoof or uncertain) and probabilities."""
+def judges() -> dict[str, str]:
+    """Judges usable here: LAYA always, JEV only when TYPESAFE_API_KEY is set."""
+    return {k: v for k, v in LABELS.items() if k != "jev" or os.getenv("TYPESAFE_API_KEY")}
+
+
+def decide(state: JEVState, config: ArbitratorConfig | None = None,
+           judge: str | None = None) -> dict[str, Any]:
+    """The judge's decision: choice (bonafide, spoof or uncertain) and probabilities.
+
+    `judge` overrides the configured one for this call.
+    """
     cfg = config if config is not None else load_config(ArbitratorConfig)
-    response = JUDGES[cfg.judge](state)
+    response = JUDGES[judge or cfg.judge](state)
     if hasattr(response, "model_dump"):  # JEV returns an SDK object, LAYA a dict
         response = response.model_dump(mode="json")
     return response["answers"]["decision"]

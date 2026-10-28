@@ -30,14 +30,16 @@ from fastapi.staticfiles import StaticFiles
 
 from audio_df.helpers import artifacts
 from audio_df.helpers.audio import load_audio  # noqa: F401 - shared resampling convention
+from audio_df.helpers.config import load_config
 from audio_df.helpers.eval_audio import trim_silence
-from audio_df.modules.detector import GMMDetector
-from audio_df.modules.ssl_detector import SSLDetector
-from audio_df.modules.lfcc_neural import LFCCDetector
-from audio_df.modules.fusion_detector import FusionDetector
-from audio_df.modules.d3_detector import D3Detector
+from audio_df.modules import arbitrator, jev, laya
+from audio_df.modules.arbitrator import ArbitratorConfig
 from audio_df.modules.d2_detector import D2Detector
-from audio_df.modules import jev, laya
+from audio_df.modules.d3_detector import D3Detector
+from audio_df.modules.detector import GMMDetector
+from audio_df.modules.fusion_detector import FusionDetector
+from audio_df.modules.lfcc_neural import LFCCDetector
+from audio_df.modules.ssl_detector import SSLDetector
 
 __all__ = ["app", "create_app"]
 
@@ -65,42 +67,36 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "name": "LFCC-GMM (B02)",
         "description": "512-component diagonal Gaussian Mixture Models over 60-dim LFCCs",
         "domain": "Spectral Envelope & Acoustic Ensembles",
-        "std": 1.825,
         "sample_rate": 16000,
     },
     "a2": {
         "name": "WavLM Base+ (SSL)",
         "description": "Pre-trained WavLM Base+ transformer with temporal average pooling",
         "domain": "Deep Contextual Semantics & Representations",
-        "std": 13.513,
         "sample_rate": 16000,
     },
     "a4": {
         "name": "LFCC-MLP",
         "description": "Small MLP over time-averaged 60-dim LFCCs",
         "domain": "Spectral Envelope (Time-Averaged)",
-        "std": 0.610,
         "sample_rate": 16000,
     },
     "d1": {
         "name": "Feature Fusion (Early)",
         "description": "Early concatenation of LFCC features and WavLM SSL representations",
         "domain": "Concatenated Multi-Modal Features",
-        "std": 6.554,
         "sample_rate": 16000,
     },
     "d2": {
         "name": "Cross-Attention Fusion",
         "description": "Cross-attention fusion between LFCC filterbanks and WavLM Layer-6 tokens",
         "domain": "Cross-Attended Spectral & Contextual Representations",
-        "std": 5.354,
         "sample_rate": 16000,
     },
     "d3": {
         "name": "Multi-Scale Fusion",
         "description": "Multi-resolution spectral pyramid cross-attended with self-supervised tokens",
         "domain": "Multi-Resolution Cross-Attention",
-        "std": 4.382,
         "sample_rate": 16000,
     },
 }
@@ -327,6 +323,10 @@ def artifact_threshold(artifact: Path | None) -> tuple[float | None, str]:
     return float(stored["eer_threshold"]), f"{stored['source']} EER ({stored['run']})"
 
 
+def detector_name(system: str) -> str:
+    return f"{system.upper()} {SYSTEM_METADATA[system]['name']}"
+
+
 def decode_audio(data: bytes) -> tuple[np.ndarray, int]:
     try:
         x, sr = sf.read(io.BytesIO(data), dtype="float32", always_2d=False)
@@ -375,8 +375,7 @@ def create_app(
     if configured_threshold is not None and not np.isfinite(configured_threshold):
         raise ValueError("ADF_THRESHOLD must be finite")
 
-    api = FastAPI(title="EchoJEV audio deepfake detection", version="0.2.0")
-    state: dict[str, Any] = {}
+    api = FastAPI(title="EchoJEV audio deepfake detection", version="0.3.0")
     model_pool: dict[str, tuple[Any, Path]] = {}
     lock = threading.Lock()
 
@@ -396,21 +395,28 @@ def create_app(
                 model_pool[sys_name] = (DETECTORS[sys_name].load(chosen), chosen)
             return model_pool[sys_name]
 
-    def selected_threshold(artifact: Path) -> tuple[float | None, str]:
-        """ADF_THRESHOLD, else this artifact's stored dev threshold."""
-        if configured_threshold is not None:
+    def require_available(field: str, value: str) -> str:
+        """A detector id this machine can run (the startup system may be pinned elsewhere)."""
+        sys_name = (value or selected).lower().strip()
+        present = artifacts.available(ROOT)
+        if sys_name != selected and sys_name not in present:
+            raise HTTPException(400, f"{field}={sys_name!r} is not available on this machine; "
+                                     f"choose from {list(present)}")
+        return sys_name
+
+    def threshold_for(sys_name: str, artifact: Path) -> tuple[float | None, str]:
+        """ADF_THRESHOLD for the startup system, else the artifact's stored dev threshold."""
+        if sys_name == selected and configured_threshold is not None:
             return configured_threshold, "ADF_THRESHOLD"
         return artifact_threshold(artifact)
 
-    def detector() -> Any:
-        m, artifact = get_loaded_detector(selected)
-        state["model"] = m
-        state["artifact"] = artifact
-        if "threshold" not in state:
-            state["threshold"], state["threshold_source"] = selected_threshold(artifact)
-        return m
+    def read_upload(file: UploadFile) -> tuple[np.ndarray, int]:
+        data = file.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+        return decode_audio(data)
 
-    def score_single(model: Any, sys_name: str, x: np.ndarray, orig_sr: int) -> tuple[float, float, int]:
+    def score_single(model: Any, sys_name: str, x: np.ndarray, orig_sr: int) -> tuple[float, float]:
         target_sr = _sample_rate(model, sys_name)
         waveform = _mono_resample(x, orig_sr, target_sr)
         if np.abs(waveform).max() < SILENT_PEAK:
@@ -428,14 +434,14 @@ def create_app(
             raise HTTPException(500, f"Detector {sys_name} inference failed") from exc
         if not np.isfinite(score):
             raise HTTPException(500, f"Detector {sys_name} returned non-finite score")
-        return score, speech_s, target_sr
+        return score, speech_s
 
-    def apply_policy(name: str, score: float) -> dict[str, Any]:
+    def apply_policy(name: str, score: float, threshold: float | None) -> dict[str, Any]:
         """Run JEV or LAYA on the same case FP1/FP2 use; return its answers and the full request."""
-        if state["threshold"] is None:
+        if threshold is None:
             raise HTTPException(409, "A decision policy needs a threshold; set ADF_THRESHOLD")
         label, decide = POLICIES[name]
-        case = jev.detector_case(score, state["threshold"])
+        case = jev.detector_case(score, threshold)
         started = time.monotonic()
         try:
             raw = decide(case)
@@ -458,41 +464,41 @@ def create_app(
 
     @api.get("/api/model")
     def model_info() -> dict[str, Any]:
-        model = detector()
-        artifact = state["artifact"]
+        model, artifact = get_loaded_detector(selected)
+        threshold_value, threshold_source = threshold_for(selected, artifact)
         return {
             "system": selected,
             "artifact": str(artifact),
             "model_version": artifact.name,
             "sample_rate": _sample_rate(model, selected),
-            "threshold": state["threshold"],
-            "threshold_source": state["threshold_source"],
+            "threshold": threshold_value,
+            "threshold_source": threshold_source,
             "score_direction": "higher_is_bonafide",
             "policies": {"none": "Detector only", **{k: v[0] for k, v in POLICIES.items()}},
         }
 
     @api.get("/api/models")
     def list_models() -> dict[str, Any]:
-        """List all supported detectors with their artifacts and calibration parameters."""
-        models_list = []
+        """Supported detectors (which are on this machine, with their thresholds) and usable judges."""
         present = artifacts.available(ROOT)
-        for sys_id, meta in SYSTEM_METADATA.items():
-            artifact = present.get(sys_id)
-            models_list.append(
-                {
-                    "id": sys_id,
-                    "name": meta["name"],
-                    "description": meta["description"],
-                    "domain": meta["domain"],
-                    "threshold": artifact_threshold(artifact)[0],
-                    "std": meta["std"],
-                    "sample_rate": meta["sample_rate"],
-                    "available": artifact is not None,
-                    "artifact": artifact.name if artifact else None,
-                    "is_current": (sys_id == selected),
-                }
-            )
-        return {"current_system": selected, "models": models_list}
+        models_list = [
+            {
+                "id": sys_id,
+                "name": meta["name"],
+                "description": meta["description"],
+                "domain": meta["domain"],
+                "threshold": artifact_threshold(present[sys_id])[0] if sys_id in present else None,
+                "sample_rate": meta["sample_rate"],
+                "available": sys_id in present,
+                "artifact": present[sys_id].name if sys_id in present else None,
+                "is_current": sys_id == selected,
+            }
+            for sys_id, meta in SYSTEM_METADATA.items()
+        ]
+        usable = arbitrator.judges()
+        judges = {k: {"label": v, "available": k in usable} for k, v in arbitrator.LABELS.items()}
+        return {"current_system": selected, "models": models_list, "judges": judges,
+                "default_judge": load_config(ArbitratorConfig).judge}
 
     @api.get("/api/rankings")
     def get_rankings(dataset: str = "asvspoof2019_eval") -> dict[str, Any]:
@@ -506,45 +512,28 @@ def create_app(
         }
 
     @api.post("/api/detect")
-    def detect(file: UploadFile = File(...), policy: str = Form("none")) -> dict[str, Any]:
+    def detect(
+        file: UploadFile = File(...), policy: str = Form("none"), system: str = Form("")
+    ) -> dict[str, Any]:
         if policy != "none" and policy not in POLICIES:
             raise HTTPException(400, f"Unknown policy {policy!r}; choose none, {', '.join(POLICIES)}")
-        data = file.file.read(MAX_UPLOAD_BYTES + 1)
-        if len(data) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
-        x, sr = decode_audio(data)
-        model = detector()
-        target_sr = _sample_rate(model, selected)
-        waveform = _mono_resample(x, sr, target_sr)
-        if np.abs(waveform).max() < SILENT_PEAK:
-            raise HTTPException(422, "No sound detected; check the microphone")
-        waveform = trim_silence(waveform)
-        speech_s = len(waveform) / target_sr
-        if speech_s < MIN_SPEECH_SECONDS:
-            raise HTTPException(
-                422,
-                f"Only {speech_s:.1f} s of sound after trimming silence; need at least {MIN_SPEECH_SECONDS:g} s of speech",
-            )
-        try:
-            score = float(model.score_audio(waveform))
-        except Exception as exc:
-            raise HTTPException(500, "Detector inference failed") from exc
-        if not np.isfinite(score):
-            raise HTTPException(500, "Detector returned a non-finite score")
-        thr = state["threshold"]
-        verdict = None if thr is None else ("bonafide" if score >= thr else "spoof")
+        sys_name = require_available("system", system)
+        x, sr = read_upload(file)
+        model, artifact = get_loaded_detector(sys_name)
+        score, speech_s = score_single(model, sys_name, x, sr)
+        thr, thr_source = threshold_for(sys_name, artifact)
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
             "speech_s": round(speech_s, 3),
-            "system": selected,
-            "model_version": state["artifact"].name,
+            "system": sys_name,
+            "model_version": artifact.name,
             "score": score,
             "score_direction": "higher_is_bonafide",
             "threshold": thr,
-            "threshold_source": state["threshold_source"],
-            "verdict": verdict,
-            "policy": None if policy == "none" else apply_policy(policy, score),
+            "threshold_source": thr_source,
+            "verdict": None if thr is None else ("bonafide" if score >= thr else "spoof"),
+            "policy": None if policy == "none" else apply_policy(policy, score, thr),
         }
 
     @api.post("/api/compare")
@@ -552,136 +541,71 @@ def create_app(
         file: UploadFile = File(...),
         model_a: str = Form("a2"),
         model_b: str = Form("a1"),
-        abstain_margin: float = Form(0.25),
+        judge: str = Form(""),
     ) -> dict[str, Any]:
-        """Compare two acoustic detectors side-by-side with LAYA/JEV arbitration."""
-        data = file.file.read(MAX_UPLOAD_BYTES + 1)
-        if len(data) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
-        x, sr = decode_audio(data)
+        """Score one clip with two detectors; the judge (LAYA or JEV) arbitrates via modules/arbitrator."""
+        config = load_config(ArbitratorConfig)
+        judge = judge or config.judge
+        usable = arbitrator.judges()
+        if judge not in usable:
+            raise HTTPException(400, f"Judge {judge!r} is not usable here; choose from {list(usable)}")
+        if (model_a or selected).lower().strip() == (model_b or selected).lower().strip():
+            raise HTTPException(400, "Pick two different detectors to arbitrate between")
+        x, sr = read_upload(file)
+        sides = []
+        for field, value in (("model_a", model_a), ("model_b", model_b)):
+            sys_name = require_available(field, value)
+            model, artifact = get_loaded_detector(sys_name)
+            score, speech_s = score_single(model, sys_name, x, sr)
+            thr = threshold_for(sys_name, artifact)[0]
+            stored = artifacts.threshold(artifact)
+            p = artifacts.p_bonafide(stored, score)
+            if thr is None or p is None:
+                raise HTTPException(409, f"No stored calibration for {sys_name}; evaluate it or run "
+                                         "`python -m audio_df.helpers.artifacts`")
+            sides.append({
+                "system": sys_name, "name": detector_name(sys_name), "artifact": artifact.name,
+                "score": score, "threshold": thr, "margin": score - thr, "p_bonafide": p,
+                "error_rate_pct": stored.get("error_rate_pct"),
+                "prediction": "bonafide" if score >= thr else "spoof",
+                "features": SYSTEM_METADATA[sys_name]["domain"], "speech_s": speech_s,
+            })
 
-        sys_a = model_a.lower().strip()
-        sys_b = model_b.lower().strip()
-        present = artifacts.available(ROOT)
-        for label, sys_name in (("model_a", sys_a), ("model_b", sys_b)):
-            if sys_name not in present:
-                raise HTTPException(400, f"{label}={sys_name!r} is not available on this machine; "
-                                         f"choose from {list(present)}")
-
+        evidence = [{"name": s["name"], "verdict": s["prediction"], "p_bonafide": s["p_bonafide"],
+                     "error_rate_pct": s["error_rate_pct"]} for s in sides]
+        case = arbitrator.request(evidence, config.variant)
         try:
-            m_a, art_a = get_loaded_detector(sys_a)
-        except Exception as exc:
-            raise HTTPException(400, f"Failed to load Model A ({sys_a}): {exc}") from exc
-        try:
-            m_b, art_b = get_loaded_detector(sys_b)
-        except Exception as exc:
-            raise HTTPException(400, f"Failed to load Model B ({sys_b}): {exc}") from exc
+            answer = arbitrator.decide(case, config, judge=judge)
+        except RuntimeError as exc:  # missing API key, package or local model
+            raise HTTPException(503, f"{usable[judge]} unavailable: {exc}") from exc
 
-        score_a, speech_a, sr_a = score_single(m_a, sys_a, x, sr)
-        score_b, speech_b, sr_b = score_single(m_b, sys_b, x, sr)
-
-        meta_a = SYSTEM_METADATA.get(sys_a, {})
-        meta_b = SYSTEM_METADATA.get(sys_b, {})
-
-        th_a, th_b = artifact_threshold(art_a)[0], artifact_threshold(art_b)[0]
-        missing = [name for name, th in ((sys_a, th_a), (sys_b, th_b)) if th is None]
-        if missing:
-            raise HTTPException(409, f"No stored threshold for {', '.join(missing)}; evaluate it or run "
-                                     "`python -m audio_df.helpers.artifacts`")
-        std_a = meta_a.get("std", 1.0)
-        std_b = meta_b.get("std", 1.0)
-
-        margin_a = score_a - th_a
-        margin_b = score_b - th_b
-        z_a = margin_a / std_a
-        z_b = margin_b / std_b
-
-        pred_a = "bonafide" if score_a >= th_a else "spoof"
-        pred_b = "bonafide" if score_b >= th_b else "spoof"
-        agreement = bool(pred_a == pred_b)
-        delta_z = abs(abs(z_a) - abs(z_b))
-
-        name_a = meta_a.get("name", sys_a.upper())
-        name_b = meta_b.get("name", sys_b.upper())
-
-        # LAYA / JEV Option 2 Arbitration Engine:
-        if agreement:
-            verdict = pred_a
-            status = "unanimous"
-            dominant = "both"
-            probs = {
-                "bonafide": 0.94 if pred_a == "bonafide" else 0.03,
-                "spoof": 0.94 if pred_a == "spoof" else 0.03,
-                "uncertain": 0.03,
-            }
-            rationale = (
-                f"Unanimous Agreement: Both {name_a} and {name_b} independently classify the audio as "
-                f"{'bona fide (authentic)' if pred_a == 'bonafide' else 'spoof (synthetic)'} "
-                f"with concordant acoustic confidence."
-            )
-        elif delta_z < abstain_margin:
-            # Chow's Rule: selective abstention when margin gap is too narrow
-            verdict = "uncertain"
-            status = "escalated"
-            dominant = "tied"
-            probs = {"bonafide": 0.35, "spoof": 0.35, "uncertain": 0.30}
-            rationale = (
-                f"Selective Abstention (Chow's Rule): Detectors conflict ({name_a}: {pred_a} vs {name_b}: {pred_b}) "
-                f"and normalized margin difference |Δz| = {delta_z:.3f} is below the arbitration confidence cutoff "
-                f"τ_arb = {abstain_margin:.2f}. High-entropy conflict safely escalated to human forensic review."
-            )
+        verdict = answer["choice"]
+        agreement = sides[0]["prediction"] == sides[1]["prediction"]
+        backers = [s["name"] for s in sides if s["prediction"] == verdict]
+        if verdict == "uncertain":
+            status, rationale = "escalated", f"{usable[judge]} abstained: the evidence is too mixed to decide."
         else:
-            dominant = sys_a if abs(z_a) >= abs(z_b) else sys_b
-            dom_name = name_a if dominant == sys_a else name_b
-            verdict = pred_a if dominant == sys_a else pred_b
-            status = "arbitrated"
-            probs = {
-                "bonafide": 0.85 if verdict == "bonafide" else 0.10,
-                "spoof": 0.85 if verdict == "spoof" else 0.10,
-                "uncertain": 0.05,
-            }
-            rationale = (
-                f"Multi-Detector Arbitration: Detectors conflict ({name_a}: {pred_a} vs {name_b}: {pred_b}). "
-                f"{dom_name} provides decisive normalized margin dominance (|z| = {max(abs(z_a), abs(z_b)):.2f} "
-                f"vs {min(abs(z_a), abs(z_b)):.2f}, |Δz| = {delta_z:.3f} ≥ {abstain_margin:.2f}). "
-                f"Verdict arbitrated to {verdict} autonomously."
-            )
+            status = "unanimous" if agreement and backers else "arbitrated"
+            sided = f"siding with {' and '.join(backers)}" if backers else "against both detectors"
+            rationale = f"{usable[judge]} answered {verdict}, {sided}."
+
+        def card(side: dict[str, Any]) -> dict[str, Any]:
+            rounded = {k: round(side[k], 4) for k in ("score", "threshold", "margin", "p_bonafide")}
+            keep = ("system", "name", "artifact", "error_rate_pct", "prediction", "features")
+            return {**{k: side[k] for k in keep}, **rounded}
 
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
-            "speech_s": round(speech_a, 3),
-            "model_a": {
-                "system": sys_a,
-                "name": name_a,
-                "artifact": art_a.name,
-                "score": round(score_a, 4),
-                "threshold": round(th_a, 4),
-                "margin": round(margin_a, 4),
-                "norm_margin_z": round(z_a, 3),
-                "prediction": pred_a,
-                "features": meta_a.get("domain", ""),
-            },
-            "model_b": {
-                "system": sys_b,
-                "name": name_b,
-                "artifact": art_b.name,
-                "score": round(score_b, 4),
-                "threshold": round(th_b, 4),
-                "margin": round(margin_b, 4),
-                "norm_margin_z": round(z_b, 3),
-                "prediction": pred_b,
-                "features": meta_b.get("domain", ""),
-            },
+            "speech_s": round(sides[0]["speech_s"], 3),
+            "model_a": card(sides[0]),
+            "model_b": card(sides[1]),
             "arbitration": {
-                "verdict": verdict,
-                "status": status,
-                "dominant_model": dominant,
-                "agreement": agreement,
-                "delta_z": round(delta_z, 3),
-                "abstain_margin": abstain_margin,
-                "probabilities": probs,
-                "rationale": rationale,
+                "judge": judge, "judge_label": usable[judge], "variant": config.variant,
+                "verdict": verdict, "status": status, "agreement": agreement,
+                "probabilities": answer["probabilities"], "rationale": rationale,
+                "request": {"prompt": case.prompt, "context": dict(case.context),
+                            "questions": case.questions},
             },
         }
 

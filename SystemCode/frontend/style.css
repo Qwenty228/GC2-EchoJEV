@@ -550,7 +550,7 @@ main {
 /* Dual Model Comparison View */
 .compare-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
@@ -706,6 +706,19 @@ main {
   color: var(--text-muted);
   line-height: 1.6;
   margin-bottom: 1rem;
+}
+
+.arb-request {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.arb-request pre {
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 0.78rem;
 }
 
 /* Probability Bars */
