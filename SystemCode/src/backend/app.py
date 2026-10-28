@@ -24,10 +24,7 @@ from typing import Any
 
 import numpy as np
 import soundfile as sf
-<<<<<<< HEAD
-=======
 import yaml
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
@@ -81,9 +78,9 @@ SYSTEM_METADATA: dict[str, dict[str, Any]] = {
         "sample_rate": 16000,
     },
     "a4": {
-        "name": "LFCC-ResNet",
-        "description": "Residual convolutional network over spectral filterbanks",
-        "domain": "Acoustic Phase & High Frequencies",
+        "name": "LFCC-MLP",
+        "description": "Small MLP over time-averaged 60-dim LFCCs",
+        "domain": "Spectral Envelope (Time-Averaged)",
         "threshold": -0.354,
         "std": 0.610,
         "sample_rate": 16000,
@@ -192,8 +189,8 @@ RANKINGS_DATA: dict[str, Any] = {
             },
             {
                 "rank": 6,
-                "name": "Base A4: LFCC-ResNet",
-                "system": "A4 (LFCC + ResNet)",
+                "name": "Base A4: LFCC-MLP",
+                "system": "A4 (LFCC + MLP)",
                 "policy": "Acoustic Classifier Alone",
                 "accuracy": 83.50,
                 "coverage": 100.0,
@@ -201,8 +198,8 @@ RANKINGS_DATA: dict[str, Any] = {
                 "ner": "0 (Baseline)",
                 "escalated": "0.0%",
                 "type": "Acoustic Base",
-                "badge": "CNN Acoustic",
-                "notes": "2D convolutions capturing spectro-temporal artifacts without foundation models.",
+                "badge": "MLP Acoustic",
+                "notes": "MLP on time-averaged LFCCs; no temporal modelling and no foundation model.",
             },
             {
                 "rank": 7,
@@ -297,8 +294,8 @@ RANKINGS_DATA: dict[str, Any] = {
             },
             {
                 "rank": 6,
-                "name": "Base A4: LFCC-ResNet",
-                "system": "A4 (LFCC + ResNet)",
+                "name": "Base A4: LFCC-MLP",
+                "system": "A4 (LFCC + MLP)",
                 "policy": "Acoustic Classifier Alone",
                 "accuracy": 52.30,
                 "coverage": 100.0,
@@ -306,7 +303,7 @@ RANKINGS_DATA: dict[str, Any] = {
                 "ner": "0 (Baseline)",
                 "escalated": "0.0%",
                 "type": "Acoustic Base",
-                "badge": "CNN Acoustic",
+                "badge": "MLP Acoustic",
                 "notes": "Struggles with out-of-domain acoustic environments without foundation model pre-training.",
             },
             {
@@ -336,11 +333,11 @@ def resolve_artifact(root: Path, system: str) -> Path:
     return valid[-1]
 
 
-<<<<<<< HEAD
 def has_artifact(root: Path, system: str) -> bool:
     parent = root / "artifacts" / system
     return parent.is_dir() and any(p.is_dir() and (p / "COMPLETE").is_file() for p in parent.iterdir())
-=======
+
+
 def dev_threshold(root: Path, system: str, artifact: Path) -> tuple[float, str] | None:
     """Dev EER threshold from the newest evaluation run of this artifact (what FP1/FP2 use)."""
     key = f"{system}/{artifact.name}"
@@ -351,7 +348,6 @@ def dev_threshold(root: Path, system: str, artifact: Path) -> tuple[float, str] 
             if cfg.get("architecture") == system and artifact_key(cfg.get("model_artifact", "")) == key:
                 return float(json.loads(cal_path.read_text(encoding="utf-8"))["eer_threshold"]), f"dev EER ({run.name})"
     return None
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
 
 
 def decode_audio(data: bytes) -> tuple[np.ndarray, int]:
@@ -417,14 +413,25 @@ def create_app(
                 chosen = chosen.resolve()
                 if not (chosen / "COMPLETE").is_file():
                     raise HTTPException(503, f"No completed model artifact at {chosen}")
-<<<<<<< HEAD
                 model_pool[sys_name] = (DETECTORS[sys_name].load(chosen), chosen)
             return model_pool[sys_name]
+
+    def selected_threshold(artifact: Path) -> tuple[float | None, str]:
+        """ADF_THRESHOLD, else this artifact's dev EER threshold, else the system default."""
+        if configured_threshold is not None:
+            return configured_threshold, "ADF_THRESHOLD"
+        found = dev_threshold(ROOT, selected, artifact)
+        if found is not None:
+            return found
+        default = SYSTEM_METADATA.get(selected, {}).get("threshold")
+        return (default, "SYSTEM_METADATA default") if default is not None else (None, "not set")
 
     def detector() -> Any:
         m, artifact = get_loaded_detector(selected)
         state["model"] = m
         state["artifact"] = artifact
+        if "threshold" not in state:
+            state["threshold"], state["threshold_source"] = selected_threshold(artifact)
         return m
 
     def score_single(model: Any, sys_name: str, x: np.ndarray, orig_sr: int) -> tuple[float, float, int]:
@@ -446,15 +453,6 @@ def create_app(
         if not np.isfinite(score):
             raise HTTPException(500, f"Detector {sys_name} returned non-finite score")
         return score, speech_s, target_sr
-=======
-                state["model"] = DETECTORS[selected].load(chosen)
-                state["artifact"] = chosen
-                found = None if configured_threshold is not None else dev_threshold(ROOT, selected, chosen)
-                state["threshold"], state["threshold_source"] = (
-                    (configured_threshold, "ADF_THRESHOLD") if configured_threshold is not None
-                    else found if found is not None else (None, "not set"))
-            return state["model"]
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
 
     def apply_policy(name: str, score: float) -> dict[str, Any]:
         """Run JEV or LAYA on the same case FP1/FP2 use; return its answers and the full request."""
@@ -486,19 +484,13 @@ def create_app(
     def model_info() -> dict[str, Any]:
         model = detector()
         artifact = state["artifact"]
-        meta = SYSTEM_METADATA.get(selected, {})
-        effective_threshold = configured_threshold if configured_threshold is not None else meta.get("threshold")
         return {
             "system": selected,
             "artifact": str(artifact),
             "model_version": artifact.name,
             "sample_rate": _sample_rate(model, selected),
-<<<<<<< HEAD
-            "threshold": effective_threshold,
-=======
             "threshold": state["threshold"],
             "threshold_source": state["threshold_source"],
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
             "score_direction": "higher_is_bonafide",
             "policies": {"none": "Detector only", **{k: v[0] for k, v in POLICIES.items()}},
         }
@@ -561,19 +553,8 @@ def create_app(
             raise HTTPException(500, "Detector inference failed") from exc
         if not np.isfinite(score):
             raise HTTPException(500, "Detector returned a non-finite score")
-<<<<<<< HEAD
-
-        meta = SYSTEM_METADATA.get(selected, {})
-        effective_threshold = configured_threshold if configured_threshold is not None else meta.get("threshold")
-        verdict = (
-            None
-            if effective_threshold is None
-            else ("bonafide" if score >= effective_threshold else "spoof")
-        )
-=======
         thr = state["threshold"]
         verdict = None if thr is None else ("bonafide" if score >= thr else "spoof")
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
@@ -582,12 +563,8 @@ def create_app(
             "model_version": state["artifact"].name,
             "score": score,
             "score_direction": "higher_is_bonafide",
-<<<<<<< HEAD
-            "threshold": effective_threshold,
-=======
             "threshold": thr,
             "threshold_source": state["threshold_source"],
->>>>>>> f072274293237c7368f52020dfa00e02414d0c05
             "verdict": verdict,
             "policy": None if policy == "none" else apply_policy(policy, score),
         }
@@ -627,9 +604,9 @@ def create_app(
         meta_a = SYSTEM_METADATA.get(sys_a, {})
         meta_b = SYSTEM_METADATA.get(sys_b, {})
 
-        th_a = meta_a.get("threshold", 0.0)
+        th_a = (dev_threshold(ROOT, sys_a, art_a) or (meta_a.get("threshold", 0.0),))[0]
         std_a = meta_a.get("std", 1.0)
-        th_b = meta_b.get("threshold", 0.0)
+        th_b = (dev_threshold(ROOT, sys_b, art_b) or (meta_b.get("threshold", 0.0),))[0]
         std_b = meta_b.get("std", 1.0)
 
         margin_a = score_a - th_a

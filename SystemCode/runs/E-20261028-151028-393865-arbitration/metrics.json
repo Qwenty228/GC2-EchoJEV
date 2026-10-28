@@ -1,0 +1,102 @@
+{
+  "arbiter": "laya",
+  "testset": "itw",
+  "n_cases": 201,
+  "detectors": {
+    "a1": {
+      "name": "A1 LFCC-GMM",
+      "run": "runs/E-20261023-172139-766981-a1",
+      "threshold": 0.7381769752802398,
+      "error_rate_pct": 34.1
+    },
+    "a2": {
+      "name": "A2 WavLM",
+      "run": "runs/E-20261023-200932-976565-a2",
+      "threshold": -0.0027256272733211,
+      "error_rate_pct": 14.3
+    },
+    "a4": {
+      "name": "A4 LFCC-MLP",
+      "run": "runs/E-20261023-194755-458184-a4",
+      "threshold": -0.2523041367530823,
+      "error_rate_pct": 40.6
+    }
+  },
+  "results": {
+    "A1 LFCC-GMM alone": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.3333333333333333,
+      "errors": 134
+    },
+    "A2 WavLM alone": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.7860696517412935,
+      "errors": 43
+    },
+    "A4 LFCC-MLP alone": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.43781094527363185,
+      "errors": 113
+    },
+    "majority vote": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.5572139303482587,
+      "errors": 89
+    },
+    "reliability-weighted P >= 0.5": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.6169154228855721,
+      "errors": 77
+    },
+    "LAYA verdicts | A1 first": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.42786069651741293,
+      "errors": 115
+    },
+    "LAYA verdicts | A1 last": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.42786069651741293,
+      "errors": 115
+    },
+    "LAYA probabilities | A1 first": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.3283582089552239,
+      "errors": 135
+    },
+    "LAYA probabilities | A1 last": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.6716417910447762,
+      "errors": 66
+    },
+    "LAYA reliability | A1 first": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.31840796019900497,
+      "errors": 137
+    },
+    "LAYA reliability | A1 last": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.6019900497512438,
+      "errors": 80
+    },
+    "LAYA reliability order | A1 first": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.43781094527363185,
+      "errors": 113
+    },
+    "LAYA reliability order | A1 last": {
+      "coverage": 1.0,
+      "accuracy_on_decided": 0.43781094527363185,
+      "errors": 113
+    },
+    "LAYA combined | A1 first": {
+      "coverage": 0.15422885572139303,
+      "accuracy_on_decided": 0.8387096774193549,
+      "errors": 5
+    },
+    "LAYA combined | A1 last": {
+      "coverage": 0.15422885572139303,
+      "accuracy_on_decided": 0.8387096774193549,
+      "errors": 5
+    }
+  }
+}
