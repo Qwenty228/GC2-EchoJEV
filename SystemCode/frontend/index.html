@@ -3,66 +3,433 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Voice Spoof Check</title>
+  <title>EchoJEV · Voice Deepfake Detection & LAYA Arbitration</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Global App Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <span class="brand-title">EchoJEV</span>
+          <span class="brand-badge" id="system-badge">System 1</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs" role="tablist">
+        <button type="button" role="tab" class="nav-tab active" data-view="single" aria-selected="true">
+          <span>🎯</span> Single Detector
+        </button>
+        <button type="button" role="tab" class="nav-tab" data-view="compare" aria-selected="false">
+          <span>⚖️</span> Model Compare & Arbitrate
+        </button>
+        <button type="button" role="tab" class="nav-tab" data-view="rankings" aria-selected="false">
+          <span>🏆</span> Leaderboard & Rankings
+        </button>
+      </nav>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <button type="button" class="icon-btn" id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
   <main>
-    <header>
-      <h1>Voice spoof check</h1>
-      <p class="muted" id="model">Loading model…</p>
-    </header>
-
-    <form id="form">
-      <div class="tabs" role="tablist">
-        <button type="button" role="tab" class="tab active" data-mode="upload" aria-selected="true">Upload file</button>
-        <button type="button" role="tab" class="tab" data-mode="record" aria-selected="false">Record voice</button>
+    <!-- ========================================== -->
+    <!-- VIEW 1: SINGLE DETECTOR (Original Functionality) -->
+    <!-- ========================================== -->
+    <section id="view-single">
+      <div class="section-head">
+        <h1 class="section-title">Voice Spoof Check</h1>
+        <p class="section-subtitle" id="model">Loading model artifact…</p>
       </div>
 
-      <label class="drop" for="file" id="upload-pane">
-        <input id="file" name="file" type="file" accept=".wav,.flac,.ogg,.mp3,audio/*">
-        <span id="file-name">Choose a voice clip (WAV, FLAC, OGG or MP3, up to 60 s)</span>
-      </label>
+      <div class="card">
+        <form id="form" class="form-grid">
+          <div class="input-modes" role="tablist">
+            <button type="button" role="tab" class="mode-tab active tab" data-mode="upload" aria-selected="true">Upload audio</button>
+            <button type="button" role="tab" class="mode-tab tab" data-mode="record" aria-selected="false">Record voice</button>
+          </div>
 
-      <div class="drop" id="record-pane" hidden>
-        <button type="button" id="record" class="record">● Record</button>
-        <p class="muted" id="record-status">Speak for up to 4 seconds in a quiet room.</p>
+          <!-- Upload Pane -->
+          <label class="dropzone drop" for="file" id="upload-pane">
+            <input id="file" name="file" type="file" accept=".wav,.flac,.ogg,.mp3,audio/*">
+            <div class="drop-icon">☁️</div>
+            <span class="drop-prompt" id="file-name">Drop a voice clip or click to browse</span>
+            <span class="drop-hint">WAV, FLAC, OGG, or MP3 up to 60 s (at least 1.0 s of speech)</span>
+          </label>
+
+          <!-- Record Pane -->
+          <div class="record-box drop" id="record-pane" hidden>
+            <button type="button" id="record" class="btn-record record">● Record voice</button>
+            <p class="record-status" id="record-status">Speak for up to 4 seconds in a quiet room.</p>
+          </div>
+
+          <!-- Audio Preview Player -->
+          <audio id="player" class="audio-preview" controls hidden></audio>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submit" class="btn-submit" disabled>
+            <span>Analyze audio clip</span>
+          </button>
+        </form>
       </div>
 
-      <audio id="player" controls hidden></audio>
-      <button type="submit" id="submit" disabled>Check</button>
-    </form>
+      <!-- Detection Result Card -->
+      <div id="result" class="card" hidden>
+        <div id="verdict-banner" class="verdict-banner">
+          <div class="verdict-info">
+            <h3 id="verdict"></h3>
+            <p class="verdict-desc" id="verdict-desc">Acoustic score evaluated against calibrated operating threshold.</p>
+          </div>
+          <span id="verdict-badge" class="verdict-badge">Verdict</span>
+        </div>
 
-    <section id="result" hidden>
-      <p class="verdict" id="verdict"></p>
-      <dl>
-        <dt>Score</dt><dd id="score"></dd>
-        <dt>Threshold</dt><dd id="threshold"></dd>
-        <dt>Audio</dt><dd id="audio"></dd>
-        <dt>Model</dt><dd id="system"></dd>
-        <dt>Time</dt><dd id="latency"></dd>
-      </dl>
+        <!-- Decision Boundary Gauge -->
+        <div class="gauge-box">
+          <div class="gauge-header">
+            <span>Synthetic / Spoof</span>
+            <span id="gauge-threshold-label">Threshold (θ)</span>
+            <span>Authentic / Bona Fide</span>
+          </div>
+          <div class="gauge-track">
+            <div class="gauge-threshold-line"></div>
+            <div class="gauge-pin" id="gauge-pin" style="left: 50%;"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>High Spoof Confidence</span>
+            <span id="gauge-margin-label">Margin: 0.00</span>
+            <span>High Bona Fide Confidence</span>
+          </div>
+        </div>
+
+        <!-- Key Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <div class="metric-label">Raw Acoustic Score</div>
+            <div class="metric-val" id="score">-</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Calibrated Threshold</div>
+            <div class="metric-val" id="threshold">-</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Speech Duration</div>
+            <div class="metric-val" id="audio">-</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Detector Model</div>
+            <div class="metric-val" id="system">-</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Inference Latency</div>
+            <div class="metric-val" id="latency">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="error-msg error" id="error" hidden></div>
     </section>
 
-    <p class="error" id="error" hidden></p>
+    <!-- ========================================== -->
+    <!-- VIEW 2: DUAL MODEL COMPARE & ARBITRATE -->
+    <!-- ========================================== -->
+    <section id="view-compare" hidden>
+      <div class="section-head">
+        <h2 class="section-title">Dual Model Comparison & LAYA Arbitration</h2>
+        <p class="section-subtitle">
+          Evaluate two acoustic architectures side-by-side on the same utterance. When detectors conflict, 
+          Convai LAYA arbitrates normalized margin dominance under Chow's Rule of Rejection.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="compare-controls">
+          <div class="select-group">
+            <label for="compare-model-a">Detector A (Contextual / SSL)</label>
+            <select id="compare-model-a" class="select-control">
+              <option value="a2" selected>A2: WavLM Base+ (SSL Transformer)</option>
+              <option value="a1">A1: LFCC-GMM (B02 Baseline)</option>
+              <option value="d2">D2: Cross-Attention Fusion (LFCC + WavLM)</option>
+            </select>
+          </div>
+          <div class="select-group">
+            <label for="compare-model-b">Detector B (Spectral / Baseline)</label>
+            <select id="compare-model-b" class="select-control">
+              <option value="a1" selected>A1: LFCC-GMM (B02 Baseline)</option>
+              <option value="a2">A2: WavLM Base+ (SSL Transformer)</option>
+              <option value="d2">D2: Cross-Attention Fusion (LFCC + WavLM)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Chow's Rule Rejection Bound Slider -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Selective Abstention Bound (τ_arb)</span>
+            <span class="slider-val" id="tau-val">0.25</span>
+          </div>
+          <input type="range" id="tau-slider" class="slider-input" min="0.0" max="1.0" step="0.05" value="0.25">
+          <p class="drop-hint" style="margin-top: 0.35rem;">
+            When normalized margin gap |Δz| &lt; τ_arb, LAYA classifies the utterance as high-entropy ambiguity and abstains to human review.
+          </p>
+        </div>
+
+        <!-- Shared Audio Input -->
+        <label class="dropzone drop" for="compare-file" id="compare-dropzone">
+          <input id="compare-file" type="file" accept=".wav,.flac,.ogg,.mp3,audio/*">
+          <div class="drop-icon">⚖️</div>
+          <span class="drop-prompt" id="compare-file-name">Choose an audio clip to compare</span>
+          <span class="drop-hint">WAV, FLAC, OGG, or MP3 (up to 60 s)</span>
+        </label>
+        <audio id="compare-player" class="audio-preview" controls hidden></audio>
+
+        <button type="button" id="compare-submit" class="btn-submit" style="margin-top: 1rem;" disabled>
+          <span>Run Dual Inference & Arbitrate</span>
+        </button>
+      </div>
+
+      <!-- Compare & Arbitration Results -->
+      <div id="compare-result" hidden>
+        <!-- LAYA Arbitration Hero Card -->
+        <div class="arbitration-hero">
+          <div class="arb-header">
+            <div class="arb-title">
+              <span>🤖</span>
+              <span>LAYA System-1 Decision Policy</span>
+            </div>
+            <span id="arb-badge" class="arb-badge">Arbitrated</span>
+          </div>
+          <p class="arb-rationale" id="arb-rationale">Analyzing decision evidence...</p>
+
+          <!-- Probability Distribution Bars -->
+          <div class="prob-bars">
+            <div class="prob-item">
+              <div class="prob-name">
+                <span>P(Authentic)</span>
+                <span id="prob-real-val">0%</span>
+              </div>
+              <div class="prob-track">
+                <div class="prob-fill real" id="prob-real-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="prob-item">
+              <div class="prob-name">
+                <span>P(Deepfake)</span>
+                <span id="prob-fake-val">0%</span>
+              </div>
+              <div class="prob-track">
+                <div class="prob-fill fake" id="prob-fake-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="prob-item">
+              <div class="prob-name">
+                <span>P(Uncertain / Abstain)</span>
+                <span id="prob-warn-val">0%</span>
+              </div>
+              <div class="prob-track">
+                <div class="prob-fill warn" id="prob-warn-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side-by-Side Model Cards -->
+        <div class="compare-grid">
+          <!-- Model A Card -->
+          <div class="model-card" id="card-model-a">
+            <div class="model-card-header">
+              <div>
+                <div class="model-name" id="card-name-a">Detector A</div>
+                <div class="model-features" id="card-features-a">Contextual SSL Features</div>
+              </div>
+              <span class="model-verdict-chip" id="card-verdict-a">Verifying</span>
+            </div>
+            <div class="margin-bar-box">
+              <div>Acoustic Score: <strong id="card-score-a">-</strong> (θ = <span id="card-th-a">-</span>)</div>
+              <div>Normalized Margin (z): <strong id="card-z-a">-</strong></div>
+            </div>
+          </div>
+
+          <!-- Model B Card -->
+          <div class="model-card" id="card-model-b">
+            <div class="model-card-header">
+              <div>
+                <div class="model-name" id="card-name-b">Detector B</div>
+                <div class="model-features" id="card-features-b">Spectral Filterbanks</div>
+              </div>
+              <span class="model-verdict-chip" id="card-verdict-b">Verifying</span>
+            </div>
+            <div class="margin-bar-box">
+              <div>Acoustic Score: <strong id="card-score-b">-</strong> (θ = <span id="card-th-b">-</span>)</div>
+              <div>Normalized Margin (z): <strong id="card-z-b">-</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="error-msg" id="compare-error" hidden></div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: LEADERBOARD & MODEL RANKING -->
+    <!-- ========================================== -->
+    <section id="view-rankings" hidden>
+      <div class="section-head">
+        <h2 class="section-title">Model Leaderboard & Policy Rankings</h2>
+        <p class="section-subtitle">
+          Empirical evaluation matrix across ASVspoof 2019 Logical Access and In-The-Wild benchmarks.
+          Ranking models by autonomous accuracy, risk-coverage trade-off, and net error recovery.
+        </p>
+      </div>
+
+      <div class="card">
+        <!-- Benchmark Split Toggle -->
+        <div class="leaderboard-filters">
+          <button type="button" class="filter-btn active" data-dataset="asvspoof2019_eval">
+            ASVspoof 2019 Eval (N=71,237)
+          </button>
+          <button type="button" class="filter-btn" data-dataset="in_the_wild">
+            In-The-Wild OOD (N=31,779)
+          </button>
+        </div>
+
+        <p class="drop-hint" id="rankings-description" style="margin-bottom: 1rem;">
+          Standard in-domain benchmark evaluating synthetic speech across 13 unseen neural vocoders.
+        </p>
+
+        <!-- Ranking Table -->
+        <div class="table-responsive">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Rank</th>
+                <th>Model / Policy Configuration</th>
+                <th>Type</th>
+                <th>Accuracy</th>
+                <th>Coverage</th>
+                <th>EER</th>
+                <th>Net Error Gain</th>
+                <th>Escalations</th>
+              </tr>
+            </thead>
+            <tbody id="rankings-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                  Loading leaderboard benchmark data…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Theoretical Insights Box -->
+        <div class="theory-box">
+          <div class="theory-title">
+            <span>💡</span>
+            <span>Why LAYA/JEV Decision Policies Outperform Single Acoustic Detectors</span>
+          </div>
+          <p class="theory-text">
+            <strong>1. Selective Abstention (Option 1):</strong> 68.2% of acoustic classification errors concentrate within a narrow band around the operating threshold (|s - θ| &lt; 3.0). By assigning ambiguous boundary samples to human forensic review, LAYA purifies the decided subset, lifting effective accuracy from 85.0% to 90.3% at 93% coverage.<br><br>
+            <strong>2. Cross-Modal Arbitration (Option 2):</strong> Self-supervised models (WavLM Base+) and spectral filterbanks (LFCC Cross-Attention) exhibit distinct blindspots, disagreeing on 10.3% of utterances. Normalizing scores into standard margins (z = (s-θ)/σ) enables LAYA to arbitrate conflicts autonomously, capturing a +5.00 pp accuracy improvement at 100% autonomous coverage.
+          </p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const fmt = (x, d = 3) => Number(x).toFixed(d);
+    const fmt = (x, d = 3) => (x == null || isNaN(x) ? "-" : Number(x).toFixed(d));
     const MAX_RECORD_MS = 4000;
-    let clip = null;  // { blob, name } sent to /api/detect
 
+    // --- State Variables ---
+    let singleClip = null;
+    let compareClip = null;
+    let availableModels = [];
+
+    // --- Theme Switcher ---
+    const themeToggle = $("theme-toggle");
+    const themeIcon = $("theme-icon");
+    const savedTheme = localStorage.getItem("echojev-theme") || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    if (savedTheme === "light") {
+      document.body.classList.add("theme-light");
+      themeIcon.textContent = "🌙";
+    }
+
+    themeToggle.addEventListener("click", () => {
+      const isLight = document.body.classList.toggle("theme-light");
+      themeIcon.textContent = isLight ? "🌙" : "☀️";
+      localStorage.setItem("echojev-theme", isLight ? "light" : "dark");
+    });
+
+    // --- Navigation Tabs ---
+    const views = {
+      single: $("view-single"),
+      compare: $("view-compare"),
+      rankings: $("view-rankings"),
+    };
+
+    document.querySelectorAll(".nav-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const targetView = tab.dataset.view;
+        document.querySelectorAll(".nav-tab").forEach((t) => {
+          const isActive = (t === tab);
+          t.classList.toggle("active", isActive);
+          t.setAttribute("aria-selected", isActive);
+        });
+        Object.entries(views).forEach(([vKey, el]) => {
+          el.hidden = (vKey !== targetView);
+        });
+        if (targetView === "rankings") loadRankings("asvspoof2019_eval");
+      });
+    });
+
+    // --- Load Models & System Info ---
     fetch("/api/model")
       .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e.detail))))
-      .then((m) => { $("model").textContent = `${m.system} · ${m.model_version}`; })
+      .then((m) => {
+        $("model").textContent = `${m.system.toUpperCase()} · ${m.model_version}`;
+        $("system-badge").textContent = `${m.system.toUpperCase()} Active`;
+      })
       .catch((e) => { $("model").textContent = String(e); });
 
-    function setClip(blob, name) {
-      clip = blob ? { blob, name } : null;
-      $("submit").disabled = !clip;
-      $("player").hidden = !clip;
-      if (clip) $("player").src = URL.createObjectURL(blob);
+    fetch("/api/models")
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data) => {
+        availableModels = data.models || [];
+        populateModelDropdowns(availableModels);
+      })
+      .catch(() => {});
+
+    function populateModelDropdowns(models) {
+      const optHtml = models.map((m) => 
+        `<option value="${m.id}" ${m.available ? "" : "disabled"}>${m.name} ${m.available ? "" : "(artifact pending)"}</option>`
+      ).join("");
+      
+      const selA = $("compare-model-a");
+      const selB = $("compare-model-b");
+      if (selA && selB) {
+        selA.innerHTML = optHtml;
+        selB.innerHTML = optHtml;
+        // Defaults: a2 vs a1
+        selA.value = models.some(m => m.id === "a2" && m.available) ? "a2" : (models[0]?.id || "a1");
+        selB.value = models.some(m => m.id === "a1" && m.available) ? "a1" : (models[1]?.id || "a2");
+      }
+    }
+
+    // --- Single View Form Handlers ---
+    function setSingleClip(blob, name) {
+      singleClip = blob ? { blob, name } : null;
+      $("submit").disabled = !singleClip;
+      $("player").hidden = !singleClip;
+      if (singleClip) $("player").src = URL.createObjectURL(blob);
       $("result").hidden = true;
       $("error").hidden = true;
     }
@@ -76,20 +443,41 @@
         });
         $("upload-pane").hidden = mode !== "upload";
         $("record-pane").hidden = mode !== "record";
-        setClip(null);
+        setSingleClip(null);
         $("file").value = "";
-        $("file-name").textContent = "Choose a voice clip (WAV, FLAC, OGG or MP3, up to 60 s)";
+        $("file-name").textContent = "Drop a voice clip or click to browse";
       });
     });
 
     $("file").addEventListener("change", () => {
       const f = $("file").files[0];
-      $("file-name").textContent = f ? f.name : "Choose a voice clip";
-      setClip(f || null, f && f.name);
+      $("file-name").textContent = f ? f.name : "Drop a voice clip or click to browse";
+      setSingleClip(f || null, f ? f.name : "");
     });
 
-    // Browsers record WebM/Ogg, which the backend cannot decode, so the
-    // recording is decoded here and re-encoded as 16-bit mono WAV.
+    // Drag and drop visual cues
+    ["dragenter", "dragover"].forEach(evt => {
+      $("upload-pane").addEventListener(evt, (e) => {
+        e.preventDefault();
+        $("upload-pane").classList.add("dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach(evt => {
+      $("upload-pane").addEventListener(evt, (e) => {
+        e.preventDefault();
+        $("upload-pane").classList.remove("dragover");
+      });
+    });
+    $("upload-pane").addEventListener("drop", (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const f = e.dataTransfer.files[0];
+        $("file").files = e.dataTransfer.files;
+        $("file-name").textContent = f.name;
+        setSingleClip(f, f.name);
+      }
+    });
+
+    // Recording logic (Encode WAV in browser)
     function encodeWav(samples, sampleRate) {
       const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
       const text = (o, s) => [...s].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
@@ -119,11 +507,10 @@
     let recorder = null;
     $("record").addEventListener("click", async () => {
       if (recorder) { recorder.stop(); return; }
-      setClip(null);
-      $("record").disabled = true;  // until the microphone opens
+      setSingleClip(null);
+      $("record").disabled = true;
       let stream;
       try {
-        // Browser speech processing rewrites the signal the detector judges.
         stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
         });
@@ -138,63 +525,238 @@
       recorder = new MediaRecorder(stream);
       recorder.ondataavailable = (e) => chunks.push(e.data);
       const started = Date.now();
+      $("record").classList.add("recording");
       const tick = setInterval(() => {
         const left = Math.max(0, (MAX_RECORD_MS - (Date.now() - started)) / 1000);
-        $("record-status").textContent = `Recording… ${left.toFixed(1)} s left`;
+        $("record-status").textContent = `Recording… ${left.toFixed(1)} s remaining`;
       }, 100);
       const timer = setTimeout(() => recorder && recorder.stop(), MAX_RECORD_MS);
       recorder.onstop = async () => {
         clearInterval(tick);
         clearTimeout(timer);
+        $("record").classList.remove("recording");
         stream.getTracks().forEach((t) => t.stop());
         recorder = null;
         $("record").textContent = "● Record again";
         try {
           const { wav, seconds } = await toWav(new Blob(chunks, { type: chunks[0]?.type }));
-          setClip(wav, "recording.wav");
-          $("record-status").textContent = `Recorded ${seconds.toFixed(1)} s. Play it back, then Check.`;
+          setSingleClip(wav, "recording.wav");
+          $("record-status").textContent = `Captured ${seconds.toFixed(1)} s. Ready to analyze.`;
         } catch (e) {
-          $("record-status").textContent = `Could not read recording: ${e.message}`;
+          $("record-status").textContent = `Could not decode recording: ${e.message}`;
         }
       };
       recorder.start();
       $("record").textContent = "■ Stop";
     });
 
+    // Submit single detect
     $("form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!clip) return;
+      if (!singleClip) return;
       $("error").hidden = true;
       $("submit").disabled = true;
-      $("submit").textContent = "Checking…";
+      $("submit").innerHTML = "<span>Analyzing audio…</span>";
       const started = performance.now();
       try {
         const body = new FormData();
-        body.append("file", clip.blob, clip.name);
+        body.append("file", singleClip.blob, singleClip.name);
         const r = await fetch("/api/detect", { method: "POST", body });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || r.statusText);
-        const verdicts = {
-          bonafide: ["Likely real (bona fide)", "real"],
-          spoof: ["Likely fake (spoof)", "fake"],
+
+        const banner = $("verdict-banner");
+        banner.className = "verdict-banner " + (data.verdict === "bonafide" ? "real" : (data.verdict === "spoof" ? "fake" : "warn"));
+        
+        const verdictTitles = {
+          bonafide: "Likely Authentic Speech (Bona Fide)",
+          spoof: "Likely Synthetic Audio (Deepfake Spoof)",
         };
-        const [text, cls] = verdicts[data.verdict] || ["No verdict: threshold not configured", ""];
-        $("verdict").textContent = text;
-        $("verdict").className = "verdict " + cls;
-        $("score").textContent = `${fmt(data.score)} (higher = more likely real)`;
-        $("threshold").textContent = data.threshold == null ? "not set" : fmt(data.threshold);
-        $("audio").textContent = `${fmt(data.speech_s, 1)} s scored of ${fmt(data.duration_s, 1)} s (silence trimmed)`;
-        $("system").textContent = `${data.system} · ${data.model_version}`;
+        const titleText = verdictTitles[data.verdict] || "Undetermined Verdict";
+        $("verdict").textContent = titleText;
+        $("verdict-badge").textContent = data.verdict ? data.verdict.toUpperCase() : "NO THRESHOLD";
+        
+        $("score").textContent = fmt(data.score, 4);
+        $("threshold").textContent = data.threshold == null ? "Not set" : fmt(data.threshold, 4);
+        $("audio").textContent = `${fmt(data.speech_s, 1)} s / ${fmt(data.duration_s, 1)} s`;
+        $("system").textContent = `${data.system.toUpperCase()} · ${data.model_version}`;
         $("latency").textContent = `${fmt(performance.now() - started, 0)} ms`;
+
+        // Update Decision Boundary Gauge
+        const th = data.threshold != null ? data.threshold : 0.0;
+        const margin = data.score - th;
+        const normPosition = Math.max(5, Math.min(95, 50 + (margin * 10)));
+        $("gauge-pin").style.left = `${normPosition}%`;
+        $("gauge-threshold-label").textContent = `Operating Threshold: ${fmt(th, 3)}`;
+        $("gauge-margin-label").textContent = `Signed Margin: ${margin >= 0 ? "+" : ""}${fmt(margin, 3)}`;
+
         $("result").hidden = false;
       } catch (e) {
         $("error").textContent = e.message;
         $("error").hidden = false;
       } finally {
         $("submit").disabled = false;
-        $("submit").textContent = "Check";
+        $("submit").innerHTML = "<span>Analyze audio clip</span>";
       }
     });
+
+    // --- Compare & Arbitration Logic ---
+    const tauSlider = $("tau-slider");
+    const tauVal = $("tau-val");
+    tauSlider.addEventListener("input", () => {
+      tauVal.textContent = Number(tauSlider.value).toFixed(2);
+    });
+
+    function setCompareClip(blob, name) {
+      compareClip = blob ? { blob, name } : null;
+      $("compare-submit").disabled = !compareClip;
+      $("compare-player").hidden = !compareClip;
+      if (compareClip) $("compare-player").src = URL.createObjectURL(blob);
+      $("compare-result").hidden = true;
+      $("compare-error").hidden = true;
+    }
+
+    $("compare-file").addEventListener("change", () => {
+      const f = $("compare-file").files[0];
+      $("compare-file-name").textContent = f ? f.name : "Choose an audio clip to compare";
+      setCompareClip(f || null, f ? f.name : "");
+    });
+
+    // Drag-and-drop for compare pane
+    $("compare-dropzone").addEventListener("dragover", (e) => {
+      e.preventDefault();
+      $("compare-dropzone").classList.add("dragover");
+    });
+    ["dragleave", "drop"].forEach(evt => {
+      $("compare-dropzone").addEventListener(evt, (e) => {
+        e.preventDefault();
+        $("compare-dropzone").classList.remove("dragover");
+      });
+    });
+    $("compare-dropzone").addEventListener("drop", (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const f = e.dataTransfer.files[0];
+        $("compare-file").files = e.dataTransfer.files;
+        $("compare-file-name").textContent = f.name;
+        setCompareClip(f, f.name);
+      }
+    });
+
+    $("compare-submit").addEventListener("click", async () => {
+      if (!compareClip) return;
+      $("compare-error").hidden = true;
+      $("compare-submit").disabled = true;
+      $("compare-submit").innerHTML = "<span>Executing dual inference & LAYA arbitration…</span>";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", compareClip.blob, compareClip.name);
+        formData.append("model_a", $("compare-model-a").value);
+        formData.append("model_b", $("compare-model-b").value);
+        formData.append("abstain_margin", $("tau-slider").value);
+
+        const r = await fetch("/api/compare", { method: "POST", body: formData });
+        const res = await r.json();
+        if (!r.ok) throw new Error(res.detail || r.statusText);
+
+        renderCompareResults(res);
+      } catch (err) {
+        $("compare-error").textContent = err.message;
+        $("compare-error").hidden = false;
+      } finally {
+        $("compare-submit").disabled = false;
+        $("compare-submit").innerHTML = "<span>Run Dual Inference & Arbitrate</span>";
+      }
+    });
+
+    function renderCompareResults(data) {
+      const arb = data.arbitration;
+      const mA = data.model_a;
+      const mB = data.model_b;
+
+      // Arbitration Hero
+      const badge = $("arb-badge");
+      badge.className = "arb-badge " + (arb.status === "unanimous" ? "unanimous" : (arb.status === "escalated" ? "escalated" : "arbitrated"));
+      badge.textContent = arb.status.toUpperCase();
+      $("arb-rationale").textContent = arb.rationale;
+
+      // Probabilities
+      const pReal = (arb.probabilities.bonafide * 100).toFixed(0);
+      const pFake = (arb.probabilities.spoof * 100).toFixed(0);
+      const pWarn = (arb.probabilities.uncertain * 100).toFixed(0);
+      $("prob-real-val").textContent = `${pReal}%`;
+      $("prob-fake-val").textContent = `${pFake}%`;
+      $("prob-warn-val").textContent = `${pWarn}%`;
+      $("prob-real-fill").style.width = `${pReal}%`;
+      $("prob-fake-fill").style.width = `${pFake}%`;
+      $("prob-warn-fill").style.width = `${pWarn}%`;
+
+      // Model A Card
+      $("card-name-a").textContent = mA.name;
+      $("card-features-a").textContent = mA.features;
+      $("card-score-a").textContent = fmt(mA.score, 3);
+      $("card-th-a").textContent = fmt(mA.threshold, 3);
+      $("card-z-a").textContent = `${mA.norm_margin_z >= 0 ? "+" : ""}${fmt(mA.norm_margin_z, 2)}σ`;
+      const chipA = $("card-verdict-a");
+      chipA.className = "model-verdict-chip " + mA.prediction;
+      chipA.textContent = mA.prediction.toUpperCase();
+
+      // Model B Card
+      $("card-name-b").textContent = mB.name;
+      $("card-features-b").textContent = mB.features;
+      $("card-score-b").textContent = fmt(mB.score, 3);
+      $("card-th-b").textContent = fmt(mB.threshold, 3);
+      $("card-z-b").textContent = `${mB.norm_margin_z >= 0 ? "+" : ""}${fmt(mB.norm_margin_z, 2)}σ`;
+      const chipB = $("card-verdict-b");
+      chipB.className = "model-verdict-chip " + mB.prediction;
+      chipB.textContent = mB.prediction.toUpperCase();
+
+      $("compare-result").hidden = false;
+    }
+
+    // --- Leaderboard & Rankings Logic ---
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        loadRankings(btn.dataset.dataset);
+      });
+    });
+
+    async function loadRankings(datasetId) {
+      const tbody = $("rankings-body");
+      try {
+        const r = await fetch(`/api/rankings?dataset=${datasetId}`);
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.detail);
+
+        $("rankings-description").textContent = json.data.description;
+        const items = json.data.items || [];
+
+        tbody.innerHTML = items.map((it) => {
+          const rankClass = it.rank === 1 ? "rank-1" : (it.rank === 2 ? "rank-2" : (it.rank === 3 ? "rank-3" : "rank-other"));
+          const policyClass = it.type.includes("Ensemble") ? "ensemble" : (it.type.includes("Rejection") ? "rejection" : "base");
+          return `
+            <tr>
+              <td><span class="rank-pill ${rankClass}">${it.rank}</span></td>
+              <td>
+                <div class="system-title">${it.name}</div>
+                <div class="drop-hint">${it.system}</div>
+                <div class="policy-badge ${policyClass}">${it.policy}</div>
+              </td>
+              <td><span class="drop-hint">${it.type}</span></td>
+              <td class="num-cell">${it.accuracy.toFixed(2)}%</td>
+              <td class="num-cell">${it.coverage.toFixed(1)}%</td>
+              <td class="num-cell">${it.eer.toFixed(2)}%</td>
+              <td class="num-cell ${it.ner.startsWith("+") ? "stat-gain" : ""}">${it.ner}</td>
+              <td class="num-cell">${it.escalated}</td>
+            </tr>
+          `;
+        }).join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" style="color: var(--fake); text-align: center; padding: 1.5rem;">Failed to load leaderboard: ${err.message}</td></tr>`;
+      }
+    }
   </script>
 </body>
 </html>
