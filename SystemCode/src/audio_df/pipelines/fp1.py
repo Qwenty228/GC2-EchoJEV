@@ -1,7 +1,7 @@
 """Fusion + P1: apply JEV to a completed D1, D2 or D3 detector.
 
 Evaluation-only composition; no detector weights are updated.
-Change BASE to select a different fusion architecture for ablations.
+Pick the fusion architecture with --base (default d2), e.g. `uv run fp1 evaluate --base d3`.
 """
 from audio_df.modules.d2_detector import D2Detector
 from audio_df.modules.d3_detector import D3Detector
@@ -15,19 +15,17 @@ DETECTORS = {
     "d3": D3Detector,
 }
 
-BASE = "d2"  # round 3 D2 (WavLM layer 6), best dual model; "d1" or "d3" for an ablation.
-
 
 @Run.cli(dataset="2019LA")
-def main(run: Run, limit: int = 10, jev_model: str = "jev-latest"):
+def main(run: Run, limit: int = 10, jev_model: str = "jev-latest", base: str = "d2"):
     """Fusion + P1: evaluate a frozen fusion detector with JEV (API costs apply)."""
     if run.command == "train":
         raise ValueError("Fusion + P1 is evaluation-only; train the base detector separately")
-    if BASE not in DETECTORS:
-        raise ValueError(f"Unknown fusion base {BASE!r}; choose from {sorted(DETECTORS)}")
+    if base not in DETECTORS:
+        raise ValueError(f"Unknown fusion base {base!r}; choose from {sorted(DETECTORS)}")
     print("WARNING: Limited Fusion + P1 runs are API demonstrations, NOT full benchmarks.", flush=True)
-    model = DETECTORS[BASE].load(run.model_from_for(BASE))
-    return run.evaluate_policy(model, decide, base=BASE, limit=limit, jev_model=jev_model)
+    model = DETECTORS[base].load(run.model_from_for(base))
+    return run.evaluate_policy(model, decide, base=base, limit=limit, jev_model=jev_model)
 
 
 if __name__ == "__main__":

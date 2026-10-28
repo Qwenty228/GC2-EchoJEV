@@ -11,6 +11,8 @@ testsets:
 - itw
 - asvspoof2021_eval
 - asvspoof2021_hidden
+- asvspoof2021df_eval
+- asvspoof2021df_hidden
 seed: 1337
 wavlm_layer: 6
 train_preprocessing: trimmed
@@ -39,6 +41,8 @@ evaluation_preprocessing:
     itw: raw
     asvspoof2021_eval: raw
     asvspoof2021_hidden: raw
+    asvspoof2021df_eval: raw
+    asvspoof2021df_hidden: raw
   trim_recipe:
     method: librosa.effects.split
     top_db: 30.0
@@ -46,3 +50,6 @@ evaluation_preprocessing:
     hop_length: 512
     sample_rate: 16000
     version: 1
+notes: asvspoof2021df_eval, asvspoof2021df_hidden merged from E-20261025-073751-738791-d3
+  (same artifact, identical dev scores); asvspoof2021df_eval, asvspoof2021df_hidden
+  merged from E-20261026-012827-409712-d3 (same artifact, identical dev scores)

@@ -1,0 +1,51 @@
+architecture: fp1
+base: d2
+model_artifact: artifacts/d2/20261024-134449-960661
+jev_model_requested: jev-latest
+testsets:
+- eval
+- eval_clean10k
+- eval_mp3_32k
+- eval_noise_10db
+- eval_opus_16k
+- eval_resample_8k
+- itw
+- asvspoof2021_eval
+- asvspoof2021_hidden
+limit: 20
+seed: 1337
+split_roles:
+  dev: validation_threshold
+  eval: held_out_test
+  eval_clean10k: held_out_test
+  eval_mp3_32k: held_out_test
+  eval_noise_10db: held_out_test
+  eval_opus_16k: held_out_test
+  eval_resample_8k: held_out_test
+  itw: held_out_test
+  asvspoof2021_eval: held_out_test
+  asvspoof2021_hidden: held_out_test
+policy_evaluated_testsets:
+- eval
+- eval_clean10k
+- eval_mp3_32k
+- eval_noise_10db
+- eval_opus_16k
+- eval_resample_8k
+- itw
+- asvspoof2021_eval
+- asvspoof2021_hidden
+threshold_source: dev
+sampling: seeded random without replacement, before preprocessing
+dev_threshold: -0.9904876351356506
+preprocessing:
+  dev: trimmed
+  eval: trimmed
+  eval_clean10k: trimmed
+  eval_mp3_32k: trimmed
+  eval_noise_10db: trimmed
+  eval_opus_16k: trimmed
+  eval_resample_8k: trimmed
+  itw: raw
+  asvspoof2021_eval: raw
+  asvspoof2021_hidden: raw

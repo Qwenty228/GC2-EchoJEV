@@ -15,6 +15,7 @@ data/cache/*
 data/models/*
 !data/**/.gitkeep
 data/manifests/*.csv
+data/manifests_full/
 data/metadata/*.csv
 # per-clip nuisance features behind the leakage audit (ProjectReport/technical-reference.md §3, report chapter 3)
 !data/metadata/nuisance_features.csv
@@ -73,6 +74,11 @@ runs/*
 # round 3: D2/D3 with WavLM layer 6 (trimmed training)
 !runs/E-20261024-171010-159987-d3/
 !runs/E-20261024-214524-879357-d2/
+# JEV policy runs on 2021 DF (10k samples): A3 = A2 + JEV, FP1 = round 3 D2 + JEV
+!runs/E-20261025-074545-113640-a3/
+!runs/E-20261025-074735-305435-fp1/
+# FP1 (round 3 D2 + JEV) on the 2019, ITW and 2021 LA sets, 20 clips per set
+!runs/E-20261028-081544-540928-fp1/
 
 # local job logs
 logs/

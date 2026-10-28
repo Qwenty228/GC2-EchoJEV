@@ -1,0 +1,101 @@
+{
+  "eval": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 7.24900000001071,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "eval_clean10k": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 5.88900000002468,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "eval_mp3_32k": {
+    "n": 20,
+    "base_accuracy": 0.95,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.95,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 6.01500000001397,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "eval_noise_10db": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 6.153999999980442,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "eval_opus_16k": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 5.937000000034459,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "eval_resample_8k": {
+    "n": 20,
+    "base_accuracy": 0.8,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.8,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 6.139999999955762,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "itw": {
+    "n": 20,
+    "base_accuracy": 0.5,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.5,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 6.092000000062399,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "asvspoof2021_eval": {
+    "n": 20,
+    "base_accuracy": 0.95,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.95,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 5.905999999959022,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  },
+  "asvspoof2021_hidden": {
+    "n": 20,
+    "base_accuracy": 0.9,
+    "coverage": 1.0,
+    "policy_accuracy_on_decided": 0.9,
+    "corrected_errors": 0,
+    "introduced_errors": 0,
+    "abstentions": 0,
+    "request_latency_s": 5.872999999963213,
+    "note": "Limited subset is an API demonstration, not a full benchmark. No policy EER/AUC/minDCF."
+  }
+}
