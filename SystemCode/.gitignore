@@ -52,8 +52,11 @@ __pycache__/
 notebooks/_executed/
 
 # --- runs ---
-# run outputs stay local (scores, metrics, checkpoints, caches); only the layout README and
-# the run log are tracked
+# Run outputs stay local; only the layout README, the run log and whitelisted runs are tracked.
+# Whitelist a run only when a tracked notebook, script or threshold.json reads it. Removing files
+# later does not shrink the repo (git keeps history), so keep new runs small: big per-clip score
+# files (2021 DF / 2021 LA eval) stay local unless something reads them; metrics*.json and
+# calibration.json carry the reported numbers.
 runs/*
 !runs/README.md
 !runs/REGISTRY.md
