@@ -394,13 +394,18 @@
                   Alternative decision policy; compare on identical evidence
                 </td>
               </tr>
+              <tr>
+                <td>Arb</td>
+                <td>Several frozen detectors → LAYA / JEV judge</td>
+                <td>Arbitration (adversarial ensemble); current Phase 2</td>
+              </tr>
             </tbody>
           </table>
         </div>
         <p class="small">
           A = standalone detector baseline; D = dual-feature fusion
-          architecture; P = optional decision policy. Compare A2 vs A2 + P1, and
-          best D1/D2/D3 vs the same frozen detector + P1/P2.
+          architecture; P = decision policy on one detector; Arb = judge
+          between detectors.
         </p>
       </section>
       <section id="rq1">
@@ -583,6 +588,10 @@
           train/dev splits and capacity as comparable as practical.
           <sup><a href="#n2">**</a></sup>
         </div>
+        <div class="note">
+          <b>Status:</b> every cell measured (notebook 05). Final model: D2,
+          WavLM layer 6. A1/A4 on 2021 DF use 10,000-clip samples.
+        </div>
       </section>
       <section id="rq2">
         <span class="pill">QUESTION 02</span>
@@ -598,6 +607,11 @@
             ><a href="#n3">***</a></sup
           >
         </p>
+        <div class="note">
+          <b>Status:</b> one detector + JEV/LAYA added nothing (FP1: JEV
+          repeated D2 on all 180 clips). Phase 2 now tests arbitration: several
+          frozen detectors, and a judge decides when they disagree (notebook 06).
+        </div>
         <h3>Architectures</h3>
         <div class="grid">
           <div class="tile">
@@ -762,30 +776,29 @@
                 <td>Optional qualitative demo</td>
               </tr>
               <tr>
-                <td>SpoofCeleb (conditional Stage 2)</td>
-                <td>Chandu</td>
-                <td>Chandu</td>
+                <td>SpoofCeleb (Stage 2)</td>
+                <td>Official train</td>
+                <td>Official dev</td>
                 <td>Official eval, held out</td>
-                <td>Optional adaptation</td>
+                <td>Phase 1 done, not merged</td>
               </tr>
               <tr>
                 <td>PhonemeDF</td>
                 <td>—</td>
                 <td>—</td>
-                <td>Not in core protocol</td>
-                <td>Defer</td>
+                <td>Evaluation</td>
+                <td>Phase 1 done, not merged</td>
               </tr>
             </tbody>
           </table>
         </div>
         <h3>Protocol lock</h3>
         <p class="small">
-          <b>Split roles:</b> Train learns detector parameters (raw audio);
-          dev supports early stopping (raw during training) and threshold
-          calibration (silence-trimmed for 2019 LA evaluation). Final metrics
-          are reported on eval, controlled test subsets and external datasets.
-          ASVspoof 2019 LA dev/eval and controlled eval conditions are trimmed
-          during evaluation; external datasets remain raw. JEV/LAYA policy
+          <b>Split roles:</b> train learns detector parameters; dev supports
+          early stopping and threshold calibration. Final metrics are reported
+          on eval, controlled test subsets and external datasets. ASVspoof 2019
+          LA train, dev, eval and controlled conditions are silence-trimmed;
+          external datasets remain raw. JEV/LAYA policy
           comparisons use dev only for calibration and send requests for held-out
           test clips, never dev calibration clips.
         </p>
@@ -1162,9 +1175,8 @@
             clean” collection containing only authentic recordings cannot
             support EER/minDCF by itself; a controlled test requires both
             classes and consent/provenance. Use 2021 LA/DF only if audio, labels
-            and usage terms are verified locally. SpoofCeleb and PhonemeDF are
-            excluded from the core study because they add acquisition and
-            compute burden without being essential to the two questions.
+            and usage terms are verified locally. SpoofCeleb and PhonemeDF:
+            phase 1 done, not yet merged into this repo.
             External test sets remain untouched by training, hyperparameter
             selection and threshold fitting. Channel mismatch is a documented
             concern in
@@ -1188,8 +1200,8 @@
         </div>
       </section>
       <p class="footer">
-        EchoJEV · GC2 evaluation plan · Working protocol, not a claim that
-        pending experiments have been completed.
+        EchoJEV · GC2 evaluation plan · RQ1 measured (notebook 05) · RQ2:
+        arbitration in progress (notebook 06).
       </p>
     </main>
   </body>

@@ -234,7 +234,7 @@
         </div>
         <div class="flow">
           <span class="tag">fusion</span>
-          <span class="node bad">② cross-attention (LFCC ↔ WavLM)</span><span class="arrow">→</span>
+          <span class="node bad">② cross-attention (D2: LFCC → WavLM · D3: LFCC ↔ WavLM)</span><span class="arrow">→</span>
           <span class="node">pool</span><span class="arrow">→</span>
           <span class="node">classifier</span>
         </div>
@@ -247,7 +247,7 @@
           <li>
             <b>Attention added nothing.</b> D2/D3 reach 7.0% / 5.4% trimmed dev EER, about the
             same as a plain linear classifier on layer 12 alone (5.9%). LFCC brought no extra
-            signal, and on shifted audio it hurts (D1 MP3 8.4% → 21.9%).
+            signal, and on shifted audio it hurts (D1: 7.8% clean eval → 21.9% on MP3; A2: 8.4%).
           </li>
         </ol>
       </section>
@@ -273,7 +273,7 @@
         </div>
         <div class="flow">
           <span class="tag">fusion</span>
-          <span class="node">cross-attention (LFCC ↔ WavLM)</span><span class="arrow">→</span>
+          <span class="node">cross-attention (D2: LFCC → WavLM · D3: LFCC ↔ WavLM)</span><span class="arrow">→</span>
           <span class="node">pool</span><span class="arrow">→</span>
           <span class="node">classifier</span>
         </div>

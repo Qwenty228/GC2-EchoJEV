@@ -210,7 +210,7 @@
         <a href="index.html">← Evaluation plan</a><a href="#final">Final model (D2)</a
         ><a href="#data">Add data</a
         ><a href="#code">Code structure</a
-        ><a href="#models">Detectors & policies</a
+        ><a href="#models">Detectors & arbitration</a
         ><a href="#app">Application</a>
       </nav>
       <section id="final">
@@ -218,9 +218,64 @@
         <p class="muted">
           Best of all detectors over the 10 test sets. LFCC tokens query frozen WavLM tokens from layer 6; the WavLM
           tokens are never modified, so the classifier always keeps a clean WavLM view.
-          <a href="model_d2_architecture.png">PNG</a> · <a href="model_d2_architecture.svg">SVG</a>
         </p>
-        <img src="model_d2_architecture.svg" alt="D2 architecture: LFCC and WavLM layer 6 branches merged by one-way cross-attention" style="width: 100%; height: auto; border: 1px solid #e8e0f3; border-radius: 12px" />
+        <div style="border: 1px solid var(--line); border-radius: 12px; padding: 8px; background: #fff">
+<svg viewBox="0 0 1080 260" role="img" aria-label="D2: LFCC and WavLM layer 6 branches; LFCC tokens attend to frozen WavLM tokens, both are pooled and classified" style="width:100%;height:auto">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--purple)"/></marker></defs>
+<rect x="10" y="95" width="130" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="75.0" y="118.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Audio</text>
+<text x="75.0" y="134.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">4 s · 16 kHz</text>
+<text x="75.0" y="150.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">silence-trimmed</text>
+<rect x="175" y="20" width="135" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="242.5" y="43.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">LFCC</text>
+<text x="242.5" y="59.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">20 filters + Δ + ΔΔ</text>
+<text x="242.5" y="75.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">399 × 60</text>
+<rect x="330" y="20" width="120" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="390.0" y="43.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">32 time tokens</text>
+<text x="390.0" y="59.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">mean-pooled</text>
+<text x="390.0" y="75.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">32 × 60</text>
+<rect x="470" y="20" width="130" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="535.0" y="43.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Project + time</text>
+<text x="535.0" y="59.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">Linear 60→128</text>
+<text x="535.0" y="75.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">32 × 128</text>
+<rect x="175" y="170" width="135" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="242.5" y="193.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">WavLM Base+</text>
+<text x="242.5" y="209.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">frozen · layer 6</text>
+<text x="242.5" y="225.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">time frames</text>
+<rect x="330" y="170" width="120" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="390.0" y="193.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">32 time tokens</text>
+<text x="390.0" y="209.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">same bins as LFCC</text>
+<text x="390.0" y="225.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">32 × 768</text>
+<rect x="470" y="170" width="130" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="535.0" y="193.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Project + time</text>
+<text x="535.0" y="209.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">Linear 768→128</text>
+<text x="535.0" y="225.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">32 × 128</text>
+<rect x="640" y="20" width="150" height="90" rx="10" style="fill:var(--pale);stroke:var(--purple)"/>
+<text x="715.0" y="45.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Cross-attention × 2</text>
+<text x="715.0" y="61.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">LFCC queries,</text>
+<text x="715.0" y="77.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">WavLM keys/values</text>
+<text x="715.0" y="93.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">4 heads + FFN</text>
+<rect x="820" y="95" width="120" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="880.0" y="118.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Mean pool each</text>
+<text x="880.0" y="134.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">concat</text>
+<text x="880.0" y="150.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">128 + 128</text>
+<rect x="965" y="95" width="105" height="70" rx="10" style="fill:#fff;stroke:var(--purple)"/>
+<text x="1017.5" y="118.0" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--ink)">Classifier</text>
+<text x="1017.5" y="134.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">256→128→1</text>
+<text x="1017.5" y="150.0" text-anchor="middle" style="font-size:12px;font-weight:400;fill:var(--ink)">score</text>
+<line x1="140" y1="115" x2="175" y2="60" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="140" y1="145" x2="175" y2="200" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="310" y1="55" x2="330" y2="55" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="450" y1="55" x2="470" y2="55" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="600" y1="55" x2="640" y2="55" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="310" y1="205" x2="330" y2="205" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="450" y1="205" x2="470" y2="205" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="600" y1="190" x2="650" y2="112" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/><text x="625.0" y="145.0" text-anchor="middle" style="font-size:11px;fill:var(--muted)">keys / values</text>
+<line x1="790" y1="80" x2="820" y2="115" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+<line x1="600" y1="215" x2="820" y2="150" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/><text x="710.0" y="176.5" text-anchor="middle" style="font-size:11px;fill:var(--muted)">WavLM tokens unchanged</text>
+<line x1="940" y1="130" x2="965" y2="130" style="stroke:var(--purple);stroke-width:1.5" marker-end="url(#arr)"/>
+</svg>
+        </div>
         <div class="grid" style="margin-top: 16px">
           <div class="tile">
             <strong>Layer 6, not the last layer</strong>A per-layer probe (notebook 04) is best in the middle of WavLM and
@@ -243,26 +298,18 @@
       </section>
       <section id="data">
         <h2>
-          1 · Add a dataset (Everything is done inside SystemCode/) [Chandu]
+          1 · Add a dataset (inside SystemCode/)
         </h2>
         <p>
           Place datasets under <code>/data/raw/</code>. Models consume manifest
           CSVs, not dataset directories directly. Follow
           <a href="../SystemCode/data/README.md">data/README.md</a> for official
           download links and expected layouts.
-          <i
-            >(TL;DR: Download the dataset, then ask Claude or ChatGPT to read
-            data/README.md and update configs/data.yaml,
-            src/audio_df/data/manifests.py, scripts/prepare_data.py, and
-            scripts/check_data.py so the commands below support the new
-            dataset.)
-          </i>
         </p>
         <ol>
           <li>
             <strong>Download / place</strong> the corpus in
-            <code>data/raw/&lt;dataset&gt;/</code>. Examples for future
-            integration: SpoofCeleb and PhonemeDF. Verify license, protocol
+            <code>data/raw/&lt;dataset&gt;/</code>. Verify license, protocol
             files and labels.
           </li>
           <li>
@@ -288,10 +335,9 @@
 uv run data-check --verify --paths
 uv run data-degrade --conditions all --workers 4</code></pre>
         <div class="note">
-          Current <code>Run</code> accepts ASVspoof 2019 LA as its training
-          dataset. Adding SpoofCeleb training or PhonemeDF evaluation requires
-          explicit runtime/manifest integration; downloading alone does not
-          enable them.
+          SpoofCeleb (training) and PhonemeDF (evaluation): phase 1 done, not
+          yet merged into this repo. Until then <code>Run</code> trains on
+          ASVspoof 2019 LA only.
         </div>
       </section>
       <section id="code">
@@ -309,8 +355,9 @@ uv run data-degrade --conditions all --workers 4</code></pre>
           </div>
           <div class="tile">
             <strong><code>helpers/</code> · Reusable utilities</strong>Audio,
-            signal trimming, pooled/temporal feature caches, device selection,
-            training, metrics and notebook research functions.
+            signal trimming, feature caches, device selection, training,
+            metrics, <code>artifacts.py</code> (which systems this machine has,
+            their thresholds) and notebook helpers (<code>research/</code>).
           </div>
           <div class="tile">
             <strong><code>data/</code> · Dataset logic</strong>Manifest
@@ -327,16 +374,17 @@ uv run data-degrade --conditions all --workers 4</code></pre>
         <p>
           <code>runtime.py</code> manages commands, artifact selection, dataset
           manifests and evaluation runs. <code>evaluation.py</code> scores
-          results through one metrics implementation. Training artifacts live in
-          <code>artifacts/&lt;architecture&gt;/</code>; evaluation results live
-          in <code>runs/</code>.
+          results through one metrics implementation. Trained weights live in
+          <code>artifacts/&lt;architecture&gt;/&lt;timestamp&gt;/</code>, each
+          system's threshold in <code>artifacts/&lt;architecture&gt;/threshold.json</code>;
+          evaluation results live in <code>runs/</code>.
         </p>
         <p class="small">
           <b>Dataset roles:</b> <code>train</code> learns parameters;
           <code>dev</code> is validation and threshold calibration, not a final
           benchmark; <code>eval</code> and external/controlled test sets report
-          final performance. For 2019 LA, training uses raw audio while dev
-          calibration and eval testing use silence-trimmed audio. External
+          final performance. 2019 LA train, dev and eval are silence-trimmed
+          (raw training learned the silence shortcut, notebook 02). External
           datasets are evaluated raw.
         </p>
         <p class="small">
@@ -351,7 +399,7 @@ uv run data-degrade --conditions all --workers 4</code></pre>
         </p>
       </section>
       <section id="models">
-        <h2>3 · Detectors and decision policies [Chakit - JEV and LAYA]</h2>
+        <h2>3 · Detectors and arbitration</h2>
         <div class="tablewrap">
           <table>
             <thead>
@@ -405,33 +453,40 @@ uv run data-degrade --conditions all --workers 4</code></pre>
         <pre><code>uv run d2 train --i 2019LA
 uv run d2 evaluate --i 2019LA --testsets dev,eval
 uv run pytest -q</code></pre>
-        <h3>Phase 2 · Decision policies</h3>
+        <h3>Phase 2 · Decision layer: arbitration</h3>
         <div class="grid">
           <div class="tile">
-            <strong>P1 · JEV</strong>Reusable TypeSafe decision module consuming
-            a <em>frozen detector's</em> score and label-free evidence.
-            A3 composes A2 + P1; dev calibrates the detector threshold, while
-            JEV evaluates sampled held-out test clips.
+            <strong>Tried first: one detector + JEV/LAYA</strong>JEV or LAYA reads
+            one frozen detector's score (A3, FP1, FP2). FP1: JEV repeated D2 on
+            all 180 clips, 0 errors corrected. Dropped.
           </div>
           <div class="tile">
-            <strong>P2 · LAYA</strong>Alternative policy on the same evidence
-            packet and frozen detector. Compare it fairly against P1 and the
-            unassisted detector.
+            <strong>Now: arbitration (adversarial ensemble)</strong>Several frozen
+            detectors score the clip. When they disagree, a judge (LAYA or JEV)
+            decides which to trust, or abstains.
+          </div>
+          <div class="tile">
+            <strong>Code</strong><code>modules/arbitrator.py</code> (request +
+            judge), <code>configs/arbitrator.yaml</code> (judge, request variant),
+            <code>uv run arbitration</code> (fixed In-the-Wild test), notebook 06
+            section 2 (prompt playground).
+          </div>
+          <div class="tile">
+            <strong>Status</strong>Given probabilities, LAYA follows the detector
+            listed first; given verdicts only, it answers spoof every time. It
+            never abstains (notebook 06). Prompt work in progress; JEV next.
           </div>
         </div>
         <div class="flow">
-          <span class="node">A2 or best D1/D2/D3 (frozen)</span
+          <span class="node">frozen detectors (A1 … D3)</span
           ><span class="arrow">→</span
-          ><span class="node">scores + label-free evidence</span
-          ><span class="arrow">→</span><span class="node">P1 JEV / P2 LAYA</span
-          ><span class="arrow">→</span><span class="node">decision</span>
+          ><span class="node">verdict · P(bona fide) · error rate</span
+          ><span class="arrow">→</span><span class="node">judge: LAYA / JEV</span
+          ><span class="arrow">→</span><span class="node">bona fide / spoof / uncertain</span>
         </div>
         <p class="muted">
-          Implement policy logic in <code>modules/</code> and orchestration in
-          <code>pipelines/</code>. Do not retrain the detector for policy
-          comparisons. Do not pass ground-truth labels or dataset IDs into
-          evidence. Compare A2 vs A3 and the same fusion model with/without
-          P1/P2. Keep complete detector and JEV responses for analysis.
+          Never send labels, clip IDs or dataset names. Threshold and P(bona
+          fide) come from each artifact's <code>threshold.json</code>.
         </p>
       </section>
       <section id="app">
@@ -443,34 +498,29 @@ uv run pytest -q</code></pre>
           ><span class="arrow">→</span><span class="node">score / verdict</span>
         </div>
         <p>
-          The backend loads a completed artifact once, via the architecture's
-          <code>.load()</code>. It serves <code>/api/health</code>,
-          <code>/api/model</code>, and <code>/api/detect</code>; the static
-          frontend is served from <code>frontend/</code>.
+          Endpoints: <code>/api/health</code>, <code>/api/model</code>,
+          <code>/api/models</code> (detectors on this machine, judges),
+          <code>/api/detect</code> (clip + detector), <code>/api/compare</code>
+          (two detectors + judge), <code>/api/rankings</code>. Pages: single
+          detector, compare &amp; arbitrate (shows the request sent to the
+          judge), rankings.
         </p>
-        <pre><code># Use the latest completed A1 artifact
-ADF_SYSTEM=a1 uv run uvicorn backend.app:app --reload
+        <pre><code># start with A2; any system on this machine can be picked in the UI
+ADF_SYSTEM=a2 uv run uvicorn backend.app:app --reload
 
-# Pin a specific model and its dev-selected threshold
-ADF_SYSTEM=a2 ADF_MODEL_FROM=artifacts/a2/&lt;id&gt; \
-  ADF_THRESHOLD=&lt;threshold&gt; uv run uvicorn backend.app:app</code></pre>
+# weights in another folder (e.g. a mounted volume)
+ADF_ARTIFACTS=/models ADF_SYSTEM=d2 uv run uvicorn backend.app:app</code></pre>
         <p>
-          <strong>Swap models without changing API code:</strong>
-          <code>ADF_SYSTEM</code> selects A1/A2/A4/D1/D2/D3;
-          <code>ADF_MODEL_FROM</code> selects a specific completed artifact.
-          Without <code>ADF_THRESHOLD</code>, the backend uses the artifact's dev EER
-          threshold from its newest evaluation run.
-        </p>
-        <p>
-          <strong>Decision layer:</strong> the UI can apply P1 JEV (paid API) or P2 LAYA (local) to the detector
-          score (<code>/api/detect</code> with <code>policy=jev|laya</code>). They receive the same evidence as the
-          A3/FP1/FP2 runs (<code>jev.detector_case</code>); the reasoning box shows their answers, system prompt,
-          state and questions.
+          Only systems with a <code>COMPLETE</code> artifact on the machine are
+          offered. Threshold: <code>ADF_THRESHOLD</code> if set (start-up system
+          only), else <code>artifacts/&lt;system&gt;/threshold.json</code>
+          (written after every evaluation). JEV is offered only when
+          <code>TYPESAFE_API_KEY</code> is set.
         </p>
       </section>
       <p class="foot">
-        EchoJEV · Architecture reference · final detector D2 (WavLM layer 6);
-        JEV and LAYA decision layers in the app
+        EchoJEV · Architecture reference · final detector D2 (WavLM layer 6) ·
+        Phase 2: arbitration
       </p>
     </main>
   </body>
