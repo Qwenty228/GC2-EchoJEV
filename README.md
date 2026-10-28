@@ -235,5 +235,5 @@ Every training and evaluation run records an immutable audit trail containing ti
 
 ---
 
-**This project is submitted in partial fulfillment of the requirements for the Graduate Certificate in [Intelligent Reasoning Systems (IRS)](https://www.iss.nus.edu.sg/stackable-certificate-programmes/intelligent-systems "Intelligent Reasoning Systems") / Pattern Recognition Systems offered by [NUS-ISS](https://www.iss.nus.edu.sg "Institute of Systems Science, National University of Singapore").**
+**This project is submitted in partial fulfillment of the requirements for the Graduate Certificate in [Intelligent Reasoning Systems (IRS)](https://www.iss.nus.edu.sg/executive-education/course/detail/practice-module-for-pattern-recognition-systems "Pattern Recognition Systems") offered by [NUS-ISS](https://www.iss.nus.edu.sg "Institute of Systems Science, National University of Singapore").**
 
