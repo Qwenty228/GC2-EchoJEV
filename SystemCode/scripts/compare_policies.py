@@ -45,10 +45,15 @@ def collect_policy_runs(runs_dir: Path) -> pd.DataFrame:
             except Exception:
                 pass
 
-            policy_type = (
-                "LAYA" if "laya" in str(jev_model).lower() or "laya" in arch.lower() else "JEV"
-            )
-            base_detector = "a2" if "a2" in arch.lower() or "a3" in arch.lower() else "d2"
+            if "arbitration" in arch.lower():
+                base_detector = "A2+D2"
+                policy_type = "Arbitration (Opt 2)"
+            elif "m3" in arch.lower() or "abstain" in arch.lower():
+                base_detector = "A2"
+                policy_type = "Abstention (Opt 1)"
+            else:
+                base_detector = "A2" if "a2" in arch.lower() or "a3" in arch.lower() else "D2"
+                policy_type = "Baseline (Naive)"
 
             records.append(
                 {
@@ -83,13 +88,11 @@ def plot_comparisons(df: pd.DataFrame, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    # 1. Accuracy & Coverage
+    # Deduplicate: take the latest run per (base_detector, policy, split)
     summary = (
-        df.groupby(["base_detector", "policy", "split"])[
-            ["base_accuracy", "policy_accuracy", "coverage"]
-        ]
-        .mean()
-        .reset_index()
+        df.sort_values("run_id")
+        .groupby(["base_detector", "policy", "split"], as_index=False)
+        .last()
     )
 
     labels = [f"{r.base_detector}+{r.policy} ({r.split})" for _, r in summary.iterrows()]
@@ -121,13 +124,7 @@ def plot_comparisons(df: pd.DataFrame, output_path: Path) -> None:
     axes[0].grid(axis="y", linestyle="--", alpha=0.5)
 
     # 2. Net Error Correction
-    err_summary = (
-        df.groupby(["base_detector", "policy", "split"])[
-            ["corrected_errors", "introduced_errors", "net_error_reduction"]
-        ]
-        .sum()
-        .reset_index()
-    )
+    err_summary = summary
 
     err_labels = [f"{r.base_detector}+JEV/LAYA ({r.split})" for _, r in err_summary.iterrows()]
     x_err = range(len(err_labels))

@@ -53,7 +53,14 @@ def load_runs_and_paired_data(runs_dir: Path) -> tuple[pd.DataFrame, dict[str, p
             except Exception:
                 pass
 
-            base_det = "A2 (WavLM)" if "a2" in arch.lower() or "a3" in arch.lower() else "D2 (Fusion)"
+            if "arbitration" in arch.lower():
+                base_det = "A2+D2 (Opt 2 Arb)"
+            elif "m3" in arch.lower() or "abstain" in arch.lower():
+                base_det = "A2 (Opt 1 Abstain)"
+            elif "a2" in arch.lower() or "a3" in arch.lower():
+                base_det = "A2 (Naive)"
+            else:
+                base_det = "D2 (Naive)"
 
             records.append({
                 "run_id": run_dir.name,
@@ -89,10 +96,8 @@ def plot_performance_comparison(df: pd.DataFrame, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(15, 6))
 
-    # Clean label format
-    summary = df.groupby(["base_detector", "split"])[
-        ["base_accuracy", "policy_accuracy", "coverage", "corrected_errors", "introduced_errors", "net_gain"]
-    ].mean().reset_index()
+    # Clean label format (latest run per configuration)
+    summary = df.sort_values("run_id").groupby(["base_detector", "split"], as_index=False).last()
 
     labels = [f"{r.base_detector} + JEV/LAYA\n({r.split})" for _, r in summary.iterrows()]
     x = np.arange(len(labels))

@@ -36,6 +36,7 @@ def run_laya_on_score_file(
     output_dir: Path,
     limit: int = 100,
     model: str = "convaiinnovations/laya",
+    abstain_margin: float = 0.0,
 ) -> dict[str, object]:
     df = pd.read_csv(scores_path)
     total_len = len(df)
@@ -51,9 +52,9 @@ def run_laya_on_score_file(
             "type": "choice",
             "instructions": "Choose the audio verdict supported by the detector evidence.",
             "criteria": {
-                "bonafide": "Evidence favors authentic speech.",
-                "spoof": "Evidence favors spoofed speech.",
-                "uncertain": "Evidence is insufficient for a reliable verdict.",
+                "bonafide": "Evidence favors authentic, human-produced speech.",
+                "spoof": "Evidence favors synthetic, cloned, or spoofed speech.",
+                "uncertain": "Evidence is ambiguous or insufficient for a reliable verdict.",
             },
         },
         "evidence_quality": {
@@ -67,7 +68,7 @@ def run_laya_on_score_file(
         },
     }
 
-    print(f"Evaluating LAYA on {split_name} ({len(df)} clips)...", flush=True)
+    print(f"Evaluating LAYA on {split_name} ({len(df)} clips, abstain_margin={abstain_margin})...", flush=True)
 
     from audio_df.modules.laya import get_laya_agent
     agent = get_laya_agent(model)
@@ -76,6 +77,7 @@ def run_laya_on_score_file(
         score = float(row.score)
         signed_margin = score - threshold
         base_label = "bonafide" if score >= threshold else "spoof"
+        is_uncertain = abstain_margin > 0.0 and abs(signed_margin) < abstain_margin
 
         state_payload = {
             "context": {
@@ -84,21 +86,28 @@ def run_laya_on_score_file(
                 "base_verdict": base_label,
                 "signed_margin": signed_margin,
                 "score_direction": "higher means bonafide",
+                "abstain_margin_threshold": abstain_margin,
             },
             "decision_guidance": (
                 "Decide whether the supplied detector evidence supports bona fide or spoof. "
                 "Only one detector score is provided; do not invent acoustic evidence. "
-                "Abstain when insufficient."
+                "Abstain when evidence is ambiguous or within the uncertainty margin threshold."
             ),
         }
 
         start = time.monotonic()
-        resp = agent.system_one(state_payload, questions)
-        latency = time.monotonic() - start
-        total_latency += latency
+        if is_uncertain:
+            latency = 0.001
+            verdict = "uncertain"
+        else:
+            resp = agent.system_one(state_payload, questions)
+            latency = time.monotonic() - start
+            answer = resp.get("answers", {}).get("decision", {})
+            verdict = answer.get("choice", base_label)
+            if verdict == "uncertain":
+                verdict = base_label
 
-        answer = resp.get("answers", {}).get("decision", {})
-        verdict = answer.get("choice", "uncertain")
+        total_latency += latency
 
         records.append({
             "clip_id": str(row.clip_id),
@@ -125,8 +134,9 @@ def run_laya_on_score_file(
         "corrected_errors": int(((~base_ok) & policy_ok & decided).sum()),
         "introduced_errors": int((base_ok & (~policy_ok) & decided).sum()),
         "abstentions": int((~decided).sum()),
+        "abstain_margin": abstain_margin,
         "request_latency_s": total_latency,
-        "note": "Evaluated using local Laya System 1 decision engine.",
+        "note": "Evaluated using local Laya System 1 decision engine with margin-based abstention.",
     }
 
 
@@ -146,6 +156,12 @@ def main() -> None:
     parser.add_argument(
         "--limit", type=int, default=50, help="Clips per split to evaluate (0 for full)"
     )
+    parser.add_argument(
+        "--abstain-margin",
+        type=float,
+        default=0.0,
+        help="Margin threshold |score - threshold| < tau for JEV/LAYA to abstain",
+    )
     parser.add_argument("--model", default="convaiinnovations/laya", help="Laya model or 'dry-run'")
     args = parser.parse_args()
 
@@ -158,7 +174,8 @@ def main() -> None:
 
     splits = [s.strip() for s in args.splits.split(",") if s.strip()]
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    policy_arch = f"{args.base}-laya" if args.base == "a2" else "fp2"
+    suffix = f"-m{args.abstain_margin}" if args.abstain_margin > 0 else ""
+    policy_arch = f"{args.base}-laya{suffix}" if args.base == "a2" else f"fp2{suffix}"
     output_dir = runs_dir / f"E-{timestamp}-{policy_arch}"
 
     all_metrics = {}
@@ -178,6 +195,7 @@ def main() -> None:
             output_dir=output_dir,
             limit=args.limit,
             model=args.model,
+            abstain_margin=args.abstain_margin,
         )
         all_metrics[split] = report
 
