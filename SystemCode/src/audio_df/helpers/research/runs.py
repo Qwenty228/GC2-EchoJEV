@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from audio_df.helpers.metrics import compute_eer
+from audio_df.helpers.metrics import compute_eer, min_dcf, prf1_at_threshold
 
 
 def artifact_key(model_artifact: str) -> str:
@@ -65,6 +65,25 @@ def collect(runs_dir: str | Path, models: list[str]) -> dict[tuple[str, str], di
 def eer(scores: pd.DataFrame) -> float:
     """EER in percent; higher score = bona fide."""
     return 100 * compute_eer(scores.score, scores.label, higher_is_spoof=False)[0]
+
+
+def eer_pct(scores, labels) -> float:
+    """EER in percent, rounded to 2 decimals; higher score = bona fide."""
+    return round(100 * compute_eer(scores, labels, higher_is_spoof=False)[0], 2)
+
+
+def metrics_by_testset(scores: dict[str, pd.DataFrame], sets: list[str]) -> dict[str, dict]:
+    """{metric: {test set: value}} for one model: EER %, minDCF, and F1 (spoof) at the dev EER threshold."""
+    thr = compute_eer(scores["dev"].score, scores["dev"].label, higher_is_spoof=False)[1]
+    out: dict[str, dict] = {"EER %": {}, "minDCF": {}, "F1 (spoof)": {}}
+    for t in sets:
+        if t in scores:
+            s = scores[t]
+            out["EER %"][t] = eer(s)
+            out["minDCF"][t] = min_dcf(s.score, s.label, higher_is_spoof=False)[0]
+            f1 = prf1_at_threshold(s.score, s.label, thr, higher_is_spoof=False)["f1"]
+            out["F1 (spoof)"][t] = f1
+    return out
 
 
 def eer_table(results: dict[tuple[str, str], dict]) -> pd.DataFrame:
