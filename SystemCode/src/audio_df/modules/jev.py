@@ -39,6 +39,32 @@ class JEVState:
     questions: Mapping[str, Mapping[str, Any]] | None = None
 
 
+DETECTOR_PROMPT = ("Decide whether the supplied detector evidence supports bona fide or spoof. Only one detector "
+                   "score is provided; do not invent acoustic evidence. Abstain when insufficient.")
+DETECTOR_QUESTIONS = {
+    "decision": {"type": "choice", "instructions": "Choose the audio verdict supported by the detector evidence.",
+                 "criteria": {"bonafide": "Evidence favors authentic speech.", "spoof": "Evidence favors spoofed speech.",
+                              "uncertain": "Evidence is insufficient for a reliable verdict."}},
+    "evidence_quality": {"type": "score", "instructions": "How sufficient is the supplied evidence?",
+                         "criteria": ["Insufficient", "Limited", "Strong"]},
+    "ambiguity": {"type": "noul", "instructions": "Is the supplied evidence ambiguous?"},
+}
+
+
+def detector_case(score: float, threshold: float) -> JEVState:
+    """The decision case for one detector score, shared by policy runs (A3/FP1/FP2) and the web app.
+
+    Carries no clip identifier or ground truth. Changing the wording changes JEV cache keys.
+    """
+    return JEVState(
+        context={"base_score": score, "dev_threshold": float(threshold),
+                 "base_verdict": "bonafide" if score >= threshold else "spoof",
+                 "signed_margin": score - float(threshold), "score_direction": "higher means bonafide"},
+        prompt=DETECTOR_PROMPT,
+        questions=DETECTOR_QUESTIONS,
+    )
+
+
 def _make_questions(specs: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     try:
         from typesafe_sdk import Choice, Noul, Score
