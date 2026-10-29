@@ -1,0 +1,40 @@
+{
+  "acoustic": {
+    "sample_rate": 16000,
+    "window_ms": 20,
+    "hop_ms": 10,
+    "n_fft": 512,
+    "n_filters": 20,
+    "fmin": 0.0,
+    "fmax": null,
+    "preemph": 0.97,
+    "delta_window": 3,
+    "spacing": "linear"
+  },
+  "ssl": {
+    "model_id": "microsoft/wavlm-base-plus",
+    "revision": null,
+    "sample_rate": 16000,
+    "crop_seconds": 4.0,
+    "n_layers": 13,
+    "hidden_dim": 768,
+    "batch_size": 8,
+    "num_workers": 0,
+    "chunk_size": 512
+  },
+  "fusion": {
+    "tokens": 32,
+    "width": 128,
+    "heads": 4,
+    "dropout": 0.1,
+    "blocks": 2,
+    "crop_seconds": 4.0,
+    "layer": 6
+  },
+  "training": {
+    "lr": 0.001,
+    "batch_size": 256,
+    "max_epochs": 60,
+    "patience": 8
+  }
+}

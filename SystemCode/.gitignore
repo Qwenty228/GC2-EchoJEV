@@ -32,6 +32,17 @@ artifacts/**
 !artifacts/a1/20261020-134519-735144/**
 !artifacts/a2/20261023-200629-150334/
 !artifacts/a2/20261023-200629-150334/**
+# the newest artifact per system (the one each threshold.json names), so other machines can serve them
+!artifacts/a1/20261023-171757-192173/
+!artifacts/a1/20261023-171757-192173/**
+!artifacts/a4/20261023-194455-167994/
+!artifacts/a4/20261023-194455-167994/**
+!artifacts/d1/20261023-201429-262937/
+!artifacts/d1/20261023-201429-262937/**
+!artifacts/d2/20261024-134449-960661/
+!artifacts/d2/20261024-134449-960661/**
+!artifacts/d3/20261024-170702-727683/
+!artifacts/d3/20261024-170702-727683/**
 checkpoints/
 wandb/
 reports/figures/*

@@ -1,0 +1,25 @@
+{
+  "features": {
+    "sample_rate": 16000,
+    "window_ms": 20,
+    "hop_ms": 10,
+    "n_fft": 512,
+    "n_filters": 20,
+    "fmin": 0.0,
+    "fmax": null,
+    "preemph": 0.97,
+    "delta_window": 3,
+    "spacing": "linear"
+  },
+  "head": {
+    "proj_dim": 256,
+    "mlp_hidden": 128,
+    "dropout": 0.1
+  },
+  "training": {
+    "lr": 0.001,
+    "batch_size": 256,
+    "max_epochs": 60,
+    "patience": 8
+  }
+}

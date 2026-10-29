@@ -1,0 +1,11 @@
+{
+  "train": "trimmed",
+  "trim_recipe": {
+    "method": "librosa.effects.split",
+    "top_db": 30.0,
+    "frame_length": 2048,
+    "hop_length": 512,
+    "sample_rate": 16000,
+    "version": 1
+  }
+}
