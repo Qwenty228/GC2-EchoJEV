@@ -1,0 +1,4 @@
+# Docker files keep LF on every checkout: CRLF breaks the RUN line continuations.
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+compose.yaml text eol=lf
