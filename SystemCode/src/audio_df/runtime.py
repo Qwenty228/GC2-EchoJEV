@@ -532,9 +532,10 @@ class Run:
         }
         (output / "calibration.json").write_text(json.dumps(calibration_record, indent=2), encoding="utf-8")
         la_2021 = results.get("asvspoof2021_eval")  # error rate shown to arbitration judges
-        save_threshold(artifact, {**calibration_record, "platt": platt(calibration),
-                                  "error_rate_pct": round(100 * la_2021["eer"], 1) if la_2021 else None},
-                       output.name)
+        if _dataset_key(self.dataset) == "2019la":  # the app serves 2019 LA-trained detectors only
+            error_rate = round(100 * la_2021["eer"], 1) if la_2021 else None
+            save_threshold(artifact, {**calibration_record, "platt": platt(calibration),
+                                      "error_rate_pct": error_rate}, output.name)
         train_prep = Path(artifact) / "preprocessing.json"
         record = {
             "architecture": self.name, "dataset": self.dataset,

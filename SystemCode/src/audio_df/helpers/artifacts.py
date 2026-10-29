@@ -32,12 +32,23 @@ def artifacts_dir(root: str | Path) -> Path:
     return Path(override) if override else Path(root) / "artifacts"
 
 
+def trained_on(artifact: str | Path) -> str:
+    """Training dataset in preprocessing.json; artifacts from before the field are 2019LA."""
+    path = Path(artifact) / "preprocessing.json"
+    record = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    return str(record.get("dataset", "2019LA"))
+
+
 def latest(system: str, root: str | Path) -> Path | None:
-    """Newest COMPLETE artifact of one system, or None when this machine has none."""
+    """Newest COMPLETE 2019 LA-trained artifact of one system, or None when this machine has none.
+
+    SpoofCeleb/PhonemeDF artifacts are research runs; the app and threshold.json never use them.
+    """
     parent = artifacts_dir(root) / system
     if not parent.is_dir():
         return None
-    done = sorted(p for p in parent.iterdir() if (p / "COMPLETE").is_file())
+    done = sorted(p for p in parent.iterdir() if (p / "COMPLETE").is_file()
+                  and trained_on(p).lower() in {"2019la", "2019", "asvspoof2019"})
     return done[-1] if done else None
 
 

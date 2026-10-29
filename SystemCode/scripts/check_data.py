@@ -124,11 +124,8 @@ def verify_spoofceleb_checksums(
     """Require and verify checksum entries for all prepared SpoofCeleb split manifests."""
     manifest_paths = [manifests_dir / filename for filename, _ in SPOOFCELEB_SPLITS.values()]
     sums_path = manifests_dir / SPOOFCELEB_CHECKSUMS
-    checksums_present = sums_path.is_file() and any(
-        "spoofceleb_" in line for line in sums_path.read_text(encoding="utf-8").splitlines()
-    )
     manifests_present = any(path.exists() for path in manifest_paths)
-    if not checksums_present and not manifests_present:
+    if not manifests_present:
         print("  SpoofCeleb checksums: not prepared (optional dataset)")
         return True
     if not sums_path.is_file():

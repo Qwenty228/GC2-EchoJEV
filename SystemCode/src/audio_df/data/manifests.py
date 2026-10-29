@@ -1104,6 +1104,10 @@ def write_checksums(entries: list[dict], out_path: str | Path) -> None:
     Path(out_path).write_text("\n".join(lines) + "\n")
 
 
+# Optional training datasets: checksum entries are skipped where none of their manifests exist.
+OPTIONAL_MANIFEST_PREFIXES = ("spoofceleb_", "phonemedf_")
+
+
 def verify_checksums(path: str | Path, base_dir: str | Path | None = None) -> list[str]:
     """Recompute sha256 for every file listed in the SHA256SUMS file at `path`.
 
@@ -1123,6 +1127,10 @@ def verify_checksums(path: str | Path, base_dir: str | Path | None = None) -> li
             continue
         full_path = base_dir / rel_path
         if not full_path.exists():
+            name = full_path.name
+            optional = next((p for p in OPTIONAL_MANIFEST_PREFIXES if name.startswith(p)), None)
+            if optional and not any(full_path.parent.glob(f"{optional}*.csv")):
+                continue  # optional dataset not prepared on this machine
             mismatches.append(f"{rel_path}: missing at '{full_path}'")
             continue
         actual_sha = hashlib.sha256(full_path.read_bytes()).hexdigest()

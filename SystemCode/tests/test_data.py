@@ -782,3 +782,18 @@ def test_sha256sums_format_verified_by_shasum_binary(tmp_path):
     result = subprocess.run(cmd, cwd=str(tmp_path), capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "OK" in result.stdout
+
+
+def test_checksum_skips_unprepared_optional_dataset(tmp_path):
+    csv_path = tmp_path / "data" / "manifests" / "train.csv"
+    csv_path.parent.mkdir(parents=True)
+    pd.DataFrame({"utt_id": ["a"], "label": ["bonafide"]}).to_csv(csv_path, index=False)
+    sums_path = csv_path.parent / "SHA256SUMS"
+    entries = manifest_checksums([csv_path], base_dir=tmp_path)
+    write_checksums(entries, sums_path)
+    with sums_path.open("a") as f:
+        f.write("0" * 64 + "  data/manifests/spoofceleb_train.csv\n")
+    assert verify_checksums(sums_path, base_dir=tmp_path) == []  # SpoofCeleb never prepared here
+
+    (csv_path.parent / "spoofceleb_evaluation.csv").write_text("utt_id\n")
+    assert len(verify_checksums(sums_path, base_dir=tmp_path)) == 1  # prepared, so train is missing

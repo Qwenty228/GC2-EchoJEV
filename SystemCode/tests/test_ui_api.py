@@ -140,3 +140,16 @@ def test_compare_invalid_model(client: TestClient) -> None:
     )
     assert r.status_code == 400
 
+
+
+def test_app_ignores_other_training_datasets(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    from audio_df.helpers import artifacts
+    monkeypatch.setenv("ADF_ARTIFACTS", str(tmp_path))
+    runs = (("20260101-000000-000000", None), ("20260102-000000-000000", "SpoofCeleb"))
+    for name, dataset in runs:
+        folder = tmp_path / "a1" / name
+        folder.mkdir(parents=True)
+        (folder / "COMPLETE").write_text("ok\n")
+        if dataset:
+            (folder / "preprocessing.json").write_text(json.dumps({"dataset": dataset}))
+    assert artifacts.latest("a1", tmp_path).name == "20260101-000000-000000"
