@@ -1,0 +1,19 @@
+# EchoJEV web app: docker compose up --build, then open http://localhost:8000
+name: echojev
+services:
+  echojev:
+    build: .
+    image: ghcr.io/qwenty228/echojev:latest  # docker compose pull fetches it; --build builds it here
+    ports:
+      - "8000:8000"
+    environment:
+      ADF_SYSTEM: d2
+    volumes:
+      # This computer's Hugging Face cache, so WavLM and LAYA load from disk instead of downloading:
+      # HF_HOME when set (as on Windows here), else the default ~/.cache/huggingface.
+      - ${HF_HOME:-${USERPROFILE:-${HOME}}/.cache/huggingface}:/hf_cache
+      # The JEV key typed into the app, kept across restarts and image rebuilds.
+      - echojev-secrets:/secrets
+
+volumes:
+  echojev-secrets:

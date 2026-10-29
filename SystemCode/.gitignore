@@ -50,6 +50,8 @@ reports/figures/*
 
 # --- python / uv ---
 .venv/
+# JEV key saved from the web app (backend/app.py)
+.secrets/
 __pycache__/
 *.py[cod]
 .pytest_cache/

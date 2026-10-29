@@ -1,0 +1,10 @@
+# Only what the web app needs (see Dockerfile); data, runs, notebooks and .env stay out.
+*
+!pyproject.toml
+!uv.lock
+!configs/
+!src/
+!frontend/
+!artifacts/
+**/__pycache__
+**/*.pyc

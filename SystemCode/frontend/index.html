@@ -33,11 +33,25 @@
 
       <!-- Header Actions -->
       <div class="header-actions">
+        <button type="button" class="icon-btn" id="jev-key-toggle" title="JEV API key" aria-label="JEV API key"
+                aria-expanded="false" aria-controls="jev-key-panel">🔑</button>
         <button type="button" class="icon-btn" id="theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
           <span id="theme-icon">☀️</span>
         </button>
       </div>
     </div>
+    <form class="key-panel" id="jev-key-panel" hidden>
+      <div class="key-panel-title">JEV API key (TypeSafe)</div>
+      <p class="key-panel-status" id="jev-key-status">Checking…</p>
+      <input type="password" class="select-control" id="jev-key-input" placeholder="Paste your API key"
+             autocomplete="off" spellcheck="false">
+      <div class="key-panel-actions">
+        <button type="submit" class="btn-submit" id="jev-key-save">Save key</button>
+        <button type="button" class="icon-btn key-remove" id="jev-key-remove">Remove</button>
+      </div>
+      <p class="key-panel-note">Saved on this computer only (the app's settings volume in Docker), never in the
+        image or Git. JEV calls are paid per request.</p>
+    </form>
   </header>
 
   <main>
@@ -395,6 +409,42 @@
         showSelected();
       })
       .catch((e) => { $("model").textContent = String(e); });
+
+    // --- JEV API key (saved by the backend on this machine; never sent back to the page) ---
+    function showKeyStatus(s) {
+      const text = { environment: "Set from the server environment (TYPESAFE_API_KEY); change it there.",
+                     saved: "A key is saved on this computer. JEV is available as a judge." };
+      $("jev-key-status").textContent = text[s.source] || "No key yet. JEV stays disabled until you add one.";
+      $("jev-key-input").disabled = $("jev-key-save").disabled = s.source === "environment";
+      $("jev-key-remove").hidden = s.source !== "saved";
+      $("jev-key-toggle").classList.toggle("key-set", s.configured);
+    }
+    async function keyRequest(method, body) {
+      const r = await fetch("/api/settings/jev", { method, body });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      showKeyStatus(data);
+      const models = await (await fetch("/api/models")).json();  // JEV becomes (un)available as a judge
+      populateJudges(models.judges || {}, $("compare-judge").value || models.default_judge);
+    }
+    keyRequest("GET").catch(() => {});
+    $("jev-key-toggle").addEventListener("click", () => {
+      const open = $("jev-key-panel").hidden;
+      $("jev-key-panel").hidden = !open;
+      $("jev-key-toggle").setAttribute("aria-expanded", open);
+      if (open) $("jev-key-input").focus();
+    });
+    $("jev-key-panel").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = new FormData();
+      body.append("api_key", $("jev-key-input").value);
+      try {
+        await keyRequest("PUT", body);
+        $("jev-key-input").value = "";
+      } catch (err) { $("jev-key-status").textContent = err.message; }
+    });
+    $("jev-key-remove").addEventListener("click", () =>
+      keyRequest("DELETE").catch((err) => { $("jev-key-status").textContent = err.message; }));
 
     // Header badge and subtitle follow the Single Detector dropdown.
     function showSelected() {

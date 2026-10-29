@@ -53,6 +53,20 @@ uv run uvicorn backend.app:app --env-file .env
 
 `ADF_SYSTEM` selects `a1`, `a2`, `a4`, `d1`, `d2`, or `d3`; `ADF_MODEL_FROM` pins an artifact (otherwise latest completed). `ADF_THRESHOLD` is optional: without a calibrated threshold, `/api/detect` returns a score but no verdict. The backend loads trained artifacts, never trains models. Keep secrets in `.env` (not Git); JEV configuration belongs to Phase 2.
 
+### Docker
+
+The image holds the backend, frontend and `artifacts/` (CPU PyTorch, for `linux/amd64` and `linux/arm64`, so it runs natively on Apple Silicon too). From `SystemCode/`:
+
+```bash
+docker login ghcr.io            # while the package is private: a GitHub token with read:packages
+docker compose pull             # ghcr.io/qwenty228/echojev:latest
+docker compose up               # http://localhost:8000; `up --build` builds it from this checkout instead
+```
+
+- **Hugging Face models** (WavLM, LAYA) are not in the image: compose mounts this computer's cache, `HF_HOME` when set, else `~/.cache/huggingface` (`%USERPROFILE%\.cache\huggingface` on Windows). Missing models download into it on first use.
+- **JEV key:** click 🔑 in the app. The key is saved in the `echojev-secrets` Docker volume on this computer, never in the image or Git, and loaded again at every start. `TYPESAFE_API_KEY` in the environment takes precedence. Outside Docker the same button saves it to `.secrets/`.
+- Publishing a new image (no workflow): `docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/qwenty228/echojev:latest --push .`
+
 ## Phase 1 validation status
 
 A1 and A4 have reported real evaluation results. The remaining models, especially D2/D3 on real temporal caches and Windows CUDA, still need end-to-end validation before claiming Phase 1 experimental completion. `pytest` and synthetic smoke tests alone do not establish model performance. The current runtime is designed around 2019 LA training; external test-set manifests must be prepared and evaluated without using them for model selection.

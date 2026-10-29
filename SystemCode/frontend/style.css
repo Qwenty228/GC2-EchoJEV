@@ -193,6 +193,66 @@ body {
   color: var(--text);
 }
 
+.icon-btn.key-set {
+  border-color: var(--real-border);
+  background: var(--real-bg);
+}
+
+/* JEV key panel, opened from the header */
+.key-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: max(1.25rem, calc((100vw - 60rem) / 2 + 1.25rem));
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.key-panel[hidden] {
+  display: none;
+}
+
+.key-panel-title {
+  font-weight: 600;
+}
+
+.key-panel-status,
+.key-panel-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.key-panel-note {
+  color: var(--text-dim);
+}
+
+.key-panel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.key-panel-actions .btn-submit {
+  padding: 0.55rem;
+  font-size: 0.88rem;
+}
+
+.key-remove {
+  width: auto;
+  height: auto;
+  padding: 0 0.85rem;
+}
+
+.key-remove[hidden] {
+  display: none;
+}
+
 /* Main Container */
 main {
   max-width: 56rem;

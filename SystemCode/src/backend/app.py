@@ -11,6 +11,9 @@ Only systems with an artifact on this machine can be loaded or compared.
 The threshold is ADF_THRESHOLD when set, else the artifact's threshold.json
 (its dev EER threshold, written by the runtime after evaluation).
 
+JEV needs TYPESAFE_API_KEY: from the environment (.env), or typed into the UI, which saves it
+in ADF_SECRETS_DIR (default .secrets/, a volume in Docker) and loads it at the next start.
+
 Uploads are silence-trimmed with the same recipe as the trimmed dev set the
 thresholds are calibrated on; silent or too-short clips are rejected.
 """
@@ -58,6 +61,9 @@ POLICIES = {  # optional decision layer applied to the detector score
 }
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT / "frontend"
+# JEV key typed into the UI: kept on this machine (a Docker volume in the container), never in Git
+# or the image. TYPESAFE_API_KEY set in the environment takes precedence.
+JEV_KEY_FILE = Path(os.getenv("ADF_SECRETS_DIR", ROOT / ".secrets")) / "typesafe_api_key"
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_SECONDS = 60.0
 MIN_SPEECH_SECONDS = 1.0
@@ -165,6 +171,9 @@ def create_app(
     api = FastAPI(title="EchoJEV audio deepfake detection", version="0.3.0")
     model_pool: dict[str, tuple[Any, Path]] = {}
     lock = threading.Lock()
+    key_from_env = bool(os.getenv("TYPESAFE_API_KEY"))  # .env or the shell; the UI cannot change it
+    if not key_from_env and JEV_KEY_FILE.is_file():
+        os.environ["TYPESAFE_API_KEY"] = JEV_KEY_FILE.read_text(encoding="utf-8").strip()
 
     def get_loaded_detector(sys_name: str) -> tuple[Any, Path]:
         with lock:
@@ -251,6 +260,37 @@ def create_app(
     @api.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    def jev_key_status() -> dict[str, Any]:
+        source = "environment" if key_from_env else ("saved" if JEV_KEY_FILE.is_file() else None)
+        return {"configured": bool(os.getenv("TYPESAFE_API_KEY")), "source": source}
+
+    @api.get("/api/settings/jev")
+    def get_jev_key() -> dict[str, Any]:
+        """Whether a JEV key is set and where it came from; the key itself is never returned."""
+        return jev_key_status()
+
+    @api.put("/api/settings/jev")
+    def save_jev_key(api_key: Annotated[str, Form()]) -> dict[str, Any]:
+        """Save the key typed into the UI on this machine and use it from now on."""
+        if key_from_env:
+            raise HTTPException(409, "TYPESAFE_API_KEY is set in the environment; change it there")
+        key = api_key.strip()
+        if not key or len(key) > 512 or any(c.isspace() for c in key):
+            raise HTTPException(400, "Enter the API key as one line with no spaces")
+        JEV_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        JEV_KEY_FILE.write_text(key, encoding="utf-8")
+        JEV_KEY_FILE.chmod(0o600)
+        os.environ["TYPESAFE_API_KEY"] = key
+        return jev_key_status()
+
+    @api.delete("/api/settings/jev")
+    def remove_jev_key() -> dict[str, Any]:
+        if key_from_env:
+            raise HTTPException(409, "TYPESAFE_API_KEY is set in the environment; change it there")
+        JEV_KEY_FILE.unlink(missing_ok=True)
+        os.environ.pop("TYPESAFE_API_KEY", None)
+        return jev_key_status()
 
     @api.get("/api/model")
     def model_info() -> dict[str, Any]:
