@@ -7,9 +7,11 @@ Usage:
     uv run python scripts/prepare_data.py --verify
 
 Writes `data/manifests/<split>.csv` for every split of the chosen `--dataset`
-(`asvspoof2019_la`, the default, unchanged from before; or `in_the_wild`, which writes a
-single `data/manifests/itw.csv`) and prints the per-class/per-attack/per-speaker/per-split
-counts from `audio_df.data.manifests.summarise_manifest`. Raises the same actionable
+(`asvspoof2019_la`, the default; `in_the_wild`, which writes a single
+`data/manifests/itw.csv`; or `spoofceleb`, which writes separate
+`data/manifests/spoofceleb_<split>.csv` files; or `phonemedf`, which writes
+`data/manifests/phonemedf_<split>.csv` files) and prints the per-class/per-attack/per-speaker/
+per-split counts from `audio_df.data.manifests.summarise_manifest`. Raises the same actionable
 `DatasetNotFoundError` as `build_manifest`/`build_itw_manifest` if the dataset has not been
 downloaded yet — this script does not swallow it.
 
@@ -34,6 +36,8 @@ from audio_df.data.manifests import (
     build_la2021_manifest,
     build_df2021_manifest,
     build_manifest,
+    build_spoofceleb_manifest,
+    build_phonemedf_manifest,
     manifest_checksums,
     split_hash,
     summarise_manifest,
@@ -78,6 +82,24 @@ def _write_manifests(cfg: dict, dataset: str, workers: int = 4) -> Path:
         print()
         print("Manifest summary (counts by split / class / attack, with speaker counts):")
         print(summarise_manifest(manifest).to_string(index=False))
+    elif dataset == "spoofceleb":
+        manifest = build_spoofceleb_manifest(cfg, workers=workers)
+        for split, split_df in manifest.groupby("split", sort=False):
+            out_path = out_dir / f"spoofceleb_{split}.csv"
+            split_df.to_csv(out_path, index=False)
+            print(f"wrote {len(split_df)} rows to {out_path} (split_hash={split_hash(split_df)})")
+        print()
+        print("Manifest summary (counts by split / class / attack, with speaker counts):")
+        print(summarise_manifest(manifest).to_string(index=False))
+    elif dataset == "phonemedf":
+        manifest = build_phonemedf_manifest(cfg, workers=workers)
+        for split, split_df in manifest.groupby("split", sort=False):
+            out_path = out_dir / f"phonemedf_{split}.csv"
+            split_df.to_csv(out_path, index=False)
+            print(f"wrote {len(split_df)} rows to {out_path} (split_hash={split_hash(split_df)})")
+        print()
+        print("Manifest summary (counts by split / class / attack, with speaker counts):")
+        print(summarise_manifest(manifest).to_string(index=False))
     else:
         raise ValueError(f"unknown --dataset {dataset!r}")
 
@@ -115,7 +137,14 @@ def main() -> None:
     )
     parser.add_argument(
         "--dataset",
-        choices=["asvspoof2019_la", "in_the_wild", "asvspoof2021", "asvspoof2021df"],
+        choices=[
+            "asvspoof2019_la",
+            "in_the_wild",
+            "asvspoof2021",
+            "asvspoof2021df",
+            "spoofceleb",
+            "phonemedf",
+        ],
         default="asvspoof2019_la",
         help="Which dataset to build a manifest for (default: asvspoof2019_la)",
     )

@@ -40,7 +40,10 @@ __all__ = [
     "build_la2021_manifest",
     "build_df2021_manifest",
     "parse_la2021_cm_key",
+    "build_spoofceleb_manifest",
+    "build_phonemedf_manifest",
     "stratified_subset",
+    "uniform_stratified_subset",
     "manifest_checksums",
     "write_checksums",
     "verify_checksums",
@@ -635,6 +638,283 @@ def build_df2021_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
 
 
 # ================================================================================================
+# SpoofCeleb — metadata-driven train/development/evaluation manifests.
+# ================================================================================================
+
+_SPOOFCELEB_SOURCE_CORPUS = "SpoofCeleb"
+_SPOOFCELEB_LANGUAGE = "en"
+
+
+def _spoofceleb_not_found(path: Path, what: str) -> DatasetNotFoundError:
+    return DatasetNotFoundError(
+        f"{what} not found at '{path}'.\n"
+        "Download and extract SpoofCeleb from "
+        "https://huggingface.co/datasets/jungjee/spoofceleb (access is gated) so that the "
+        "configured flac/, metadata/, and protocol/ paths exist "
+        "(see configs/data.yaml:spoofceleb.root)."
+    )
+
+
+def build_spoofceleb_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
+    """Build the SpoofCeleb manifest from its split metadata CSVs and nested FLAC layout.
+
+    The CSV's `file` field is relative to `flac/<split>` and has the form
+    `<attack_id>/<speaker_id>/<utterance>.flac`. Attack `a00` is bona fide; all other
+    attack IDs are spoof generators. The returned columns match the shared manifest schema.
+    """
+    spoof_cfg = cfg["spoofceleb"]
+    root = Path(spoof_cfg["root"])
+    audio_dir = root / spoof_cfg.get("audio_dir", "flac")
+    metadata_dir = root / spoof_cfg.get("metadata_dir", "metadata")
+
+    if not root.is_dir():
+        raise _spoofceleb_not_found(root, "SpoofCeleb dataset root")
+    if not audio_dir.is_dir():
+        raise _spoofceleb_not_found(audio_dir, "SpoofCeleb audio directory")
+    if not metadata_dir.is_dir():
+        raise _spoofceleb_not_found(metadata_dir, "SpoofCeleb metadata directory")
+
+    columns = list(cfg["manifest"]["columns"])
+    frames: list[pd.DataFrame] = []
+    for split, filename in spoof_cfg["metadata_files"].items():
+        metadata_path = metadata_dir / filename
+        if not metadata_path.is_file():
+            raise _spoofceleb_not_found(metadata_path, f"SpoofCeleb metadata file for '{split}'")
+
+        metadata = pd.read_csv(metadata_path, dtype=str, keep_default_na=False)
+        required_cols = {"file", "speaker", "attack"}
+        missing_cols = required_cols - set(metadata.columns)
+        if missing_cols:
+            raise ValueError(
+                f"SpoofCeleb metadata file '{metadata_path}' is missing required column(s) "
+                f"{sorted(missing_cols)}; expected at least {sorted(required_cols)}."
+            )
+
+        rows = list(metadata.itertuples(index=False))
+        audio_paths = []
+        for row in rows:
+            relative_path = Path(row.file)
+            if relative_path.is_absolute() or ".." in relative_path.parts:
+                raise ValueError(
+                    f"invalid SpoofCeleb relative audio path {row.file!r} in '{metadata_path}'"
+                )
+            attack_id = str(row.attack).strip()
+            speaker_id = str(row.speaker).strip()
+            if not attack_id or not speaker_id or not row.file:
+                raise ValueError(
+                    f"empty file, speaker, or attack value in '{metadata_path}'"
+                )
+            if len(relative_path.parts) < 3 or relative_path.parts[0] != attack_id:
+                raise ValueError(
+                    f"SpoofCeleb metadata path {row.file!r} must begin with its attack ID "
+                    f"{attack_id!r} and include a speaker directory ('{metadata_path}')"
+                )
+            if relative_path.parts[1] != speaker_id:
+                raise ValueError(
+                    f"SpoofCeleb metadata path {row.file!r} has speaker directory "
+                    f"{relative_path.parts[1]!r}, but metadata lists {speaker_id!r} "
+                    f"('{metadata_path}')"
+                )
+            audio_path = audio_dir / split / relative_path
+            if not audio_path.is_file():
+                raise _spoofceleb_not_found(
+                    audio_path, f"SpoofCeleb audio file for metadata row {row.file!r}"
+                )
+            audio_paths.append(audio_path)
+
+        records = []
+        for row, audio_path, (sample_rate, duration_s, codec) in zip(
+            rows,
+            audio_paths,
+            _read_metadata(audio_paths, workers=workers, desc=f"SpoofCeleb {split}"),
+            strict=True,
+        ):
+            attack_id = str(row.attack).strip()
+            relative_id = Path(row.file).with_suffix("").as_posix().replace("/", "_")
+            label = "bonafide" if attack_id == "a00" else "spoof"
+            records.append(
+                {
+                    "utt_id": f"SC_{split}_{relative_id}",
+                    "path": audio_path.as_posix(),
+                    "label": label,
+                    "speaker_id": str(row.speaker).strip(),
+                    "attack_id": "-" if label == "bonafide" else attack_id,
+                    "source_corpus": _SPOOFCELEB_SOURCE_CORPUS,
+                    "sample_rate": sample_rate,
+                    "duration_s": duration_s,
+                    "codec": codec,
+                    "split": split,
+                    "language": _SPOOFCELEB_LANGUAGE,
+                }
+            )
+        frames.append(pd.DataFrame.from_records(records, columns=columns))
+
+    manifest = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=columns)
+    return manifest[columns]
+
+
+# ================================================================================================
+# PhonemeDF — paired real/synthetic audio with deterministic speaker-disjoint splits.
+# ================================================================================================
+
+_PHONEMEDF_SOURCE_CORPUS = "PhonemeDF"
+_PHONEMEDF_LANGUAGE = "en"
+
+
+def _phonemedf_not_found(path: Path, what: str) -> DatasetNotFoundError:
+    return DatasetNotFoundError(
+        f"{what} not found at '{path}'.\n"
+        "Place the extracted PhonemeDF folders under the configured "
+        "configs/data.yaml:phonemedf.root path."
+    )
+
+
+def build_phonemedf_manifest(cfg: dict, workers: int = 4) -> pd.DataFrame:
+    """Build paired PhonemeDF manifests with source-speaker-disjoint splits.
+
+    Real utterances and every available generated counterpart are assigned to the same split.
+    Speakers are deterministically partitioned 80/10/10 into train/development/evaluation.
+    """
+    phonemedf_cfg = cfg["phonemedf"]
+    root = Path(phonemedf_cfg["root"])
+    real_dir = root / phonemedf_cfg.get("real_audio_dir", "PhonemeDF_real/real/wav")
+    tts_dir = root / phonemedf_cfg.get("tts_audio_dir", "PhonemeDF_synthetic_tts/tts")
+    vc_dir = root / phonemedf_cfg.get("vc_audio_dir", "PhonemeDF_synthetic_vc/vc")
+
+    for folder, description in (
+        (root, "PhonemeDF dataset root"),
+        (real_dir, "PhonemeDF real audio directory"),
+        (tts_dir, "PhonemeDF TTS directory"),
+        (vc_dir, "PhonemeDF voice-conversion directory"),
+    ):
+        if not folder.is_dir():
+            raise _phonemedf_not_found(folder, description)
+
+    real_paths = sorted(
+        path for path in real_dir.rglob("*")
+        if path.is_file() and path.suffix.lower() == ".wav"
+    )
+    if not real_paths:
+        raise _phonemedf_not_found(real_dir, "PhonemeDF real WAV files")
+
+    speaker_by_stem: dict[str, str] = {}
+    for path in real_paths:
+        stem = path.stem
+        if "-" not in stem:
+            raise ValueError(f"PhonemeDF utterance ID {stem!r} has no speaker prefix")
+        if stem in speaker_by_stem:
+            raise ValueError(f"Duplicate PhonemeDF real utterance ID {stem!r}")
+        speaker_by_stem[stem] = stem.split("-", maxsplit=1)[0]
+
+    speakers = sorted(set(speaker_by_stem.values()))
+    if len(speakers) < 3:
+        raise ValueError(
+            "PhonemeDF needs at least three speakers to create non-empty "
+            "train/development/evaluation splits"
+        )
+    split_seed = phonemedf_cfg.get("split_seed", 1337)
+    shuffled_speakers = list(np.random.default_rng(split_seed).permutation(speakers))
+    development_count = max(1, round(len(speakers) * 0.1))
+    evaluation_count = max(1, round(len(speakers) * 0.1))
+    train_count = len(speakers) - development_count - evaluation_count
+    split_by_speaker = {
+        speaker: "train" for speaker in shuffled_speakers[:train_count]
+    }
+    split_by_speaker.update(
+        {
+            speaker: "development"
+            for speaker in shuffled_speakers[
+                train_count : train_count + development_count
+            ]
+        }
+    )
+    split_by_speaker.update(
+        {
+            speaker: "evaluation"
+            for speaker in shuffled_speakers[train_count + development_count :]
+        }
+    )
+    if train_count < 1:
+        raise ValueError("PhonemeDF needs at least three speakers for non-empty splits")
+
+    audio_records: list[tuple[Path, dict[str, str]]] = []
+
+    def add_record(path: Path, *, family: str, generator: str, stem: str) -> None:
+        speaker_id = speaker_by_stem[stem]
+        if family == "real":
+            label, attack_id = "bonafide", "-"
+            utt_id = f"PHDF_real_{stem}"
+        else:
+            label, attack_id = "spoof", f"{family}-{generator}"
+            utt_id = f"PHDF_{family}_{generator}_{stem}"
+        audio_records.append(
+            (
+                path,
+                {
+                    "utt_id": utt_id,
+                    "label": label,
+                    "speaker_id": speaker_id,
+                    "attack_id": attack_id,
+                    "split": split_by_speaker[speaker_id],
+                },
+            )
+        )
+
+    for path in real_paths:
+        add_record(path, family="real", generator="", stem=path.stem)
+
+    for family, family_dir in (("tts", tts_dir), ("vc", vc_dir)):
+        generators = sorted(path for path in family_dir.iterdir() if path.is_dir())
+        if not generators:
+            raise _phonemedf_not_found(family_dir, f"PhonemeDF {family} generators")
+        for generator_dir in generators:
+            generated_paths = sorted(
+                path for path in generator_dir.rglob("*")
+                if path.is_file() and path.suffix.lower() == ".wav"
+            )
+            for path in generated_paths:
+                if path.stem not in speaker_by_stem:
+                    raise ValueError(
+                        f"PhonemeDF generated audio {path} has no matching real source "
+                        f"utterance {path.stem!r}"
+                    )
+                add_record(
+                    path,
+                    family=family,
+                    generator=generator_dir.name,
+                    stem=path.stem,
+                )
+
+    audio_paths = [path for path, _ in audio_records]
+    rows = [record for _, record in audio_records]
+    records = []
+    for row, path, (sample_rate, duration_s, codec) in zip(
+        rows,
+        audio_paths,
+        _read_metadata(audio_paths, workers=workers, desc="PhonemeDF"),
+        strict=True,
+    ):
+        records.append(
+            {
+                **row,
+                "path": path.as_posix(),
+                "source_corpus": _PHONEMEDF_SOURCE_CORPUS,
+                "sample_rate": sample_rate,
+                "duration_s": duration_s,
+                "codec": codec,
+                "language": _PHONEMEDF_LANGUAGE,
+            }
+        )
+
+    columns = list(cfg["manifest"]["columns"])
+    manifest = pd.DataFrame.from_records(records, columns=columns)
+    if manifest["utt_id"].duplicated().any():
+        duplicates = manifest.loc[manifest["utt_id"].duplicated(), "utt_id"].head().tolist()
+        raise ValueError(f"Duplicate PhonemeDF utterance IDs: {duplicates}")
+    return manifest.sort_values("utt_id").reset_index(drop=True)
+
+
+# ================================================================================================
 # Deterministic stratified subsampling.
 # ================================================================================================
 
@@ -731,6 +1011,44 @@ def stratified_subset(
     result = pd.concat(parts, ignore_index=True) if parts else df.iloc[0:0].copy()
     result = result[columns].sort_values("utt_id").reset_index(drop=True)
     return result
+
+
+def uniform_stratified_subset(
+    df: pd.DataFrame,
+    max_per_stratum: int,
+    strata: tuple[str, ...] | list[str] = ("label", "attack_id"),
+    seed: int = 1337,
+) -> pd.DataFrame:
+    """Sample up to `max_per_stratum` rows from every non-empty stratum.
+
+    Unlike `stratified_subset`, allocation is uniform across strata rather than proportional
+    to their source sizes. Sampling is deterministic for a fixed frame order and seed.
+    """
+    if max_per_stratum < 1:
+        raise ValueError("max_per_stratum must be >= 1")
+    strata = list(strata)
+    if not strata:
+        raise ValueError("strata must contain at least one column")
+    missing = set(strata) - set(df.columns)
+    if missing:
+        raise ValueError(f"stratified subset is missing column(s): {sorted(missing)}")
+    if df.empty:
+        return df.copy()
+
+    grouped = df.groupby(strata, dropna=False, sort=True)
+    rng = np.random.default_rng(seed)
+    parts = []
+    for _, group in grouped:
+        count = min(max_per_stratum, len(group))
+        if count == len(group):
+            parts.append(group)
+        else:
+            indices = rng.choice(len(group), size=count, replace=False)
+            parts.append(group.iloc[indices])
+    result = pd.concat(parts, ignore_index=True)
+    if "utt_id" in result.columns:
+        result = result.sort_values("utt_id")
+    return result.reset_index(drop=True)
 
 
 # ================================================================================================

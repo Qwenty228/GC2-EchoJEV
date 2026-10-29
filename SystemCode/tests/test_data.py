@@ -18,6 +18,7 @@ import pytest
 import soundfile as sf
 import yaml
 
+from scripts.prepare_data import _write_manifests
 from audio_df.data.manifests import (
     DatasetNotFoundError,
     assert_no_speaker_overlap,
@@ -25,12 +26,15 @@ from audio_df.data.manifests import (
     build_df2021_manifest,
     build_la2021_manifest,
     build_manifest,
+    build_spoofceleb_manifest,
+    build_phonemedf_manifest,
     holdout_attack_families,
     manifest_checksums,
     parse_asvspoof_protocol,
     parse_la2021_cm_key,
     split_hash,
     stratified_subset,
+    uniform_stratified_subset,
     summarise_manifest,
     verify_checksums,
     write_checksums,
@@ -457,6 +461,162 @@ def test_build_df2021_manifest_missing_labels_is_actionable(tmp_path):
         build_df2021_manifest(_df2021_cfg(tmp_path / "nope"))
 
 
+# ---------------------------------------------------------------- build_spoofceleb_manifest
+
+def _write_spoofceleb_fixture(root: Path) -> dict:
+    splits = {
+        "train": [("a00", "id1", "real.wav"), ("a03", "id2", "spoof.wav")],
+        "development": [("a00", "id3", "dev-real.wav"), ("a01", "id4", "dev-spoof.wav")],
+        "evaluation": [("a00", "id5", "eval-real.wav"), ("a02", "id6", "eval-spoof.wav")],
+    }
+    for split, entries in splits.items():
+        rows = []
+        for attack, speaker, filename in entries:
+            relative_path = Path(attack) / speaker / filename
+            _write_fake_audio(root / "flac" / split / relative_path)
+            rows.append(
+                {
+                    "file": relative_path.as_posix(),
+                    "speaker": speaker,
+                    "attack": attack,
+                }
+            )
+        metadata_path = root / "metadata" / f"{split}.csv"
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(metadata_path, index=False)
+
+    (root / "protocol").mkdir(parents=True)
+    return {
+        "spoofceleb": {
+            "root": str(root),
+            "audio_dir": "flac",
+            "metadata_dir": "metadata",
+            "metadata_files": {split: f"{split}.csv" for split in splits},
+        },
+        "manifest": {"columns": _real_manifest_columns()},
+    }
+
+
+def test_build_spoofceleb_manifest_maps_classes_and_resolves_paths(tmp_path):
+    cfg = _write_spoofceleb_fixture(tmp_path / "spoofceleb")
+    manifest = build_spoofceleb_manifest(cfg, workers=1)
+
+    assert list(manifest.columns) == _real_manifest_columns()
+    assert len(manifest) == 6
+    assert set(manifest["source_corpus"]) == {"SpoofCeleb"}
+    assert set(manifest["language"]) == {"en"}
+    assert set(manifest["split"]) == {"train", "development", "evaluation"}
+    assert set(manifest["label"]) == {"bonafide", "spoof"}
+    assert (manifest.loc[manifest["label"] == "bonafide", "attack_id"] == "-").all()
+    assert set(manifest.loc[manifest["label"] == "spoof", "attack_id"]) == {
+        "a01", "a02", "a03",
+    }
+    assert set(manifest["sample_rate"]) == {16000}
+    assert (manifest["duration_s"] > 0).all()
+    assert all(Path(path).is_file() for path in manifest["path"])
+    assert all("\\" not in path for path in manifest["path"])
+
+
+def test_build_spoofceleb_manifest_missing_root_is_actionable(tmp_path):
+    cfg = {
+        "spoofceleb": {
+            "root": str(tmp_path / "missing"),
+            "metadata_files": {"train": "train.csv"},
+        },
+        "manifest": {"columns": _real_manifest_columns()},
+    }
+    with pytest.raises(DatasetNotFoundError, match="huggingface.co"):
+        build_spoofceleb_manifest(cfg)
+
+
+def test_build_spoofceleb_manifest_rejects_metadata_path_mismatch(tmp_path):
+    root = tmp_path / "spoofceleb"
+    cfg = _write_spoofceleb_fixture(root)
+    metadata_path = root / "metadata" / "train.csv"
+    metadata = pd.read_csv(metadata_path)
+    metadata.loc[0, "file"] = "a01/id1/real.wav"
+    metadata.to_csv(metadata_path, index=False)
+
+    with pytest.raises(ValueError, match="must begin with its attack ID"):
+        build_spoofceleb_manifest(cfg)
+
+
+def test_prepare_data_writes_separate_spoofceleb_split_manifests(tmp_path):
+    cfg = _write_spoofceleb_fixture(tmp_path / "spoofceleb")
+    cfg["manifest"]["out_dir"] = str(tmp_path / "manifests")
+
+    out_dir = _write_manifests(cfg, "spoofceleb", workers=1)
+
+    for split in ("train", "development", "evaluation"):
+        output_path = out_dir / f"spoofceleb_{split}.csv"
+        assert output_path.is_file()
+        assert set(pd.read_csv(output_path)["split"]) == {split}
+
+
+# --------------------------------------------------------------------- build_phonemedf_manifest
+
+def _write_phonemedf_fixture(root: Path) -> dict:
+    real_dir = root / "PhonemeDF_real" / "real" / "wav"
+    tts_dir = root / "PhonemeDF_synthetic_tts" / "tts" / "TestTTS"
+    vc_dir = root / "PhonemeDF_synthetic_vc" / "vc" / "TestVC"
+    for speaker_number in range(3):
+        stem = f"{speaker_number + 100}-1240-000{speaker_number}"
+        for folder in (real_dir, tts_dir, vc_dir):
+            _write_fake_audio(folder / f"{stem}.wav")
+    return {
+        "phonemedf": {
+            "root": str(root),
+            "real_audio_dir": "PhonemeDF_real/real/wav",
+            "tts_audio_dir": "PhonemeDF_synthetic_tts/tts",
+            "vc_audio_dir": "PhonemeDF_synthetic_vc/vc",
+            "split_seed": 1337,
+        },
+        "manifest": {"columns": _real_manifest_columns()},
+    }
+
+
+def test_build_phonemedf_manifest_pairs_sources_and_splits_by_speaker(tmp_path):
+    cfg = _write_phonemedf_fixture(tmp_path / "phonemedf")
+
+    manifest = build_phonemedf_manifest(cfg, workers=1)
+
+    assert list(manifest.columns) == _real_manifest_columns()
+    assert len(manifest) == 9
+    assert set(manifest["source_corpus"]) == {"PhonemeDF"}
+    assert set(manifest["language"]) == {"en"}
+    assert set(manifest["split"]) == {"train", "development", "evaluation"}
+    assert set(manifest["label"]) == {"bonafide", "spoof"}
+    assert set(manifest.loc[manifest["label"] == "spoof", "attack_id"]) == {
+        "tts-TestTTS", "vc-TestVC",
+    }
+    assert (manifest.loc[manifest["label"] == "bonafide", "attack_id"] == "-").all()
+    assert manifest.groupby("speaker_id")["split"].nunique().max() == 1
+    assert manifest.groupby(manifest["utt_id"].str.rsplit("_", n=1).str[1])["split"].nunique().max() == 1
+    assert all(Path(path).is_file() for path in manifest["path"])
+
+
+def test_build_phonemedf_manifest_missing_root_is_actionable(tmp_path):
+    cfg = {
+        "phonemedf": {"root": str(tmp_path / "missing")},
+        "manifest": {"columns": _real_manifest_columns()},
+    }
+
+    with pytest.raises(DatasetNotFoundError, match="phonemedf.root"):
+        build_phonemedf_manifest(cfg, workers=1)
+
+
+def test_prepare_data_writes_separate_phonemedf_split_manifests(tmp_path):
+    cfg = _write_phonemedf_fixture(tmp_path / "phonemedf")
+    cfg["manifest"]["out_dir"] = str(tmp_path / "manifests")
+
+    out_dir = _write_manifests(cfg, "phonemedf", workers=1)
+
+    for split in ("train", "development", "evaluation"):
+        output_path = out_dir / f"phonemedf_{split}.csv"
+        assert output_path.is_file()
+        assert set(pd.read_csv(output_path)["split"]) == {split}
+
+
 # ----------------------------------------------------------------------------- stratified_subset
 
 
@@ -516,6 +676,42 @@ def test_stratified_subset_n_larger_than_df_returns_all_rows():
     df = _stratified_fixture()
     subset = stratified_subset(df, n=1000, seed=1337)
     assert len(subset) == len(df)
+
+
+def test_uniform_stratified_subset_caps_each_stratum_equally():
+    df = _stratified_fixture()
+
+    subset = uniform_stratified_subset(df, max_per_stratum=2, seed=1337)
+
+    counts = subset.groupby(["label", "attack_id"]).size()
+    assert len(subset) == 6
+    assert counts.to_dict() == {
+        ("bonafide", "-"): 2,
+        ("spoof", "A01"): 2,
+        ("spoof", "A02"): 2,
+    }
+
+
+def test_uniform_stratified_subset_is_reproducible_and_respects_stratum_cap():
+    df = _stratified_fixture()
+    first = uniform_stratified_subset(df, max_per_stratum=10, seed=1337)
+    second = uniform_stratified_subset(df, max_per_stratum=10, seed=1337)
+
+    pd.testing.assert_frame_equal(first, second)
+    assert first.groupby(["label", "attack_id"]).size().to_dict() == {
+        ("bonafide", "-"): 10,
+        ("spoof", "A01"): 10,
+        ("spoof", "A02"): 5,
+    }
+
+
+def test_uniform_stratified_subset_validates_columns_and_cap():
+    df = _stratified_fixture()
+
+    with pytest.raises(ValueError, match="max_per_stratum"):
+        uniform_stratified_subset(df, max_per_stratum=0)
+    with pytest.raises(ValueError, match="missing column"):
+        uniform_stratified_subset(df, max_per_stratum=2, strata=["missing"])
 
 
 # ------------------------------------------------------------------- checksums

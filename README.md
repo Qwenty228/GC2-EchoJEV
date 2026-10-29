@@ -47,6 +47,7 @@ Recent advances in neural speech synthesis—particularly diffusion vocoders, ne
 | :----------------- | :---------------------------: | :------------------------ | :---- |
 | **Chakit Kalra** | A0352070R | Designed and implemented the **LAYA** anf **JEV** decision policy module (`audio_df.modules.laya`), local agent integration (`DryRunLayaClient` / `convaiinnovations/laya`), comparative policy evaluation suite (`evaluate_laya_on_scores.py`, `compare_policies.py`), policy pipeline orchestrations (`a3_laya.py`, `fp2.py`), offline unit test suites (`test_laya_pipeline.py`, `test_laya_config.py`), and decision layer comparative analysis. | chakitkalra@u.nus.edu |
 | **Nathan Kittichaikoonkij** | A0352270M | Core repository architect; implemented base detector modules (A1, A2, A4, D1–D3), feature extraction and caching pipelines (LFCC, WavLM pooling/temporal caches), cross-attention heads, Round 3 Layer-6 ablation study, CLI experiment runtime (`runtime.py`), FastAPI backend (`app.py`), and research notebooks (01–07). | nathan.kit@u.nus.edu |
+| **Chandu Anilkumar** | A0352988H | Integrated **SpoofCeleb** and **PhonemeDF** from data preparation through training and evaluation: implemented manifest generation and CLI routing; added dataset checks (including SpoofCeleb checksums and PhonemeDF speaker-disjoint split validation); enabled A1, A2, and A4 training with shared deterministic, uniformly sampled per-attack subsets, cached for reproducibility; kept evaluation data held out and wired development data for A2/A4 validation; added tests and workflow documentation. | chandu.anilkumar@u.nus.edu |
 
 ---
 
@@ -249,4 +250,3 @@ Every training and evaluation run records an immutable audit trail containing ti
 ---
 
 **This project is submitted in partial fulfillment of the requirements for the Graduate Certificate in [Pattern Recognition Systems (PRS)](https://www.iss.nus.edu.sg/executive-education/course/detail/practice-module-for-pattern-recognition-systems "Pattern Recognition Systems") offered by [NUS-ISS](https://www.iss.nus.edu.sg "Institute of Systems Science, National University of Singapore").**
-
