@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pandas as pd
+
 from audio_df.helpers.audio import load_audio
 from audio_df.helpers.cache import cache_frames
 from audio_df.helpers.config import load_config
@@ -39,9 +41,14 @@ class GMMDetector:
     def fit(self, train, cache_dir: Path, seed: int | None = None):
         cfg = self.config
         actual_seed = cfg.seed if seed is None else seed
-        fingerprint = hashlib.sha256(
-            (train.to_csv(index=False) + json.dumps(asdict(self.features.settings), sort_keys=True)).encode()
-        ).hexdigest()[:16]
+        fingerprint_hash = hashlib.sha256()
+        # Avoid materializing the full CSV as one string for multi-million-row training manifests.
+        fingerprint_hash.update("|".join(map(str, train.columns)).encode("utf-8"))
+        fingerprint_hash.update(pd.util.hash_pandas_object(train, index=True).values.tobytes())
+        fingerprint_hash.update(
+            json.dumps(asdict(self.features.settings), sort_keys=True).encode("utf-8")
+        )
+        fingerprint = fingerprint_hash.hexdigest()[:16]
         for label in ("bonafide", "spoof"):
             paths = train.loc[train.label == label, "path"]
             frames = cache_frames(

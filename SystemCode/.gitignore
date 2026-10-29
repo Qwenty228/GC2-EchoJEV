@@ -103,6 +103,13 @@ runs/E-20261001-e1-*/score_jobs/
 !runs/E-20261025-074735-305435-fp1/
 # FP1 (round 3 D2 + JEV) on the 2019, ITW and 2021 LA sets, 20 clips per set
 !runs/E-20261028-081544-540928-fp1/
+# SpoofCeleb and PhonemeDF A1/A2/A4 evaluation runs
+!runs/E-20261027-114715-506375-a4/
+!runs/E-20261027-120652-418411-a1/
+!runs/E-20261028-022307-964640-a2/
+!runs/E-20261028-054714-595288-a1/
+!runs/E-20261028-071614-718470-a2/
+!runs/E-20261028-091639-266624-a4/
 
 # local job logs
 logs/

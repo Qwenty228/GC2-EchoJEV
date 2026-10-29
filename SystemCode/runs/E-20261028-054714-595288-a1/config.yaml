@@ -1,0 +1,17 @@
+architecture: a1
+dataset: phonemedf
+model_artifact: artifacts/a1/20261028-054058-148172
+testsets:
+- eval
+seed: 1337
+train_preprocessing: raw
+split_roles:
+  dev: validation_threshold
+  eval: held_out_test
+reported_metrics: held_out_test_only
+threshold_source: dev
+evaluation_preprocessing:
+  testsets:
+    dev: raw
+    eval: raw
+  trim_recipe: null

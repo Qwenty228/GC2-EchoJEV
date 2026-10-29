@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import os
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Any
 from collections.abc import Callable
 import yaml
 
-from audio_df.data.manifests import load_manifest
+from audio_df.data.manifests import load_manifest, uniform_stratified_subset
 from audio_df.helpers.artifacts import artifacts_dir, platt, save_threshold
 from audio_df.helpers.cache import feature_cache_dir
 from audio_df.evaluation import evaluate_scores
@@ -38,6 +39,12 @@ def _new_directory(parent: Path, prefix: str) -> Path:
     raise RuntimeError("Unable to create a unique run directory")
 
 
+def _dataset_key(dataset: str) -> str:
+    if dataset.lower() in {"2019la", "2019", "asvspoof2019"}:
+        return "2019la"
+    return dataset.lower()
+
+
 class Run:
     def __init__(
         self, *, name: str, dataset: str = "2019LA", output: str = "runs",
@@ -45,8 +52,10 @@ class Run:
         threshold_from: str = "dev",
         model_from: str | None = None, command: str = "run",
     ) -> None:
-        if dataset.lower() not in {"2019la", "2019", "asvspoof2019"}:
-            raise ValueError("Only 2019LA is currently supported")
+        if dataset.lower() not in {
+            "2019la", "2019", "asvspoof2019", "spoofceleb", "phonemedf",
+        }:
+            raise ValueError("Supported training datasets are 2019LA, SpoofCeleb and PhonemeDF")
         if command not in {"train", "evaluate", "run"}:
             raise ValueError(f"Unknown command: {command}")
         self.name = name
@@ -66,6 +75,36 @@ class Run:
         self._artifact_dir: Path | None = None
         self._run_dir: Path | None = None
         self._train_preprocessing: str | None = None
+        self._train_subset_info: dict[str, Any] | None = None
+        self._subset_dataset = (
+            self.dataset.lower()
+            if self.dataset.lower() in {"spoofceleb", "phonemedf"}
+            else None
+        )
+        self._training_subset_per_stratum, self._training_subset_strata = (
+            self._load_training_subset_config(self._subset_dataset)
+            if self._subset_dataset
+            else (100, ["label", "attack_id"])
+        )
+
+    def _load_training_subset_config(self, dataset: str) -> tuple[int, list[str]]:
+        default = (100, ["label", "attack_id"])
+        config_path = self.root / "configs" / "data.yaml"
+        if not config_path.is_file():
+            return default
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        subset = config.get(dataset, {}).get("training_subset", {})
+        per_stratum = subset.get("max_per_stratum", default[0])
+        strata = subset.get("strata", default[1])
+        if not isinstance(per_stratum, int) or per_stratum < 1:
+            raise ValueError(
+                f"{dataset}.training_subset.max_per_stratum must be >= 1"
+            )
+        if not isinstance(strata, list) or not strata or any(not isinstance(col, str) for col in strata):
+            raise ValueError(
+                f"{dataset}.training_subset.strata must be a non-empty list of columns"
+            )
+        return per_stratum, strata
 
     @classmethod
     def cli(cls, dataset: str = "2019LA") -> Callable[..., Any]:
@@ -98,7 +137,10 @@ class Run:
                     "--i",
                     default=dataset,
                     metavar="DATASET",
-                    help=f"Training dataset identifier (default: {dataset}). Available: 2019LA",
+                    help=(
+                        f"Training dataset identifier (default: {dataset}). "
+                        "Available: 2019LA, SpoofCeleb, PhonemeDF"
+                    ),
                 )
                 parser.add_argument(
                     "--o",
@@ -167,14 +209,37 @@ class Run:
             chosen = (self.root / chosen).resolve()
             if not (chosen / "COMPLETE").exists():
                 raise FileNotFoundError(f"Model artifact is not marked complete: {chosen}")
+            self._validate_artifact_dataset(chosen)
             return chosen
         if not self.artifact_root.exists():
             raise FileNotFoundError(f"No {self.name} model found. Train first.")
-        valid = sorted(p for p in self.artifact_root.iterdir()
-                       if p.is_dir() and (p / "COMPLETE").is_file())
+        valid = sorted(
+            p
+            for p in self.artifact_root.iterdir()
+            if p.is_dir()
+            and (p / "COMPLETE").is_file()
+            and self._artifact_dataset(p) == _dataset_key(self.dataset)
+        )
         if not valid:
-            raise FileNotFoundError(f"No completed {self.name} model found. Train first.")
+            raise FileNotFoundError(
+                f"No completed {self.name} model for dataset {self.dataset!r} found. Train first."
+            )
         return valid[-1]
+
+    def _artifact_dataset(self, artifact: Path) -> str:
+        metadata_path = artifact / "preprocessing.json"
+        if not metadata_path.is_file():
+            return "2019la"
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        return _dataset_key(metadata.get("dataset", "2019LA"))
+
+    def _validate_artifact_dataset(self, artifact: Path) -> None:
+        artifact_dataset = self._artifact_dataset(artifact)
+        if artifact_dataset != _dataset_key(self.dataset):
+            raise ValueError(
+                f"Model artifact {artifact} was trained on dataset {artifact_dataset!r}, "
+                f"not {self.dataset!r}"
+            )
 
     def model_from_for(self, architecture: str) -> Path:
         """Resolve a completed artifact of another architecture, respecting --model-from."""
@@ -186,11 +251,23 @@ class Run:
                 raise FileNotFoundError(f"Model artifact is not complete: {selected}")
             if selected.parent != (artifacts_dir(self.root) / architecture).resolve():
                 raise ValueError(f"--model-from must select an {architecture} artifact")
+            self._validate_artifact_dataset(selected)
             return selected
         parent = artifacts_dir(self.root) / architecture
-        valid = sorted(p for p in parent.iterdir() if p.is_dir() and (p / "COMPLETE").is_file()) if parent.is_dir() else []
+        valid = (
+            sorted(
+                p for p in parent.iterdir()
+                if p.is_dir()
+                and (p / "COMPLETE").is_file()
+                and self._artifact_dataset(p) == _dataset_key(self.dataset)
+            )
+            if parent.is_dir()
+            else []
+        )
         if not valid:
-            raise FileNotFoundError(f"No completed {architecture} artifact found")
+            raise FileNotFoundError(
+                f"No completed {architecture} artifact for dataset {self.dataset!r} found"
+            )
         return valid[-1]
 
     @property
@@ -200,14 +277,37 @@ class Run:
         return self._run_dir
 
     def manifest(self, split: str):
-        return load_manifest(self.root / "data" / "manifests" / f"{split}.csv", self.root)
+        if self._subset_dataset:
+            split_files = {
+                "train": f"{self._subset_dataset}_train.csv",
+                "dev": f"{self._subset_dataset}_development.csv",
+                "development": f"{self._subset_dataset}_development.csv",
+                "eval": f"{self._subset_dataset}_evaluation.csv",
+                "evaluation": f"{self._subset_dataset}_evaluation.csv",
+            }
+            filename = split_files.get(split, f"{self._subset_dataset}_{split}.csv")
+        else:
+            filename = f"{split}.csv"
+        return load_manifest(self.root / "data" / "manifests" / filename, self.root)
 
     def train(self, model: Any) -> Any:
         # Match evaluation preprocessing: raw 2019LA silence duration leaks the label.
         cache_dir = feature_cache_dir(self.root / "data" / "cache", *model.cache_namespace)
-        train_df = self.manifest("train")
         params = inspect.signature(model.fit).parameters
-        extra = {"dev": self.manifest("dev")} if "dev" in params else {}
+        extra: dict[str, Any] = {}
+        if self._subset_dataset:
+            train_df = self._dataset_training_manifest("train")
+            if "dev" in params:
+                extra["dev"] = self._dataset_training_manifest("dev")
+            self._train_subset_info = {
+                "max_per_stratum": self._training_subset_per_stratum,
+                "strata": self._training_subset_strata,
+                "seed": self.seed,
+            }
+        else:
+            train_df = self.manifest("train")
+            if "dev" in params:
+                extra["dev"] = self.manifest("dev")
         trimmed = self._is_trimmed("dev")
         if trimmed:
             train_df = trimmed_manifest(train_df, self.root / "data" / "cache", "train")
@@ -216,19 +316,99 @@ class Run:
         self._train_preprocessing = "trimmed" if trimmed else "raw"
         print(f"\n[{self.name.upper()}] TRAIN | dataset={self.dataset} | seed={self.seed}", flush=True)
         print(f"  train: {len(train_df):,} clips | {self._train_preprocessing}", flush=True)
+        if self._train_subset_info:
+            print(
+                f"  uniform subset: max {self._training_subset_per_stratum} per "
+                f"{self._training_subset_strata} stratum | seed={self.seed}",
+                flush=True,
+            )
+            for split, frame in (("train", train_df), *extra.items()):
+                counts = frame.groupby(
+                    self._training_subset_strata, dropna=False
+                ).size()
+                distribution = ", ".join(
+                    f"{key if isinstance(key, tuple) else (key,)}={count}"
+                    for key, count in counts.items()
+                )
+                print(f"  {split} strata: {distribution}", flush=True)
         if "dev" in extra:
             print(f"  dev:   {len(extra['dev']):,} clips | {self._train_preprocessing} (training validation)", flush=True)
         print(f"  feature cache: {cache_dir}", flush=True)
         print(f"  artifact destination: {self.artifact_root}", flush=True)
         return model.fit(train_df, cache_dir, seed=self.seed, **extra)
 
+    def _dataset_training_manifest(self, split: str):
+        dataset = self._subset_dataset
+        if dataset is None:
+            raise RuntimeError("Training subsets are only available for configured datasets")
+        source_filename = {
+            "train": f"{dataset}_train.csv",
+            "dev": f"{dataset}_development.csv",
+        }[split]
+        source_path = self.root / "data" / "manifests" / source_filename
+        if not source_path.is_file():
+            raise FileNotFoundError(
+                f"Missing {dataset} {split} manifest: {source_path}. "
+                f"Run `uv run data-prepare --dataset {dataset}` first."
+            )
+
+        per_stratum = self._training_subset_per_stratum
+        subset_dir = self.root / "data" / "cache" / dataset / "training_subsets"
+        subset_dir.mkdir(parents=True, exist_ok=True)
+        subset_path = subset_dir / f"{split}_per-stratum-{per_stratum}_seed-{self.seed}.csv"
+        metadata_path = subset_path.with_suffix(".json")
+        stat = source_path.stat()
+        expected_metadata = {
+            "source": source_filename,
+            "source_size": stat.st_size,
+            "source_mtime_ns": stat.st_mtime_ns,
+            "max_per_stratum": per_stratum,
+            "strata": self._training_subset_strata,
+            "seed": self.seed,
+        }
+        if subset_path.is_file() and metadata_path.is_file():
+            try:
+                if json.loads(metadata_path.read_text(encoding="utf-8")) == expected_metadata:
+                    return load_manifest(subset_path, self.root)
+            except (OSError, ValueError, json.JSONDecodeError):
+                pass
+
+        import pandas as pd
+
+        source = pd.read_csv(source_path)
+        subset = uniform_stratified_subset(
+            source,
+            max_per_stratum=per_stratum,
+            strata=self._training_subset_strata,
+            seed=self.seed,
+        )
+        temporary_path = subset_path.with_suffix(".csv.tmp")
+        subset.to_csv(temporary_path, index=False)
+        os.replace(temporary_path, subset_path)
+        temporary_metadata = metadata_path.with_suffix(".json.tmp")
+        temporary_metadata.write_text(
+            json.dumps(expected_metadata, indent=2), encoding="utf-8"
+        )
+        os.replace(temporary_metadata, metadata_path)
+        return load_manifest(subset_path, self.root)
+
+    def _spoofceleb_training_manifest(self, split: str):
+        """Backward-compatible helper alias for existing SpoofCeleb callers/tests."""
+        return self._dataset_training_manifest(split)
+
     def save(self, model: Any) -> Path:
         directory = _new_directory(self.artifact_root, _timestamp())
         model.save(directory)
-        (directory / "preprocessing.json").write_text(json.dumps({
+        preprocessing: dict[str, Any] = {
             "train": self._train_preprocessing,
             "trim_recipe": TRIM_RECIPE if self._train_preprocessing == "trimmed" else None,
-        }, indent=2), encoding="utf-8")
+            "dataset": self.dataset,
+        }
+        if self._train_subset_info is not None:
+            preprocessing["training_subset"] = self._train_subset_info
+        (directory / "preprocessing.json").write_text(
+            json.dumps(preprocessing, indent=2), encoding="utf-8"
+        )
         # A completion marker is written LAST. Incomplete artifacts are ignored.
         (directory / "COMPLETE").write_text("ok\n", encoding="utf-8")
         self._artifact_dir = directory
@@ -248,13 +428,44 @@ class Run:
         """
         manifest_dir = self.root / "data" / "manifests"
         available = {p.stem for p in manifest_dir.glob("*.csv")}
-        requested = set(self.testsets) | {self.threshold_from}
+        if self._subset_dataset:
+            aliases = {"development": "dev", "evaluation": "eval"}
+            available = {
+                alias
+                for alias, filename in (
+                    ("dev", f"{self._subset_dataset}_development.csv"),
+                    ("eval", f"{self._subset_dataset}_evaluation.csv"),
+                )
+                if (manifest_dir / filename).is_file()
+            }
+            requested = {
+                aliases.get(name, name) for name in (*self.testsets, self.threshold_from)
+            }
+        else:
+            requested = set(self.testsets) | {self.threshold_from}
         unknown = requested - available
         if unknown:
             raise ValueError(
                 f"Unknown manifests: {sorted(unknown)}. Available: {sorted(available)}"
             )
-        if self.threshold_from in self.testsets:
+        threshold_from = (
+            {"development": "dev", "evaluation": "eval"}.get(
+                self.threshold_from, self.threshold_from
+            )
+            if self._subset_dataset
+            else self.threshold_from
+        )
+        testsets = (
+            [
+                {"development": "dev", "evaluation": "eval"}.get(name, name)
+                for name in self.testsets
+            ]
+            if self._subset_dataset
+            else self.testsets
+        )
+        if len(testsets) != len(set(testsets)):
+            raise ValueError("--testsets must contain unique dataset splits")
+        if threshold_from in testsets:
             raise ValueError(
                 f"Calibration set {self.threshold_from!r} cannot appear in --testsets"
             )
@@ -262,7 +473,11 @@ class Run:
         # Prevent known overlap even when audio paths differ after degradation.
         def eval_family(name: str) -> bool:
             return name == "eval" or name.startswith("eval_")
-        if eval_family(self.threshold_from) and any(eval_family(n) for n in self.testsets):
+        if (
+            self.dataset.lower() in {"2019la", "2019", "asvspoof2019"}
+            and eval_family(self.threshold_from)
+            and any(eval_family(n) for n in self.testsets)
+        ):
             raise ValueError(
                 "Calibration and test sets from the ASVspoof 2019 LA eval family "
                 "may overlap. Use dev for calibration."

@@ -90,6 +90,42 @@ musan:
     Not a spoof dataset. Noise clips mixed into a fixed 10k subset of 2019 eval at 10 dB SNR to make
     eval_noise_10db (MP3, Opus and 8 kHz copies of the same subset need no extra data).
 
+# SpoofCeleb — optional Stage 2 dataset. Its Hugging Face repository is gated; request access
+# there, then extract the archive so the `flac`, `metadata`, and `protocol` directories are here.
+# Audio is organized as flac/<split>/<attack_id>/<speaker_id>/<utterance>.flac; a00 is bona fide.
+spoofceleb:
+  root: data/raw/spoofceleb               # gitignored; extract the HF archive here
+  source_url: https://huggingface.co/datasets/jungjee/spoofceleb
+  license: CC-BY-4.0                      # HF dataset card
+  audio_dir: flac
+  metadata_dir: metadata
+  metadata_files:
+    train: train.csv
+    development: development.csv
+    evaluation: evaluation.csv
+  protocol_dir: protocol
+  protocol_files:
+    sasv_development: sasv_development_evaluation_protocol.csv
+    sasv_evaluation: sasv_evaluation_evaluation_protocol.csv
+    sdd_development: sdd_development_evaluation_protocol.csv
+    sdd_evaluation: sdd_evaluation_evaluation_protocol.csv
+  training_subset:
+    max_per_stratum: 100
+    strata: [label, attack_id]
+
+# PhonemeDF real speech and matched TTS/voice-converted recordings. Speaker-level splits keep
+# source speakers and corresponding real/synthetic utterances together; reference audio and
+# alignment textgrids are not model inputs.
+phonemedf:
+  root: data/raw/phonemedf
+  real_audio_dir: PhonemeDF_real/real/wav
+  tts_audio_dir: PhonemeDF_synthetic_tts/tts
+  vc_audio_dir: PhonemeDF_synthetic_vc/vc
+  split_seed: 1337
+  training_subset:
+    max_per_stratum: 100
+    strata: [label, attack_id]
+
 # Deterministic stratified subsampling (audio_df.data.manifests.stratified_subset). Recorded here so
 # every caller uses the same seed/strata by default instead of each picking its own.
 subsets:
