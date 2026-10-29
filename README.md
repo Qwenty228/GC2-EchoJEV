@@ -35,9 +35,9 @@ Recent advances in neural speech synthesis—particularly diffusion vocoders, ne
 
 ### Major Empirical Findings:
 1. **The Silence Shortcut Trap:** In ASVspoof 2019 LA, bona fide clips start with much longer silence than spoofs (median 0.96 s vs 0.03 s on eval). Leading silence alone reaches AUC **0.84** (leakage audit). Trimming silence at test time moves A1 EER from **9.56% to 19.84%** and raw-trained A2 from **0.96% to 13.27%**, so all final models train and test on trimmed audio.
-2. **Generalization Collapse on Real-World Speech:** On In-the-Wild (ITW), A1 falls to chance (**58.04% EER**). A2 still ranks well (**14.70% EER, 0.93 AUC**), but its 2019 dev threshold rejects about half (48.9%) of real-world bona fide clips: ranking survives the shift, calibration does not.
-3. **WavLM Layer 6, not 12:** Fusion on WavLM's last layer (12) lost to A2 (2019 eval EER: A2 7.6%, D2 11.8%, D3 12.6%). A per-layer probe shows middle layers (4–6) separate spoofs best and the last layers worst (why is not tested). With **layer 6**, mean EER over 8 test sets drops to **11.1% (D2)** and **11.3% (D3)**, below A2 (12.9%); D2 is the final model.
-4. **Decision layer:** JEV or LAYA on one detector's score added nothing (FP1: JEV repeated D2 on all 180 sampled clips). Phase 2 therefore tests **arbitration**: several detectors score a clip and a judge (LAYA or JEV) decides when they disagree. So far LAYA mostly follows the detector listed first (notebook 06); prompt work continues.
+2. **Generalization Collapse on Real-World Speech:** On In-the-Wild (ITW), raw-trained A1 falls to chance (**58.04% EER**). Raw-trained A2 still ranks well (**14.70% EER, 0.93 AUC**), but its 2019 dev threshold rejects about half (48.9%) of real-world bona fide clips: ranking survives the shift, calibration does not. The final D2 is the same: 19.9% EER, yet its dev threshold rejects 63.9% of real ITW clips.
+3. **WavLM Layer 6, not 12:** Fusion on WavLM's last layer (12) lost to A2 (2019 eval EER: A2 7.6%, D2 11.8%, D3 12.6%). A per-layer probe shows middle layers (4–6) separate spoofs best and the last layers worst (why is not tested). With **layer 6**, mean EER over 10 test sets drops to **11.0% (D2)** and **11.5% (D3)**, below A2 (12.5%); D2 is the final model.
+4. **Decision layer:** JEV or LAYA on one detector's score added nothing (FP1: JEV repeated D2 on all 180 sampled clips). Phase 2 therefore tests **arbitration**: several detectors score a clip and a judge (LAYA or JEV) decides when they disagree. On 200 balanced In-the-Wild clips where the six detectors disagree, neither judge beats A2 alone (73.5% accuracy): JEV's best request gets 64.8%, LAYA 62.0% (notebook 06).
 
 ---
 
@@ -45,7 +45,7 @@ Recent advances in neural speech synthesis—particularly diffusion vocoders, ne
 
 | Official Full Name | Student ID (MTech Applicable) | Work Items (Who Did What) | Email |
 | :----------------- | :---------------------------: | :------------------------ | :---- |
-| **Chakit Kalra** | A0352070R | Designed and implemented the **LAYA** anf **JEV** decision policy module (`audio_df.modules.laya`), local agent integration (`DryRunLayaClient` / `convaiinnovations/laya`), comparative policy evaluation suite (`evaluate_laya_on_scores.py`, `compare_policies.py`), policy pipeline orchestrations (`a3_laya.py`, `fp2.py`), offline unit test suites (`test_laya_pipeline.py`, `test_laya_config.py`), and decision layer comparative analysis. | chakitkalra@u.nus.edu |
+| **Chakit Kalra** | A0352070R | Designed and implemented the **LAYA** and **JEV** decision policy module (`audio_df.modules.laya`), local agent integration (`DryRunLayaClient` / `convaiinnovations/laya`), comparative policy evaluation suite (`evaluate_laya_on_scores.py`, `compare_policies.py`), policy pipeline orchestrations (`a3_laya.py`, `fp2.py`), offline unit test suites (`test_laya_pipeline.py`, `test_laya_config.py`), and decision layer comparative analysis. | chakitkalra@u.nus.edu |
 | **Nathan Kittichaikoonkij** | A0352270M | Core repository architect; implemented base detector modules (A1, A2, A4, D1–D3), feature extraction and caching pipelines (LFCC, WavLM pooling/temporal caches), cross-attention heads, Round 3 Layer-6 ablation study, CLI experiment runtime (`runtime.py`), FastAPI backend (`app.py`), and research notebooks (01–07). | nathan.kit@u.nus.edu |
 
 ---
@@ -107,9 +107,9 @@ Every architecture exposes unified `train`, `evaluate`, and `run` (train + evalu
 | Architecture CLI | Detector Structure | Trained Components | Target Feature |
 | :---: | :--- | :--- | :--- |
 | `uv run a1` | LFCC → Two Gaussian Mixture Models | 512-component GMMs | 60-dim LFCC ($+\Delta+\Delta\Delta$) |
-| `uv run a2` | Frozen WavLM Base+ → Linear Head | Classification Head | 768-dim pooled SSL features |
+| `uv run a2` | Frozen WavLM Base+ → layer-weighted MLP head | Layer weights + MLP head | 768-dim pooled SSL features |
 | `uv run a4` | Mean-pooled LFCC → MLP Head | Neural Head | 60-dim pooled LFCC |
-| `uv run d1` | Concatenated LFCC + WavLM → Head | Linear Fusion Head | Concatenated feature vector |
+| `uv run d1` | Concatenated LFCC + WavLM → MLP head | MLP fusion head | Concatenated feature vector |
 | `uv run d2` | Temporal LFCC → WavLM Cross-Attention | Attention + Projections + Head | 32-token sequences (Layer 6) |
 | `uv run d3` | Bidirectional LFCC $\leftrightarrow$ WavLM Attention | Bi-attention + Residuals + Head| 32-token sequences (Layer 6) |
 
@@ -161,7 +161,8 @@ uv run compare --runs-dir runs
 #### C. Arbitration between detectors (current Phase 2)
 The judge (`laya` or `jev`) and the request it receives are set in `configs/arbitrator.yaml`:
 ```bash
-# Fixed In-the-Wild test: A1, A2, A4 disagreement clips -> judge answers in runs/E-*-arbitration/
+# Fixed test: 200 In-the-Wild clips (100 bona fide, 100 spoof) where the six detectors disagree,
+# each asked in two detector orders -> judge answers in runs/E-*-arbitration/
 uv run arbitration
 ```
 Results and the prompt playground: notebook 06, section 2.
@@ -179,10 +180,18 @@ ADF_ARTIFACTS=/models ADF_SYSTEM=d2 uv run uvicorn backend.app:app --port 8000
 ```
 Each detector's threshold is read from `SystemCode/artifacts/<system>/threshold.json` (dev EER, updated by every
 evaluation); `ADF_THRESHOLD` overrides it for the start-up system only. Pages: single detector, compare & arbitrate
-(two detectors + a LAYA/JEV judge; JEV needs `TYPESAFE_API_KEY`), rankings. The rankings page reads
+(two detectors + a LAYA/JEV judge; JEV needs a TypeSafe API key, from `TYPESAFE_API_KEY` or entered with the 🔑 button), rankings. The rankings page reads
 `SystemCode/artifacts/rankings.json`, built from `runs/` by `uv run make-rankings` (not tracked; copy it into the
 deployed volume after new evaluations).
 Open **`http://127.0.0.1:8000`** in any modern web browser to access the **Voice Spoof Check** interface.
+
+**Docker** (web app only, no training pipelines; the image holds the newest trained detectors):
+```bash
+cd SystemCode
+docker compose up          # pulls ghcr.io/qwenty228/echojev:latest; add --build to build it here
+```
+WavLM and LAYA load from this computer's Hugging Face cache (mounted at `/hf_cache`) or download on first use.
+Use `http://localhost:8000`: browsers allow the microphone only on localhost or HTTPS.
 
 ---
 
@@ -213,14 +222,18 @@ Open **`http://127.0.0.1:8000`** in any modern web browser to access the **Voice
 
 ### Key Benchmark Results Summary:
 
-| Architecture | Representation / Classifier | 2019 LA Eval (Raw EER) | 2019 LA Eval (Trimmed EER) | In-the-Wild (ITW EER) | Mean EER (8 Test Sets) |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **A1** | LFCC (60-dim) + 512-diag GMMs | 9.56% | 19.84% | 58.04% (chance) | ~40.2% |
-| **A4** | LFCC (Mean-pooled) + Neural Head | 14.21% | 22.15% | 48.60% | ~31.4% |
-| **A2** | Frozen WavLM Base+ + Neural Head | **0.96%** | 13.27% | **14.70%** | 12.8% |
-| **D1** | Concat LFCC + WavLM (Pooled) | 1.12% | 13.85% | 16.20% | 13.4% |
-| **D2 (R3)** | LFCC $\rightarrow$ WavLM (Layer 6) Cross-Attention | 7.19% | **7.19%** | 19.93% | **11.1%** |
-| **D3 (R3)** | Bidirectional LFCC $\leftrightarrow$ WavLM (Layer 6) | 7.42% | 7.42% | 19.85% | **11.3%** |
+EER (%) of the final trimmed-trained detectors (`uv run make-rankings`; D2/D3 read WavLM layer 6). Lower is better.
+
+| Architecture | Representation / Classifier | 2019 LA eval | In-the-Wild | 2021 LA eval | 2021 DF eval | MP3 32 kbps | Mean (10 test sets) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **A1** | LFCC + two 512-component GMMs | 20.49 | 58.25 | 34.08 | 29.12 | 39.25 | 35.94 |
+| **A4** | Mean-pooled LFCC + MLP head | 37.04 | 71.99 | 40.59 | 35.25 | 47.39 | 43.29 |
+| **A2** | Frozen WavLM Base+ + layer-weighted MLP head | 7.64 | **19.17** | 14.28 | 10.74 | **8.42** | 12.52 |
+| **D1** | Pooled LFCC + WavLM, concatenated | 7.79 | 33.21 | 16.80 | 22.62 | 21.91 | 19.05 |
+| **D2** (final) | LFCC → WavLM layer 6, one-way cross-attention | 7.19 | 19.93 | **10.09** | **10.02** | 8.45 | **10.99** |
+| **D3** | LFCC ↔ WavLM layer 6, two-way cross-attention | **6.55** | 22.68 | **10.09** | 11.18 | 9.19 | 11.53 |
+
+Raw-trained models looked far better in-domain (A1 9.56%, A2 0.96% on 2019 eval) because of the silence shortcut; trimming the test audio raised them to 19.84% and 13.27%.
 
 ---
 
@@ -236,15 +249,15 @@ Maintained under strict evidentiary discipline:
 
 ### [ 2 ] Research Notebooks (`SystemCode/notebooks/`)
 - `01_dataset_audit.ipynb`: Comprehensive distribution and integrity audit across ASVspoof splits.
-- `02_asvspoof2019_audit.ipynb`: Utterance duration, speaker overlap, and attack label profiling.
-- `03_a1_explained.ipynb`: Step-by-step acoustic feature decomposition and GMM scoring analysis.
-- `04_a2_explained.ipynb`: Layer-by-layer probing and linear probe evaluation across all 13 WavLM layers.
-- `05_test_results.ipynb`: Multi-condition degradation and cross-dataset evaluation compilation.
-- `06_jev.ipynb`: Decision layer prompting, schema definition, and confidence margin evaluation.
-- `07_results_summary.ipynb`: Final comparative tables and cross-architecture radar visualizations.
+- `02_asvspoof2019_audit.ipynb`: Splits, leakage on raw vs trimmed audio, and why the first run looked so good (leading silence).
+- `03_a1_explained.ipynb`: A1 results, which frames decide, and what is left after trimming (LFCC band and delta ablations).
+- `04_a2_explained.ipynb`: A2's learned layer weights and a per-layer probe of all 13 WavLM layers on every test set.
+- `05_test_results.ipynb`: EER, minDCF and F1 per test set for every detector; builds the arbitration test clips.
+- `06_jev.ipynb`: JEV and LAYA as judges: on one detector's evidence (FP1), then arbitrating between detectors.
+- `07_results_summary.ipynb`: Raw- vs trimmed-trained results, round 2 → round 3 (WavLM layer 12 → 6), all test sets.
 
-### [ 3 ] Standardized Experiment Registry (`SystemCode/runs/REGISTRY.md`)
-Every training and evaluation run records an immutable audit trail containing timestamp, Git commit SHA, dataset hash, random seed, hardware specifications, execution wall-clock time, peak RSS memory, and official metric results.
+### [ 3 ] Experiment Runs (`SystemCode/runs/`)
+Each evaluation writes `runs/E-<timestamp>-<system>/` with its config, dev calibration, metrics per test set and per-clip scores (layout: `SystemCode/runs/README.md`). `REGISTRY.md` logs the first experiments (to 2026-10-12) with Git SHA, seed, hardware, wall-clock time and memory.
 
 ---
 

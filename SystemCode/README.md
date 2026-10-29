@@ -1,6 +1,6 @@
 # EchoJEV — Audio Deepfake Detection
 
-Phase 1 implements six independent detectors with a shared training, artifact, caching, and evaluation workflow. Phase 2 (JEV/LAYA decision policies) is planned separately and is **not implemented**.
+Phase 1 implements six independent detectors with a shared training, artifact, caching, and evaluation workflow. Phase 2 tests JEV and LAYA as decision layers: first on one detector's score (FP1/FP2), now as judges that arbitrate between detectors (`modules/arbitrator.py`, `uv run arbitration`, notebook 06).
 
 ## Architectures
 
@@ -26,7 +26,7 @@ uv run python -m compileall -q src/audio_df src/backend
 uv run data-check --paths --verify
 ```
 
-Download instructions, manifest preparation, controlled noise/codec generation and optional external datasets: **[data/README.md](data/README.md)**. The evaluation matrix and research questions are in `frontend/implementation.html`.
+Download instructions, manifest preparation, controlled noise/codec generation and optional external datasets: **[data/README.md](data/README.md)**. The evaluation matrix and research questions are in `../docs/index.html`.
 
 ## Training and evaluation
 
@@ -41,7 +41,7 @@ Replace `a1` with `a2`, `a4`, `d1`, `d2` or `d3`. `train` creates `artifacts/<ar
 
 Training uses ASVspoof 2019 LA train/dev. External test sets are held out. By default, `--threshold-from dev` selects the operating threshold separately from `--testsets eval` (final testing). A dev-selected threshold is used for fixed-threshold metrics; EER and ROC AUC are score-based. `minDCF` is **not** the ASVspoof `min-tDCF`. Inspect metric settings before comparing historical runs.
 
-**Evaluation caveat:** silence-trimmed evaluation is the intended final protocol, but the current scoring paths have not been confirmed to apply trimming. Do not label existing scores “trimmed” unless the evaluated audio was actually trimmed. The A1 reference reproduction after the EM M-step fix reported 8.97% raw eval EER; do not mix this with historical trimmed results.
+**Silence:** final models train and test on silence-trimmed 2019 LA audio (each run's `config.yaml` records `train_preprocessing: trimmed` and the per-test-set mode); external test sets are evaluated raw. Raw-trained runs are kept only to show the silence shortcut (notebook 02); do not compare them with trimmed runs.
 
 ## Backend
 
@@ -51,14 +51,13 @@ ADF_SYSTEM=a1 uv run uvicorn backend.app:app --reload
 uv run uvicorn backend.app:app --env-file .env
 ```
 
-`ADF_SYSTEM` selects `a1`, `a2`, `a4`, `d1`, `d2`, or `d3`; `ADF_MODEL_FROM` pins an artifact (otherwise latest completed). `ADF_THRESHOLD` is optional: without a calibrated threshold, `/api/detect` returns a score but no verdict. The backend loads trained artifacts, never trains models. Keep secrets in `.env` (not Git); JEV configuration belongs to Phase 2.
+`ADF_SYSTEM` selects `a1`, `a2`, `a4`, `d1`, `d2`, or `d3`; `ADF_MODEL_FROM` pins an artifact (otherwise latest completed). Each detector's threshold is its dev EER threshold from `artifacts/<system>/threshold.json`, written by every evaluation; `ADF_THRESHOLD` overrides it for the start-up system only. Without a threshold, `/api/detect` returns a score but no verdict. The backend loads trained artifacts, never trains models. Keep secrets in `.env` (not Git).
 
 ### Docker
 
 The image holds the backend, frontend and `artifacts/` (CPU PyTorch, for `linux/amd64` and `linux/arm64`, so it runs natively on Apple Silicon too). From `SystemCode/`:
 
 ```bash
-docker login ghcr.io            # while the package is private: a GitHub token with read:packages
 docker compose pull             # ghcr.io/qwenty228/echojev:latest
 docker compose up               # http://localhost:8000; `up --build` builds it from this checkout instead
 ```
@@ -67,6 +66,6 @@ docker compose up               # http://localhost:8000; `up --build` builds it 
 - **JEV key:** click 🔑 in the app. The key is saved in the `echojev-secrets` Docker volume on this computer, never in the image or Git, and loaded again at every start. `TYPESAFE_API_KEY` in the environment takes precedence. Outside Docker the same button saves it to `.secrets/`.
 - Publishing a new image (no workflow): `docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/qwenty228/echojev:latest --push .`
 
-## Phase 1 validation status
+## Results
 
-A1 and A4 have reported real evaluation results. The remaining models, especially D2/D3 on real temporal caches and Windows CUDA, still need end-to-end validation before claiming Phase 1 experimental completion. `pytest` and synthetic smoke tests alone do not establish model performance. The current runtime is designed around 2019 LA training; external test-set manifests must be prepared and evaluated without using them for model selection.
+All six detectors are trained on trimmed 2019 LA and evaluated on ten test sets; `uv run make-rankings` collects them into `artifacts/rankings.json` (the app's leaderboard) and notebook 05 tabulates them. D2 (WavLM layer 6) has the lowest mean EER, 11.0%. `pytest` and synthetic smoke tests check the code, not model performance; external test sets are never used for model selection.

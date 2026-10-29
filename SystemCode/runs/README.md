@@ -1,60 +1,33 @@
 # `runs/` layout
 
-Each experiment run lives in its own directory, named by its experiment ID
-(`E-YYYYMMDD-<exp>-<system>-<silence_mode>[-<tag>]`, e.g. `E-20261001-e1-a1-raw`;
-built and validated by `audio_df.runtime.exp_io.make_exp_id`). `<exp>` is `e1`..`e6`
-(the experiments listed in the [README](../README.md)) or `dev`/`smoke` for tuning/smoke runs that are never scored as
-an experiment result. Directories are created by `audio_df.runtime.exp_io.create_experiment`
-and never hand-edited in place except for `notes.md`.
-
-Run directories stay local and are not tracked in git (see `.gitignore`); only this file and
-`REGISTRY.md` are. The experiment tables built from them are tracked in `reports/tables/`.
+Each evaluation writes one directory, `E-<UTC timestamp>-<system>` (for example
+`E-20261024-214524-879357-d2`), created by `audio_df.runtime`. Older runs from the first experiments use
+`E-YYYYMMDD-<exp>-<system>-<silence_mode>` (for example `E-20261001-e1-a1-raw`).
 
 ```
-runs/<exp_id>/
-  config.yaml    # system, experiment, data (splits/manifests), preprocessing
-                 # (sample_rate, crop_seconds, silence_mode), seed, features, ...
-  env.json       # machine + software provenance (audio_df.runtime.exp_io.capture_env)
-  notes.md       # free-text log: created-at stamp, any force-overwrite events,
-                 # anything a human wants attached to this run
-  scores/
-    <testset>.csv   # clip_id,label,score[,attack_id] — see convention below
-  run_summary.json  # optional: {wall_time_s, peak_rss_mb, mps_peak_mb,
-                     # swap_start_gb, swap_end_gb, swap_peak_gb, pressure_max};
-                     # written by whatever measured the run's resource usage.
-                     # score_experiment copies it verbatim into metrics.json's
-                     # "resources" key when present (audio_df.runtime.exp_io.format_resources
-                     # renders the same dict into REGISTRY.md's `resources` column).
-  metrics.json   # written by scoring.py / scripts/score_experiment.py, never
-                 # by training code directly
+runs/<run>/
+  config.yaml          # system, model_artifact, train_preprocessing, per-test-set silence mode, test sets
+  calibration.json     # dev EER and its threshold (the operating point for every test set)
+  metrics.json         # all test sets
+  metrics_<testset>.json  # eer, min_dcf, roc_auc, f1 at the dev threshold, dev_eer, threshold
+  scores/<testset>.csv    # clip_id, label, score[, attack_id]
 ```
 
-## Score file convention
+Every evaluation also replaces `artifacts/<system>/threshold.json` with its calibration, so the web app
+uses the newest threshold.
 
-`scores/<testset>.csv` columns: `clip_id`, `label` (`bonafide` or `spoof`), `score`,
-and an optional `attack_id`. **Higher `score` means more bona fide** (ASVspoof
-convention; matches `audio_df.evaluation.metrics`'s default `higher_is_spoof=False`). Test set
-names match `^[a-z0-9_]+$`, e.g. `dev`, `eval`, `itw`, `eval_mp3_32k`,
-`eval_opus_16k`, `eval_noise_10db`, `eval_resample_8k`, `jev_dev500`, `eff_eval1k`.
+## Score convention
 
-Score files are produced once and never re-run in place: `write_scores` refuses to
-overwrite an existing file unless `force=True`, and a forced overwrite is always
-logged in that run's `notes.md`.
+**Higher `score` means more bona fide** (ASVspoof convention). Labels are `bonafide` or `spoof`. Metrics
+come from `audio_df.evaluation.evaluate_scores`, which uses `audio_df.helpers.metrics`; the threshold is
+always chosen on `dev` (or `--threshold-from`) and reused unchanged on every other test set.
 
-## Metrics are computed once, downstream, from score files only
+## What is tracked
 
-Metrics are **never** computed inside training code. `scripts/score_experiment.py`
-(via `audio_df.evaluation.scoring.score_experiment`) reads every `scores/*.csv` in a run
-directory and writes `metrics.json`, reusing `audio_df.evaluation.metrics` functions
-(`compute_eer`, `roc_auc`, `prf1_at_threshold`, `per_attack_eer`, `min_dcf`) rather
-than reimplementing anything. Thresholds are always selected on `dev` (this run's own
-`scores/dev.csv`, or another run's via `--threshold-from` for dev-less subset runs)
-and reused unchanged on every other test set — never fit on eval/itw/etc.
+Run directories stay local except the whitelisted ones in `.gitignore` (runs that a tracked notebook,
+script or `threshold.json` reads). Large per-clip score files stay local unless something reads them;
+`metrics*.json` and `calibration.json` carry the reported numbers.
 
-## The registry
-
-`runs/REGISTRY.md` is the single run log across all experiment directories —
-one row per run, including failures. See its own header for column meanings.
-`scripts/make_tables.py` reads it (plus every `config.yaml`/`metrics.json`) to build
-`reports/tables/E1.md` .. `E6.md`, including only rows with `status: done` and
-excluding anything later marked `superseded`.
+`REGISTRY.md` is the hand-kept log of the first experiments (up to 2026-10-12). Later runs are not added
+to it; their `config.yaml`, `calibration.json` and `metrics*.json` describe them, and
+`uv run make-rankings` collects them into the app's leaderboard.
