@@ -46,15 +46,21 @@ TESTSETS = {  # id: (label, short tab label, group); "overall" is the mean EER o
 
 
 def score_at_threshold(scores: pd.DataFrame, threshold: float) -> dict[str, float]:
-    """EER plus what the app would decide at `threshold` (percentages, rounded)."""
+    """EER plus what the app would decide at `threshold`: counts, and percentages of each class."""
     spoof = scores.label.eq("spoof").to_numpy()
     called_spoof = scores.score.to_numpy() < threshold
     eer = compute_eer(scores.score, scores.label, higher_is_spoof=False)[0]
+    missed, false_alarms = int((spoof & ~called_spoof).sum()), int((~spoof & called_spoof).sum())
+    n_spoof, n_bonafide = int(spoof.sum()), int((~spoof).sum())
     return {
         "clips": int(len(scores)),
+        "spoof_clips": n_spoof,
+        "bonafide_clips": n_bonafide,
         "eer": round(100 * eer, 2),
-        "missed_spoofs": round(100 * (spoof & ~called_spoof).sum() / max(spoof.sum(), 1), 2),
-        "false_alarms": round(100 * (~spoof & called_spoof).sum() / max((~spoof).sum(), 1), 2),
+        "missed_spoofs_n": missed,
+        "false_alarms_n": false_alarms,
+        "missed_spoofs": round(100 * missed / max(n_spoof, 1), 2),
+        "false_alarms": round(100 * false_alarms / max(n_bonafide, 1), 2),
         "accuracy": round(100 * (called_spoof == spoof).mean(), 2),
     }
 

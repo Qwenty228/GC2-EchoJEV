@@ -326,8 +326,10 @@
           <div class="theory-title"><span>How to read this</span></div>
           <p class="theory-text">
             <strong>EER</strong>: error rate when missed spoofs equal false alarms; 50% is chance.<br>
-            <strong>Missed spoofs / false alarms</strong>: what the app decides at the detector's own
-            threshold, set on 2019 dev audio.<br>
+            <strong>Missed spoofs</strong>: spoof clips called bona fide, out of all spoof clips.
+            <strong>False alarms</strong>: bona fide clips called spoof, out of all bona fide clips.
+            Each is a share of its own class, so class imbalance does not skew it. Both are what the
+            app decides at the detector's own threshold, set on 2019 dev audio.<br>
             <strong>Overall</strong>: mean EER over all test sets.
           </p>
         </div>
@@ -785,6 +787,10 @@
       }
     }
 
+    // "errors / clips of that class (%)"; older rankings.json files have only the percentage
+    const rate = (n, of, p) => (n == null || of == null
+      ? pct(p) : `${n.toLocaleString()} / ${of.toLocaleString()} <span class="drop-hint">(${pct(p)})</span>`);
+
     function renderLeaderboard(setId) {
       const set = rankings.testsets.find((t) => t.id === setId);
       $("rankings-description").textContent = set
@@ -805,8 +811,8 @@
             <div class="eer-bar"><span style="width: ${Math.min(100, (m.eer / 50) * 100)}%"></span></div>
             ${pct(m.eer)}
           </td>
-          <td class="num-cell">${pct(m.missed_spoofs)}</td>
-          <td class="num-cell">${pct(m.false_alarms)}</td>
+          <td class="num-cell">${rate(m.missed_spoofs_n, m.spoof_clips, m.missed_spoofs)}</td>
+          <td class="num-cell">${rate(m.false_alarms_n, m.bonafide_clips, m.false_alarms)}</td>
           <td class="num-cell">${setId === "overall" ? "all sets" : m.clips.toLocaleString()}</td>
         </tr>`).join("");
     }
