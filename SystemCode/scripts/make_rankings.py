@@ -90,6 +90,8 @@ def detector_rows(runs_dir: Path) -> list[dict]:
 def arbitration_rows(runs_dir: Path) -> list[dict]:
     rows = []
     for run in sorted(runs_dir.glob("E-*-arbitration")):
+        if not (run / "cases.csv").exists():  # crashed or emptied before any results were saved
+            continue
         cases = pd.read_csv(run / "cases.csv")
         meta_path = run / "judge.json"
         # Runs made before judge.json was written all used LAYA.
