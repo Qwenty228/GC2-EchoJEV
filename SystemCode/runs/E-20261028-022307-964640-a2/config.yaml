@@ -1,0 +1,17 @@
+architecture: a2
+dataset: spoofceleb
+model_artifact: artifacts/a2/20261026-235720-322053
+testsets:
+- eval
+seed: 1337
+train_preprocessing: raw
+split_roles:
+  dev: validation_threshold
+  eval: held_out_test
+reported_metrics: held_out_test_only
+threshold_source: dev
+evaluation_preprocessing:
+  testsets:
+    dev: raw
+    eval: raw
+  trim_recipe: null
