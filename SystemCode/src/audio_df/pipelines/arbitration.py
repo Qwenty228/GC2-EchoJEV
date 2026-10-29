@@ -81,16 +81,16 @@ def evidence(row: dict[str, Any], det: dict[str, dict[str, Any]], order) -> list
 @Run.cli(dataset="2019LA")
 def main(run: Run) -> None:
     """Arbitration test on fixed In-the-Wild clips (six detectors); the judge is set in configs/arbitrator.yaml."""
+    config = load_config(ArbitratorConfig)  # read once: editing the yaml mid-run changes nothing
     cases, det = load_cases(run.root)
+    meta = {"judge": config.judge, "detectors": {m: d["name"] for m, d in det.items()}}
+    (run.output / "judge.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     for variant in VARIANTS:
         for name, order in ORDERS.items():
             requests = [request(evidence(r, det, order), variant) for r in cases.to_dict("records")] # type: ignore
-            cases[f"{variant} | {name}"] = [decide(req)["choice"] for req in requests]
+            cases[f"{variant} | {name}"] = [decide(req, config)["choice"] for req in requests]
+            cases.to_csv(run.output / "cases.csv", index=False)  # after each column: a crash keeps the rest
             print(f"  {variant} | {name}: done", flush=True)
-    cases.to_csv(run.output / "cases.csv", index=False)
-    meta = {"judge": load_config(ArbitratorConfig).judge,
-            "detectors": {m: d["name"] for m, d in det.items()}}
-    (run.output / "judge.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"Saved: {run.output / 'cases.csv'}")
 
 
