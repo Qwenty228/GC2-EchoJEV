@@ -205,7 +205,7 @@ def create_app(
             raise HTTPException(413, f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
         return decode_audio(data)
 
-    def score_single(model: Any, sys_name: str, x: np.ndarray, orig_sr: int) -> tuple[float, float]:
+    def score_single(model: Any, sys_name: str, x: np.ndarray, orig_sr: int) -> float:
         target_sr = _sample_rate(model, sys_name)
         waveform = _mono_resample(x, orig_sr, target_sr)
         if np.abs(waveform).max() < SILENT_PEAK:
@@ -224,7 +224,7 @@ def create_app(
             raise HTTPException(500, f"Detector {sys_name} inference failed") from exc
         if not np.isfinite(score):
             raise HTTPException(500, f"Detector {sys_name} returned non-finite score")
-        return score, speech_s
+        return score
 
     def apply_policy(name: str, score: float, threshold: float | None) -> dict[str, Any]:
         """Run JEV or LAYA on the same case FP1/FP2 use; return its answers and the full request."""
@@ -311,12 +311,11 @@ def create_app(
         sys_name = require_available("system", system)
         x, sr = read_upload(file)
         model, artifact = get_loaded_detector(sys_name)
-        score, speech_s = score_single(model, sys_name, x, sr)
+        score = score_single(model, sys_name, x, sr)
         thr, thr_source = threshold_for(sys_name, artifact)
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
-            "speech_s": round(speech_s, 3),
             "system": sys_name,
             "model_version": artifact.name,
             "score": score,
@@ -348,7 +347,7 @@ def create_app(
         for field, value in (("model_a", model_a), ("model_b", model_b)):
             sys_name = require_available(field, value)
             model, artifact = get_loaded_detector(sys_name)
-            score, speech_s = score_single(model, sys_name, x, sr)
+            score = score_single(model, sys_name, x, sr)
             thr = threshold_for(sys_name, artifact)[0]
             stored = artifacts.threshold(artifact)
             p = artifacts.p_bonafide(stored, score)
@@ -362,7 +361,7 @@ def create_app(
                 "score": score, "threshold": thr, "margin": score - thr, "p_bonafide": p,
                 "error_rate_pct": stored.get("error_rate_pct"),
                 "prediction": "bonafide" if score >= thr else "spoof",
-                "features": SYSTEM_METADATA[sys_name]["domain"], "speech_s": speech_s,
+                "features": SYSTEM_METADATA[sys_name]["domain"],
             })
 
         evidence = [{"name": s["name"], "verdict": s["prediction"], "p_bonafide": s["p_bonafide"],
@@ -392,7 +391,6 @@ def create_app(
         return {
             "filename": file.filename,
             "duration_s": round(len(x) / sr, 3),
-            "speech_s": round(sides[0]["speech_s"], 3),
             "model_a": card(sides[0]),
             "model_b": card(sides[1]),
             "arbitration": {

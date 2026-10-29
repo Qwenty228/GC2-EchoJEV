@@ -126,14 +126,6 @@
             <div class="metric-val" id="threshold">-</div>
           </div>
           <div class="metric-item">
-            <div class="metric-label">Speech Duration <span class="info" tabindex="0" data-tip="Sound left after trimming leading and trailing silence / total clip length. Detectors see only this part; WavLM-based ones use a 4 s centre crop of it.">i</span></div>
-            <div class="metric-val" id="audio">-</div>
-          </div>
-          <div class="metric-item">
-            <div class="metric-label">Detector Model <span class="info" tabindex="0" data-tip="Detector and the trained artifact (its timestamp) that scored the clip.">i</span></div>
-            <div class="metric-val" id="system">-</div>
-          </div>
-          <div class="metric-item">
             <div class="metric-label">Inference Latency <span class="info" tabindex="0" data-tip="Time from upload to answer, measured in your browser.">i</span></div>
             <div class="metric-val" id="latency">-</div>
           </div>
@@ -405,22 +397,24 @@
     });
 
     // --- Load Models & System Info ---
-    fetch("/api/model")
-      .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e.detail))))
-      .then((m) => {
-        $("model").textContent = `${m.system.toUpperCase()} · ${m.model_version}`;
-        $("system-badge").textContent = `${m.system.toUpperCase()} Active`;
-      })
-      .catch((e) => { $("model").textContent = String(e); });
-
     fetch("/api/models")
-      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(e.detail))))
       .then((data) => {
         availableModels = data.models || [];
         populateModelDropdowns(availableModels, data.current_system);
         populateJudges(data.judges || {}, data.default_judge);
+        showSelected();
       })
-      .catch(() => {});
+      .catch((e) => { $("model").textContent = String(e); });
+
+    // Header badge and subtitle follow the Single Detector dropdown.
+    function showSelected() {
+      const m = availableModels.find((x) => x.id === $("single-system").value);
+      if (!m) return;
+      $("model").textContent = `${m.id.toUpperCase()} ${m.name} · ${m.artifact}`;
+      $("system-badge").textContent = `${m.id.toUpperCase()} Active`;
+    }
+    $("single-system").addEventListener("change", showSelected);
 
     const BEST = "d2";  // final model: lowest mean EER over the 10 test sets
 
@@ -625,8 +619,6 @@
         
         $("score").textContent = fmt(data.score, 4);
         $("threshold").textContent = data.threshold == null ? "Not set" : fmt(data.threshold, 4);
-        $("audio").textContent = `${fmt(data.speech_s, 1)} s / ${fmt(data.duration_s, 1)} s`;
-        $("system").textContent = `${data.system.toUpperCase()} · ${data.model_version}`;
         $("latency").textContent = `${fmt(performance.now() - started, 0)} ms`;
 
         // Update Decision Boundary Gauge
