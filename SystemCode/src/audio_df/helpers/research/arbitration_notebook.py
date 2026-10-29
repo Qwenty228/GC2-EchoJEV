@@ -10,30 +10,57 @@ from typing import Any
 import librosa
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
 
 from audio_df.helpers.audio import load_audio
 from audio_df.helpers.eval_audio import TRIM_RECIPE
 from audio_df.helpers.metrics import compute_eer
 from audio_df.modules import jev, laya
 from audio_df.modules.jev import JEVState
-from audio_df.pipelines.arbitration import ORDERS
+from audio_df.pipelines.arbitration import ORDERS, RUNS
 
 SR = 16000
 
 
 def build_cases(results: dict, models=("a1", "a2", "a4"), n: int = 200, keep: str = "ITW_11249",
                 seed: int = 0) -> list[int]:
-    """In-the-Wild file numbers where the detectors split at their dev EER thresholds."""
+    """In-the-Wild file numbers where the detectors split at their dev EER thresholds: n clips, half
+    bona fide and half spoof, `keep` (bona fide) counted among them."""
     verdicts = {}
     for m in models:
         s = results[(m, "trimmed")]["scores"]
         thr = compute_eer(s["dev"].score, s["dev"].label, higher_is_spoof=False)[1]
         verdicts[m] = s["itw"].set_index("clip_id").score >= thr
     v = pd.DataFrame(verdicts)
+    label = s["itw"].set_index("clip_id").label.loc[v.index]
     split = v.index[v.nunique(axis=1) > 1]
     print(f"detectors split on {len(split):,} of {len(v):,} In-the-Wild clips")
-    rest = pd.Series(split[split != keep]).sample(n, random_state=seed)
+    pool = label.loc[split].drop(keep)
+    rest = [*pool[pool == "bonafide"].sample(n // 2 - 1, random_state=seed).index,
+            *pool[pool == "spoof"].sample(n // 2, random_state=seed).index]
     return [int(c.removeprefix("ITW_")) for c in [keep, *rest]]
+
+
+def recalibrate(cases: pd.DataFrame, root: Path, seed: int = 0) -> pd.DataFrame:
+    """`cases` with each detector's verdict (EER threshold) and P(bona fide) (Platt) refit on
+    In-the-Wild, two folds by speaker: a clip's fit comes from the other half of the speakers."""
+    root = Path(root)
+    speaker = pd.read_csv(root / "data/manifests/itw.csv", usecols=["utt_id", "speaker_id"]
+                          ).set_index("utt_id").speaker_id
+    names = speaker.drop_duplicates().sample(frac=1, random_state=seed).to_numpy()
+    fold = speaker.map({s: i % 2 for i, s in enumerate(names)})
+    out, case_fold = cases.copy(), fold.loc[cases.clip_id].to_numpy()
+    for m, (_, run) in RUNS.items():
+        itw = pd.read_csv(root / run / "scores" / "itw.csv").set_index("clip_id")
+        itw_fold = fold.loc[itw.index].to_numpy()
+        test = itw.loc[cases.clip_id, ["score"]]
+        for f in (0, 1):
+            fit, here = itw[itw_fold != f], case_fold == f
+            thr = compute_eer(fit.score, fit.label, higher_is_spoof=False)[1]
+            platt = LogisticRegression().fit(fit[["score"]], fit.label == "bonafide")
+            out.loc[here, f"v_{m}"] = np.where(test.score[here] >= thr, "bonafide", "spoof")
+            out.loc[here, f"p_{m}"] = platt.predict_proba(test[here])[:, 1]
+    return out
 
 
 def audio_facts(path) -> dict[str, float]:
