@@ -109,7 +109,9 @@ def write_latest_thresholds(root: str | Path) -> dict[str, str]:
         evaluated = [k for k in own if newest(k, "calibration.json")]
         if not evaluated:
             continue
-        key = max(evaluated)
+        # Prefer artifacts whose weights are on this machine, so the app can use the threshold.
+        here = [k for k in evaluated if (artifacts_dir(root) / k / "COMPLETE").is_file()]
+        key = max(here or evaluated)
         cal, dev, la = (newest(key, n) for n in
                         ("calibration.json", "scores/dev.csv", "metrics_asvspoof2021_eval.json"))
         record = json.loads((cal / "calibration.json").read_text(encoding="utf-8"))

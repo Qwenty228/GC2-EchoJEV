@@ -110,7 +110,7 @@
           </div>
           <div class="gauge-labels">
             <span>High Spoof Confidence</span>
-            <span id="gauge-margin-label">Margin: 0.00</span>
+            <span><span id="gauge-margin-label">Margin: 0.00</span> <span class="info" tabindex="0" data-tip="Margin = score − threshold. Positive = bona fide side. Its size is not comparable across detectors.">i</span></span>
             <span>High Bona Fide Confidence</span>
           </div>
         </div>
@@ -118,23 +118,23 @@
         <!-- Key Metrics Grid -->
         <div class="metrics-grid">
           <div class="metric-item">
-            <div class="metric-label">Raw Acoustic Score</div>
+            <div class="metric-label">Raw Acoustic Score <span class="info" tabindex="0" data-tip="The detector&#39;s raw output. Higher = more like real speech. The scale differs per detector (A1: log-likelihood ratio; neural detectors: logit), so compare it only with the same detector&#39;s threshold.">i</span></div>
             <div class="metric-val" id="score">-</div>
           </div>
           <div class="metric-item">
-            <div class="metric-label">Calibrated Threshold</div>
+            <div class="metric-label">Calibrated Threshold <span class="info" tabindex="0" data-tip="The score where this detector&#39;s misses and false alarms are equal on ASVspoof 2019 dev (EER threshold). Score ≥ θ → bona fide.">i</span></div>
             <div class="metric-val" id="threshold">-</div>
           </div>
           <div class="metric-item">
-            <div class="metric-label">Speech Duration</div>
+            <div class="metric-label">Speech Duration <span class="info" tabindex="0" data-tip="Sound left after trimming leading and trailing silence / total clip length. Detectors see only this part; WavLM-based ones use a 4 s centre crop of it.">i</span></div>
             <div class="metric-val" id="audio">-</div>
           </div>
           <div class="metric-item">
-            <div class="metric-label">Detector Model</div>
+            <div class="metric-label">Detector Model <span class="info" tabindex="0" data-tip="Detector and the trained artifact (its timestamp) that scored the clip.">i</span></div>
             <div class="metric-val" id="system">-</div>
           </div>
           <div class="metric-item">
-            <div class="metric-label">Inference Latency</div>
+            <div class="metric-label">Inference Latency <span class="info" tabindex="0" data-tip="Time from upload to answer, measured in your browser.">i</span></div>
             <div class="metric-val" id="latency">-</div>
           </div>
         </div>
@@ -194,11 +194,12 @@
               <span>🤖</span>
               <span id="arb-judge">Judge decision</span>
             </div>
-            <span id="arb-badge" class="arb-badge">Arbitrated</span>
+            <span class="arb-status"><span id="arb-badge" class="arb-badge">Arbitrated</span> <span class="info" tabindex="0" data-tip="Unanimous: both detectors agree and the judge follows them. Arbitrated: the detectors disagree and the judge picks a side, or it overrules both. Escalated: the judge answers uncertain.">i</span></span>
           </div>
           <p class="arb-rationale" id="arb-rationale">Analyzing decision evidence...</p>
 
           <!-- Probability Distribution Bars -->
+          <div class="prob-caption">Judge&#39;s answer probabilities <span class="info" tabindex="0" data-tip="The judge&#39;s own probability for each answer to &#39;Which verdict should be trusted?&#39;. Not calibrated on our data.">i</span></div>
           <div class="prob-bars">
             <div class="prob-item">
               <div class="prob-name">
@@ -229,8 +230,27 @@
             </div>
           </div>
           <details class="arb-request">
-            <summary>Request sent to the judge</summary>
-            <pre id="arb-request"></pre>
+            <summary>What the judge was sent</summary>
+            <p>Prompt (sent as <code>decision_guidance</code>)</p>
+            <pre id="arb-prompt"></pre>
+            <p>Evidence (sent as <code>context</code>)</p>
+            <pre id="arb-context"></pre>
+            <p>Question and answer options</p>
+            <pre id="arb-questions"></pre>
+            <p class="drop-hint">No audio, clip name or label is sent. Both judges get the same request.</p>
+          </details>
+          <details class="arb-request">
+            <summary>About LAYA and JEV</summary>
+            <p><b>LAYA</b> · open-source model from Convai Innovations
+              (<code>convaiinnovations/laya</code>), runs on this machine, free. A ModernBERT-based
+              encoder: it does not write text; in one pass it reads the prompt and evidence and gives
+              a probability to each answer option.</p>
+            <p><b>JEV</b> · TypeSafe&#39;s hosted model (<code>jev-latest</code>), called over the
+              API, paid per call, offered only when <code>TYPESAFE_API_KEY</code> is set. Same
+              request format and same kind of answer; its internals are not published.</p>
+            <p><b>What we found so far</b> (notebook 06): given one detector&#39;s result, JEV only echoed it (FP1: it repeated D2 on all 180 clips).
+              As judges between detectors, LAYA follows the detector listed first and never abstains.
+              Treat the judge&#39;s answer as an experiment, not a better detector.</p>
           </details>
         </div>
 
@@ -246,8 +266,8 @@
               <span class="model-verdict-chip" id="card-verdict-a">Verifying</span>
             </div>
             <div class="margin-bar-box">
-              <div>Acoustic Score: <strong id="card-score-a">-</strong> (θ = <span id="card-th-a">-</span>)</div>
-              <div>P(bona fide): <strong id="card-p-a">-</strong></div>
+              <div>Acoustic Score: <strong id="card-score-a">-</strong> (θ = <span id="card-th-a">-</span>) <span class="info" tabindex="0" data-tip="The detector&#39;s raw output. Higher = more like real speech. The scale differs per detector (A1: log-likelihood ratio; neural detectors: logit), so compare it only with the same detector&#39;s threshold. The score where this detector&#39;s misses and false alarms are equal on ASVspoof 2019 dev (EER threshold). Score ≥ θ → bona fide.">i</span></div>
+              <div>P(bona fide): <strong id="card-p-a">-</strong> <span class="info" tabindex="0" data-tip="The score turned into a probability with a Platt fit on dev scores: sigmoid(a·score + b). Unlike the raw score, it is comparable across detectors. The judge gets this and the verdict.">i</span></div>
             </div>
           </div>
 
@@ -261,8 +281,8 @@
               <span class="model-verdict-chip" id="card-verdict-b">Verifying</span>
             </div>
             <div class="margin-bar-box">
-              <div>Acoustic Score: <strong id="card-score-b">-</strong> (θ = <span id="card-th-b">-</span>)</div>
-              <div>P(bona fide): <strong id="card-p-b">-</strong></div>
+              <div>Acoustic Score: <strong id="card-score-b">-</strong> (θ = <span id="card-th-b">-</span>) <span class="info" tabindex="0" data-tip="The detector&#39;s raw output. Higher = more like real speech. The scale differs per detector (A1: log-likelihood ratio; neural detectors: logit), so compare it only with the same detector&#39;s threshold. The score where this detector&#39;s misses and false alarms are equal on ASVspoof 2019 dev (EER threshold). Score ≥ θ → bona fide.">i</span></div>
+              <div>P(bona fide): <strong id="card-p-b">-</strong> <span class="info" tabindex="0" data-tip="The score turned into a probability with a Platt fit on dev scores: sigmoid(a·score + b). Unlike the raw score, it is comparable across detectors. The judge gets this and the verdict.">i</span></div>
             </div>
           </div>
         </div>
@@ -420,6 +440,31 @@
       ).join("");
       $("compare-judge").value = judges[preferred]?.available ? preferred : "laya";
     }
+
+    // (i) tooltips: one floating box, kept inside the viewport
+    const tip = document.createElement("div");
+    tip.className = "info-tip";
+    tip.hidden = true;
+    document.body.appendChild(tip);
+    function showTip(e) {
+      const icon = e.target.closest(".info");
+      if (!icon) return;
+      tip.textContent = icon.dataset.tip;
+      tip.hidden = false;
+      const r = icon.getBoundingClientRect();
+      const w = tip.offsetWidth;
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+      const below = r.bottom + 6 + tip.offsetHeight < window.innerHeight;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${below ? r.bottom + 6 : r.top - tip.offsetHeight - 6}px`;
+    }
+    function hideTip(e) {
+      if (e.target.closest(".info")) tip.hidden = true;
+    }
+    document.addEventListener("mouseover", showTip);
+    document.addEventListener("focusin", showTip);
+    document.addEventListener("mouseout", hideTip);
+    document.addEventListener("focusout", hideTip);
 
     // --- Single View Form Handlers ---
     function setSingleClip(blob, name) {
@@ -672,7 +717,9 @@
       badge.textContent = arb.status.toUpperCase();
       $("arb-rationale").textContent = arb.rationale;
       $("arb-judge").textContent = `${arb.judge_label} · request: ${arb.variant}`;
-      $("arb-request").textContent = JSON.stringify(arb.request, null, 2);
+      $("arb-prompt").textContent = arb.request.prompt;
+      $("arb-context").textContent = JSON.stringify(arb.request.context, null, 2);
+      $("arb-questions").textContent = JSON.stringify(arb.request.questions, null, 2);
 
       // Probabilities
       const pReal = (arb.probabilities.bonafide * 100).toFixed(0);

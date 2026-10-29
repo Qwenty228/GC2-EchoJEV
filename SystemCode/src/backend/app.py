@@ -353,8 +353,10 @@ def create_app(
             stored = artifacts.threshold(artifact)
             p = artifacts.p_bonafide(stored, score)
             if thr is None or p is None:
-                raise HTTPException(409, f"No stored calibration for {sys_name}; evaluate it "
-                                         "or run `python -m audio_df.helpers.artifacts`")
+                raise HTTPException(409, f"No calibration for {sys_name} artifact {artifact.name}: "
+                                         f"artifacts/{sys_name}/threshold.json is missing or for "
+                                         "another artifact. Evaluate this artifact, or run "
+                                         "`python -m audio_df.helpers.artifacts` if runs/ has it")
             sides.append({
                 "system": sys_name, "name": detector_name(sys_name), "artifact": artifact.name,
                 "score": score, "threshold": thr, "margin": score - thr, "p_bonafide": p,
