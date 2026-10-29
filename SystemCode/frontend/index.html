@@ -303,9 +303,9 @@
               <tr>
                 <th style="width: 50px;">#</th>
                 <th>Detector</th>
-                <th>EER</th>
-                <th>Missed spoofs</th>
-                <th>False alarms</th>
+                <th>EER <span class="info" tabindex="0" data-tip="Equal error rate: the error when missed spoofs equal false alarms; 50% is chance. Overall: mean EER over all test sets.">i</span></th>
+                <th>Missed spoofs <span class="info" tabindex="0" data-tip="Spoof clips called bona fide / all spoof clips (%). A share of its own class, so class imbalance does not skew it. At the detector&#39;s own threshold, set on 2019 dev audio.">i</span></th>
+                <th>False alarms <span class="info" tabindex="0" data-tip="Bona fide clips called spoof / all bona fide clips (%). A share of its own class, so class imbalance does not skew it. At the detector&#39;s own threshold, set on 2019 dev audio.">i</span></th>
                 <th>Clips</th>
               </tr>
             </thead>
@@ -313,17 +313,6 @@
               <tr><td colspan="6" class="drop-hint" style="text-align: center; padding: 2rem;">Loading…</td></tr>
             </tbody>
           </table>
-        </div>
-        <div class="theory-box">
-          <div class="theory-title"><span>How to read this</span></div>
-          <p class="theory-text">
-            <strong>EER</strong>: error rate when missed spoofs equal false alarms; 50% is chance.<br>
-            <strong>Missed spoofs</strong>: spoof clips called bona fide, out of all spoof clips.
-            <strong>False alarms</strong>: bona fide clips called spoof, out of all bona fide clips.
-            Each is a share of its own class, so class imbalance does not skew it. Both are what the
-            app decides at the detector's own threshold, set on 2019 dev audio.<br>
-            <strong>Overall</strong>: mean EER over all test sets.
-          </p>
         </div>
       </div>
 
@@ -334,12 +323,12 @@
           <table class="leaderboard-table">
             <thead>
               <tr>
-                <th>Judge</th>
-                <th>Request</th>
-                <th>Detectors listed</th>
-                <th>Decided</th>
-                <th>Right on decided</th>
-                <th>Best single detector</th>
+                <th>Judge <span class="info" tabindex="0" data-tip="LAYA: open-source ModernBERT-based model, runs locally and free; it does not write text, it gives each answer option a probability in one pass. JEV: TypeSafe&#39;s hosted model, paid per call, internals not published. Both get the same request.">i</span></th>
+                <th>Request <span class="info" tabindex="0" data-tip="What the judge is shown per detector, e.g. verdicts only, or verdicts with P(bona fide). Never audio, clip name or label.">i</span></th>
+                <th>Detectors listed <span class="info" tabindex="0" data-tip="The same clips asked twice with the detectors in a different order. A fair judge answers the same both times.">i</span></th>
+                <th>Decided <span class="info" tabindex="0" data-tip="Share of clips where the judge picked bona fide or spoof instead of uncertain.">i</span></th>
+                <th>Right on decided <span class="info" tabindex="0" data-tip="Accuracy on the clips the judge decided. Highlighted only if it beats the best single detector while deciding every clip.">i</span></th>
+                <th>Best single detector <span class="info" tabindex="0" data-tip="The detector alone with the highest accuracy on the same clips: the bar the judge has to beat.">i</span></th>
               </tr>
             </thead>
             <tbody id="arbitration-body"></tbody>
