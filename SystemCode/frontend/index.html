@@ -420,14 +420,16 @@
       })
       .catch(() => {});
 
+    const BEST = "d2";  // final model: lowest mean EER over the 10 test sets
+
     function populateModelDropdowns(models, current) {
       const optHtml = models.map((m) =>
-        `<option value="${m.id}" ${m.available ? "" : "disabled"}>${m.id.toUpperCase()}: ${m.name}${m.available ? "" : " (not on this machine)"}</option>`
+        `<option value="${m.id}" ${m.available ? "" : "disabled"}>${m.id.toUpperCase()}: ${m.name}${m.id === BEST ? " (best)" : ""}${m.available ? "" : " (not on this machine)"}</option>`
       ).join("");
       const usable = models.filter((m) => m.available).map((m) => m.id);
       const pick = (preferred, fallback) => usable.includes(preferred) ? preferred : (fallback || "");
       $("single-system").innerHTML = optHtml;
-      $("single-system").value = pick(current, usable[0]);
+      $("single-system").value = pick(BEST, pick(current, usable[0]));
       $("compare-model-a").innerHTML = optHtml;
       $("compare-model-b").innerHTML = optHtml;
       $("compare-model-a").value = pick("a2", usable[0]);
